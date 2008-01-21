@@ -1,0 +1,247 @@
+<?php
+/**
+ * @file
+ * Subscriptions to taxonomy terms
+ */
+
+/**
+ * Implementation of hook_menu_()
+ */
+function notifications_tags_menu($may_cache) {
+  global $user;  // we need the user to to build some urls
+  $items = array();
+  
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/notifications/settings/taxonomy',
+      'title' => t('Taxonomy'),
+      'type' => MENU_LOCAL_TASK,
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('notifications_tags_settings_form'),
+    );
+  } else {
+    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
+      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
+      $items[] = array(
+        'path' => 'user/'. $account->uid .'/notifications/tags',
+        'type' => MENU_LOCAL_TASK,
+        'access' => user_access('subscribe to taxonomy terms'),
+        'title' => t('Tags'),
+        'callback' => 'notifications_tags_user_page',
+        'callback arguments' => array($account),
+        'weight' => 10,
+      );
+    }
+  }
+  return $items;
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function notifications_tags_perm() {
+  return array('subscribe to taxonomy terms');
+}
+
+/**
+ * Implementation of hook_notifications().
+ */
+function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+  switch ($op) {
+    case 'names':
+      $subs = &$arg0;
+      if ($subs->event_type == 'node') {
+        if (!empty($subs->fields['tid'])) {
+          $term = taxonomy_get_term($subs->fields['tid']);
+          $subs->names['term'] = t('Term: %name', array('%name' => $term->name));
+        }
+      }
+      break;
+    case 'subscription types':
+      $types['taxonomy'] = array(
+        'event_type' => 'node',
+        'title' => t('Taxonomy'),
+        'access' => 'subscribe to taxonomy terms',
+        'page' => 'notifications_tags_page_tags',
+        'fields' => array('tid'),
+      );
+      return $types;    
+    case 'query':
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
+          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2))      
+      {
+        $params[] = array(
+          'join' => "LEFT JOIN {term_node} t ON f.field = 'tid' AND f.value = t.tid",
+          'where' => 't.nid = %d',
+          'args' => array($node->nid),
+        );
+        return $params;
+      }
+      break;
+    /* We cannot add these options for every taxonomy term, will be too much
+    case 'node options':
+        $account = &$arg0;
+        $node = &$arg1;
+        $options = array();        
+        $vocabularies = notifications_tags_vocabularies();
+        foreach ($node->taxonomy as $tid => $term) {
+          if (isset($vocabularies[$term->vid])) {
+            // Taxonomy term
+            $options['taxonomy']['tid'][] = array(
+              'name' => t('Subscribe to posts in %term.', array('%term' => $term->name)),
+              'fields' => array('tid' => $tid),
+            );
+            $options['taxonomy']['tid_author'][] = array(
+              'name' => t('Subscribe to posts in %term by %name', array('%term' => $term->name, '%name' => $node->name)),
+              'fields' => array('tid' => $tid, 'author' => $node->uid),
+            );
+          }
+        }
+        return $options;
+    */
+  }
+}
+
+/**
+ * Admin settings form. Omitted taxonomy vocabularies.
+ */
+function notifications_tags_settings_form() {
+
+  $vocabularies = taxonomy_get_vocabularies();
+  foreach ($vocabularies as $vocabulary) {
+    $select[$vocabulary->vid] = $vocabulary->name;
+  }
+
+  $form['notifications_omitted_taxa'] = array(
+    '#type'          => 'checkboxes',
+    '#title'         => t('Omitted vocabularies'),
+    '#default_value' => variable_get('notifications_omitted_taxa', array()),
+    '#options'       => $select,
+    '#description'   => t('Select vocabularies which should be <strong>omitted</strong> from subscription listings.'),
+    '#multiple'      => TRUE,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Returns a list of taxonomy subscriptions
+ */
+function notifications_tags_user_page($account = NULL) {
+  global $user;
+  
+  if (is_null($account)) {
+    $account = $user;
+  }
+
+  return drupal_get_form('notifications_tags_user_form',  $account);
+}
+
+/**
+ * Returns the taxonomy subscription form
+ */
+function notifications_tags_user_form($account) {
+  // query string for category subscriptions
+  $vocabularies = notifications_tags_vocabularies();
+  $subscriptions = notifications_get_subscriptions(array('type' => 'taxonomy', 'uid' => $account->uid), array('tid' => NULL), TRUE, 'value');
+  // Complete defaults
+  $defaults = array(
+    'sid' => 0, 
+    'send_interval' => variable_get('notifications_default_send_interval', 0), 
+    'send_method' => variable_get('notifications_default_send_method', ''),
+    'type' => 'taxonomy',
+    'event_type' => 'node',
+  );
+  $form['defaults'] = array('#type' => 'value', '#value' => $defaults);
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
+    
+  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
+
+  //$subsrows['subform'][] = array('#value' => t('Current subscriptions:'));
+
+  $form['subscriptions'] = array(
+    '#tree' => TRUE,
+  );
+  foreach ($vocabularies as $vid => $vocab) {
+    // display vocabulary name and group terms together
+    $form['subscriptions'][$vid] = array(
+      '#type' => 'fieldset',
+      '#title' => $vocab->name,
+      '#tree' => TRUE,
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+      '#theme' => 'notifications_form_table',
+      '#header' => array('', t('Term'), t('Send interval'), t('Send method'))
+    );    
+    // @ TODO create mechanism to allow users to
+    //        subscribe to all terms under this vocabulary
+
+    $tree = taxonomy_get_tree($vocab->vid);
+    $field = 'tid';
+    foreach ($tree as $term) {
+      $key = $term->tid;
+      $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : array();
+      $rowdefaults += $defaults;
+      $form['subscriptions'][$vid]['checkbox'][$key] = array(
+        '#type' => 'checkbox',
+        '#default_value' => $rowdefaults['sid'],
+      );
+      $form['subscriptions'][$vid]['title'][$key] = array(
+        '#value' => $term->name,
+      );
+      $form['subscriptions'][$vid]['send_interval'][$key] = array(
+        '#type' => 'select',
+        '#options' => _notifications_send_intervals(),
+        '#default_value' => $rowdefaults['send_interval'],
+      );
+      $form['subscriptions'][$vid]['send_method'][$key] = array(
+        '#type' => 'select',
+        '#options' => _notifications_send_methods(),
+        '#default_value' => $rowdefaults['send_method'],
+      );
+      // Pass on the fields for processing
+      $form['subscription_fields']['#value'][$key] = array($field => $key);
+    
+    }
+  }
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+
+  return $form;
+}
+
+/**
+ * Form submission
+ */
+function notifications_tags_user_form_submit($form_id, $form_values) {
+  // Regroup parameters and pass on
+  $values = array();
+  foreach ($form_values['subscriptions'] as $vid => $terms) {
+    foreach ($terms as $tid => $term_values) {
+      $values[$tid] = $term_values;
+    }
+  }
+  $form_values['subscriptions'] = $values;
+  return notifications_content_form_submit($form_id, $form_values);
+}
+
+/**
+ * Get list of allowed vocabularies
+ */
+function notifications_tags_vocabularies($field = NULL) {
+  $omitted = variable_get('notifications_omitted_taxa', array());
+  $vocabularies = taxonomy_get_vocabularies();
+
+  foreach($omitted as $vid) {
+    unset($vocabularies[$vid]);
+  }
+  if ($field) {
+    $list = array();
+    foreach($vocabularies as $vid => $vocab) {
+      $list[$vid] = $vocab->$field;
+    }
+    return $list;
+  } else {
+    return $vocabularies;
+  }
+}

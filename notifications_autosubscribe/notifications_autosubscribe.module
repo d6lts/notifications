@@ -1,0 +1,61 @@
+<?php
+/**
+ * Subscription_autosubscribe module allow users to automatically subscribe to threads they create. Used by
+ * notifications_content.
+ */
+ 
+/**
+ * Subscribes users to content they post, if not already subscribed
+ *
+ * @param $type
+ *   Subscription type
+ * @param $event type
+ *   Event type
+ * @param $field
+ *   String, field that subscription depends on. ie 'nid'.
+ * @param $value
+ *   Int, value of $field that triggers subscription.
+ *
+ */
+function notifications_autosubscribe($type, $event_type, $field, $value) {
+  global $user;
+  // if user has auto subscribe enabled and he's not already subscribed
+  if (($user->notifications_auto || !isset($user->notifications_auto) && variable_get('notifications_autoset', 0)) && !notifications_user_get_subscriptions($user->uid, $module, $field, $value)) {
+    $subscription = array(
+      'uid' => $user->uid,
+      'type' => $type,
+      'event_type' => $event_type,
+      'fields' => array($field => $value),
+    );
+    notifications_save_subscription($subscription);    
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ *
+ * Adds autosubscribe checkbox to user edit form.
+ */
+function notifications_autosubscribe_form_alter($form_id, &$form) {
+  if ($form_id == "user_edit") {
+    $notifications_auto = $form['_account']['#value']->notifications_auto;
+    $form['notifications']['notifications_auto'] = array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Autosubscribe'),
+      '#default_value' => isset($notifications_auto) ? $notifications_auto : variable_get('notifications_autoset', 0),
+      '#description'   => t('Checking this box allows you to be automatically subscribe to any thread you create or post a comment to. You will recieve an email with a title and link to the post.'),
+    );
+  }
+}
+
+/**
+ * Implementation of hook_notifications.
+ */
+function notifications_autosubscribe_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL) {
+  if ($op == 'event trigger') {
+    $event = $arg0;
+    if ($event->type == 'node' && isset($event->node->nid)) {
+      notifications_autosubscribe('thread', 'node', 'nid', $event->node->nid);
+    }
+  }
+}

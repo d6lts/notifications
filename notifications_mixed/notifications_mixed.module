@@ -1,0 +1,136 @@
+<?php
+/**
+ * @file
+ * Mixed subscription types
+ * 
+ * This is an alpha version, needs much more polishing.
+ * For now only moving here pieces of code.
+ */
+
+/**
+ * Implementation of hook_menu_()
+ */
+function notifications_mixed_menu($may_cache) {
+  global $user;  // we need the user to to build some urls
+  $items = array();
+  if (!$may_cache) {
+
+    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
+      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
+      $items[] = array(
+        'path' => 'user/'. $account->uid .'/subscriptions/mixed',
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'access' => user_access('subscribe to mixed types'),
+        'title' => t('Mixed'),
+        'callback' => 'notifications_mixed_user_page',
+        'callback arguments' => array($account),
+        'weight' => 10,
+      );
+    }
+  }
+  return $items;
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function notifications_content_perm() {
+  return array('subscribe to mixed types');
+}
+
+/**
+ * Implementation of hook_notifications().
+ */
+function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+  switch ($op) {
+    case 'subscription types':
+      $types['mixed'] = array(
+        'event_type' => 'node',
+        'title' => t('Mixed'),
+        'access' => 'subscribe to mixed types',
+        'page' => 'notifications_content_page_mixed',
+        'fields' => array(),
+      );
+    case 'node options':
+      return _notifications_mixed_node_options($arg0, $arg1);
+  }
+}
+
+function _notifications_mixed_node_options($account, $node) {
+  // Content type and author
+  $options[] = array(
+    'name' => t('To %type posts by %name', array('%type' => $type_name, '%name' => $node->name)),
+    'type' => 'mixed',
+    'fields' => array('type' => $node->type, 'author' => $node->uid),
+  );
+  return $options;
+}
+
+/**
+ * Menu callback. Overview page for mixed content subscriptions.
+ */
+function notifications_mixed_user_page($account) {
+  $output = '';
+  // Query all mixed types with more than one condition
+  // List of all node subscriptions
+  $subscriptions = notifications_get_subscriptions(array('type' => 'mixed', 'event_type' => 'node', 'uid' => $account->uid), array(), TRUE);
+  
+  if ($subscriptions) {
+    $output .= drupal_get_form('notifications_mixed_user_form', $account, $subscriptions);
+  } else {
+    $output .= t('No subscriptions');
+  }
+
+  return $output;
+}
+
+function notifications_mixed_user_form($account, $subscriptions) {
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);  
+  $form['subscriptions'] = array(
+    '#tree' => TRUE,
+    '#theme' => 'notifications_form_table',
+    '#header' => array(t('Type'), t('Conditions'), t('Send interval'), t('Send method'), t('Options')),
+  );
+  foreach ($subscriptions as $subs) {
+    // Name the conditions
+    notifications_module_info('names', $subs);
+    $options = array(
+      l(t('delete'), 'subscriptions/del/'.$subs->sid),
+    );
+    $key = $subs->sid;
+    $form['subscriptions']['type'][$key] = array(
+      '#value' => $subs->type_name,
+    );
+    $form['subscriptions']['title'][$key] = array(
+      '#value' => implode(' | ', $subs->names),
+    );
+    $form['subscriptions']['send_interval'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_intervals(),
+      '#default_value' => $subs->send_interval,
+    );
+    $form['subscriptions']['send_method'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_methods(),
+      '#default_value' => $subs->send_method,
+    );    
+    $form['subscriptions']['options'][$key] = array(
+      '#value' => implode(' | ', $options),
+    );
+  }
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+  return $form;
+}
+
+function notifications_mixed_user_form_submit($form_id, $form_values) {
+  // Compare values with current and save changes
+  foreach ($form_values['current'] as $sid => $current) {
+    $send_interval = $form_values['subscriptions']['send_interval'][$sid];
+    $send_method = $form_values['subscriptions']['send_method'][$sid];
+    if ($current->send_interval != $send_interval || $current->send_method != $send_method) {
+      db_query("UPDATE {notifications} SET send_interval = '%s', send_method = '%s' WHERE sid = %d", $send_interval, $send_method, $sid);
+    }
+  }
+  drupal_set_message(t('Your subscriptions have been updated.'));
+}

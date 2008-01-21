@@ -1,0 +1,5 @@
+; $Id$
+name = Notifications UI
+description = Provides an UI to notifications
+package = "Notifications"
+dependencies = notifications

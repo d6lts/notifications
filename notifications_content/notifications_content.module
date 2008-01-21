@@ -1,0 +1,510 @@
+<?php
+/**
+ * @file
+ * Subscriptions to content events
+ */
+
+/**
+ * Implementation of hook_menu_()
+ */
+function notifications_content_menu($may_cache) {
+  global $user;  // we need the user to to build some urls
+  $items = array();
+  
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/notifications/settings/content',
+      'title' => t('Content Subscriptions'),
+      'type' => MENU_LOCAL_TASK,
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('notifications_content_settings_form'),
+    );
+  } else {
+    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
+      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
+      $items[] = array(
+        'path' => 'user/'. $account->uid .'/notifications/thread',
+        'type' => MENU_LOCAL_TASK,
+        'access' => user_access('subscribe to content'),
+        'title' => t('Thread'),
+        'callback' => 'notifications_content_page_thread',
+        'callback arguments' => array($account),
+        'weight' => 10,
+      );
+      $items[] = array(
+        'path' => 'user/'. $account->uid .'/notifications/nodetype',
+        'type' => MENU_LOCAL_TASK,
+        'access' => user_access('subscribe to content type'),
+        'title' => t('Content type'),
+        'callback' => 'notifications_content_page_nodetype',
+        'callback arguments' => array($account),
+        'weight' => 10,
+      );
+      $items[] = array(
+        'path' => 'user/'. $account->uid .'/notifications/author',
+        'type' => MENU_LOCAL_TASK,
+        'access' => user_access('subscribe to author'),
+        'title' => t('Author'),
+        'callback' => 'notifications_content_page_author',
+        'callback arguments' => array($account),
+        'weight' => 10,
+      );
+    }
+  }
+  return $items;
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function notifications_content_perm() {
+  return array('subscribe to content', 'subscribe to content type', 'subscribe to author');
+}
+
+/**
+ * Admin settings form
+ */
+function notifications_content_settings_form() {
+  // General content settings
+  $select = array();
+  $select[0] = '<'. t('none') .'>';
+  $nodetypes = node_get_types();
+  foreach ($nodetypes as $ntype => $nname) {
+    $select[$ntype] = $nname->name;
+  }
+  $form['content'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Content settings'),
+    '#weight' => -10,
+  );
+  $form['content']['notifications_omitted_content_types'] = array(
+    '#type'          => 'select',
+    '#title'         => t('Omitted content types'),
+    '#default_value' => variable_get('notifications_omitted_content_types', array()),
+    '#options'       => $select,
+    '#description'   => t('Select content types which should be <strong>omitted</strong> from subscription listings.'),
+    '#multiple'      => TRUE,
+  );
+  $form['content']['notifications_link_teaser'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Show subscribe link with teaser'),
+    '#default_value' => variable_get('notifications_link_teaser', 1),
+    '#description'   => t('Uncheck to show link only in node view.'),
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Implementation of hook_notifications().
+ */
+function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+  switch ($op) {
+    case 'names':
+      $subs = &$arg0;
+      if ($subs->event_type == 'node') {
+        $subs->type_name = t('Content');
+        if (!empty($subs->fields['type'])) {
+          $subs->names['type'] = t('Content type: %type', array('%type' => node_get_types('name', $subs->fields['type'])));
+        }
+        if (!empty($subs->fields['author']) && ($author = user_load(array('uid' => $subs->fields['author'])))) {
+          $subs->names['author'] = t('Author: %name', array('%name' => $author->name));
+        }
+        if (!empty($subs->fields['nid']) && ($node = node_load($subs->fields['nid']))) {
+          $subs->names['thread'] = t('Thread: %title', array('%title' => check_plain($node->title)));
+        }
+      }
+      break;
+    case 'subscription types':
+      $types['thread'] = array(
+        'event_type' => 'node',
+        'title' => t('Thread'),
+        'access' => 'subscribe to content',
+        'page' => 'notifications_content_page_thread',
+        'fields' => array('nid'),
+      );
+      $types['nodetype'] = array(
+        'event_type' => 'node',
+        'title' => t('Content type'),
+        'access' => 'subscribe to content type',
+        'page' => 'notifications_content_page_nodetype',
+        'fields' => array('type'),
+      );
+      $types['author'] = array(
+        'event_type' => 'node',
+        'title' => t('Author'),
+        'access' => 'subscribe to author',
+        'page' => 'notifications_content_page_author',
+        'fields' => array('author'),
+      );
+      return $types;
+    case 'query':
+      // $arg2 is $event array.
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
+          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2))      
+      {
+        $query[]['fields'] = array(
+            'nid' => $node->nid,
+            'type' => $node->type,
+            'author' => $node->uid,
+        );
+
+        return $query;
+      }
+      break;
+    case 'node options':
+      return _notifications_content_node_options($arg0, $arg1);
+    case 'event load': // $arg0 is event
+      $event = &$arg0;
+      $load = array();
+      if ($event->type = 'node') {
+        if (!empty($event->params['nid'])) {
+          $event->objects['node'] = node_load($event->params['nid']);
+        }
+        if (!empty($event->params['cid'])) {
+          $event->objects['comment'] = notifications_content_comment_load($event->params['cid']);
+        }
+      }
+      break;
+    case 'event types':
+      $types[] = array(
+        'type' => 'node',
+        'action' => 'insert',
+        'title' => 'New [type-name]: [title]',
+        'name' => '[type-name]: [title]',
+        'detail' => "[node-teaser]\nRead more [node-url]",
+        'line' => '[type-name] [title] by [author-name]',
+        'digest' => array('node', 'nid'),       
+      );
+      $types[] = array(
+        'type' => 'node',
+        'action' => 'update',
+        'title' => 'Update for [type-name]: [title]',
+        'detail' => "[node-teaser]\nRead more [node-url]",
+        'name' => '[type-name]: [title]',
+        'line' => 'The [node-type] has been updated',
+        'digest' => array('node', 'nid'),       
+      );      
+      $types[] = array(
+        'type' => 'node',
+        'action' => 'comment',
+        'title' => 'Comment for [type-name]: [title]',
+        'detail' => "Comment by [comment-author-name]: [comment-title]\n[comment-body]\nRead more [comment-url]",
+        'name' => '[type-name]: [title]',
+        'line' => 'New comment by [comment-author-name]: [comment-title]', 
+        'digest' => array('node', 'nid'),       
+      );
+
+      return $types;
+  }
+}
+
+function _notifications_content_node_options($account, $node) {
+  // Default node, field are the first three indexes, but they can be overridden in params
+  // Thread
+  $options[] = array(
+    'name' => t('To this post'),
+    'type' => 'thread',
+    'fields' => array('nid' => $node->nid),
+  );
+  // Content type
+  $options[] = array(
+    'name' => t('To posts of type %type', array('%type' => node_get_types('name', $node->type))),
+    'type' => 'nodetype',
+    'fields' => array('type' => $node->type),
+  );
+  // Author
+  $options[] = array(
+    'name' => t('To posts by %name', array('%name' => $node->name)),
+    'type' => 'author',
+    'fields' => array('author' => $node->uid),
+  );
+  return $options;
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function notifications_content_nodeapi(&$node, $op, $arg = 0) {
+  global $user;
+  switch ($op) {
+    case 'update':
+      if ($node->status == '0') { // unpublished
+        break; // don't notify
+      }
+      /*
+      // prevent already published edits from sending notifications
+      // @ TODO send nodes that have been updated could be controlled here
+      if ($node->status == 1 && $node->notifications_currentstatus == '1') {
+        break;
+      }
+      //*/
+      // else, fall through
+
+    case 'insert':
+      $event = array(
+        'module' => 'node',
+        'uid' => $node->uid,
+        'oid' => $node->nid,
+        'type' => 'node',
+        'action' => $op,
+        'node' => $node,
+        'params' => array('nid' => $node->nid),      
+      );
+      notifications_event($event);
+
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_comment().
+ */
+function notifications_content_comment($comment, $op) {
+  global $user;
+    // $comment can be an object or an array.
+  $comment = (array)$comment;
+  if (!isset($comment['nomail']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'update' || ($op == 'publish' && !user_access('administer comments')))) {
+    $event = array(
+      'module' => 'node',
+      'uid' => $comment['uid'],
+      'type' => 'node',
+      'action' => 'comment', // $op,
+      'node' => node_load($comment['nid']),
+      'comment' => (object)$comment,
+      'params' => array('nid' => $comment['nid'], 'cid' => $comment['cid']),
+    );
+    notifications_event($event);
+  }
+}
+
+/**
+ * Load comments with caching
+ * @ TODO See if this may be some use, or drop
+ */
+function notifications_content_comment_load($cid) {
+  static $cache;
+  if (!isset($cache[$cid])) {
+    $comment = db_fetch_object(db_query('SELECT c.*, u.uid, u.name AS registered_name, u.data FROM {comments} c INNER JOIN {users} u ON c.uid = u.uid WHERE c.cid = %d', $cid));
+    $comment = drupal_unpack($comment);
+    $comment->name = $comment->uid ? $comment->registered_name : $comment->name;
+    $cache[$cid] = $comment;
+  }
+  return $cache[$cid];
+}
+
+/**
+ * Subscriptions page callback: List thread subscriptions
+ */
+function notifications_content_page_thread($account = NULL) {
+  global $user;
+  if (is_null($account)) {
+    $account = $user;
+  }
+  // query string for node subscriptions
+  $query = "SELECT s.*, f.value AS nid, n.type AS node_type, n.title FROM {notifications} s 
+    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
+    WHERE s.uid = %d AND s.type = 'thread' AND s.event_type = 'node' AND s.conditions = 1 AND f.field = 'nid'
+    ORDER BY node_type, n.title";
+  $results = db_query($query, $account->uid);
+
+  $subscriptions = $list = array();
+  $content_types = notifications_content_types('name');
+  while ($sub = db_fetch_object($results)) {
+    $subscriptions[$sub->nid] = $sub;
+    $list[$sub->nid] = '['.$content_types[$sub->node_type].'] '.$sub->title;
+  }
+
+  if (!$subscriptions) {
+    $output = t('You are not currently subscribed to any active threads');
+  } else {
+    $output = t('You are currently subscribed to the following threads:');
+    $defaults = array('type' => 'thread');
+    $output .= drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'nid', t('Title'), $defaults);
+  }
+  return $output;
+}
+
+/**
+ * User subscriptions to content types
+ */
+function notifications_content_page_nodetype($account = NULL) {
+  global $user;
+  if (!isset($account)) {
+    $account = $user;
+  }
+  // List of all subscribed node types
+  $subscriptions = notifications_get_subscriptions(array('type' => 'nodetype', 'uid' => $account->uid), array('type' => NULL), TRUE, 'value');
+  
+  $types = notifications_content_types('name');
+  if (!$types) {
+    $output = t('There are no active content types.');    
+  } else {
+    $defaults = array('type' => 'nodetype');
+    $output = drupal_get_form('notifications_content_form', $account, $subscriptions, $types, 'type', t('Type'), $defaults);
+  }
+  return $output;
+}
+
+/**
+ * User subscriptions to content types
+ */
+function notifications_content_page_author($account = NULL) {
+  global $user;
+  if (!isset($account)) {
+    $account = $user;
+  }
+  // List of all subscribed node types
+  $subscriptions = notifications_get_subscriptions(array('type' => 'author', 'event_type' => 'node', 'uid' => $account->uid), array('author' => NULL), TRUE, 'value');
+  
+
+  if (!$subscriptions) {
+    $output = t('There are no active author subscriptions.');    
+  } else {
+    // Build author list
+    $list = array();
+    $result = db_query("SELECT uid, name FROM {users} WHERE uid IN (".implode(',', array_keys($subscriptions)).')');
+    while ($author = db_fetch_object($result)) {
+      $list[$author->uid] = $author->name;
+    }
+    $defaults = array('type' => 'author');
+    $output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
+  }
+  return $output;
+}
+
+/**
+ * Generic subscriptions content form
+ */
+function notifications_content_form($account, $subscriptions, $list, $field, $field_title, $defaults = array()) {
+  // Complete defaults
+  $defaults += array(
+    'sid' => 0, 
+    'send_interval' => variable_get('notifications_default_send_interval', 0), 
+    'send_method' => variable_get('notifications_default_send_method', ''),
+    'event_type' => 'node',
+  );
+  $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
+  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
+  $form['subscriptions'] = array(
+    '#tree' => TRUE,
+    '#theme' => 'notifications_form_table',
+    '#header' => array('', $field_title, t('Send interval'), t('Send method'))
+  );  
+  foreach ($list as $key => $title) {
+    $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
+    $rowdefaults += $rowdefaults;
+    $form['subscriptions']['checkbox'][$key] = array(
+      '#type' => 'checkbox',
+      '#default_value' => $rowdefaults['sid'],
+    );
+    $form['subscriptions']['title'][$key] = array(
+      '#value' => $title,
+    );
+    $form['subscriptions']['send_interval'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_intervals(),
+      '#default_value' => $rowdefaults['send_interval'],
+    );
+    $form['subscriptions']['send_method'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_methods(),
+      '#default_value' => $rowdefaults['send_method'],
+    );
+    // Pass on the fields for processing
+    $form['subscription_fields']['#value'][$key] = array($field => $key);
+  
+  }
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+
+  return $form; 
+}
+
+/**
+ * Process generic form submission
+ */
+function notifications_content_form_submit($form_id, $form_values) {
+  $account = $form_values['account'];
+  $current = $form_values['current'];
+  $defaults = $form_values['defaults'];
+  $defaults += array('type' => 'node', 'uid' => $account->uid);
+  $fields = $form_values['subscription_fields'];
+  $values = $form_values['subscriptions'];
+  $check = 'checkbox';
+
+  foreach ($values[$check] as $index => $value) {
+    $subscription = NULL;
+    if ($value) {
+      // Checked, save only if new or changed
+      if (!isset($current[$index])) {
+        $subscription = $defaults;
+      } elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
+        $subscription = (array)($current[$index]);        
+      }
+      // Complete and save
+      if ($subscription) {
+        $subscription['send_interval'] = $values['send_interval'][$index];
+        $subscription['send_method'] = $values['send_method'][$index];
+        $subscription['fields'] = $fields[$index];
+        notifications_save_subscription($subscription);
+      }
+    } elseif(isset($current[$index])) {
+      notifications_delete_subscription($current[$index]->sid);
+    }
+  }
+}
+
+/**
+ * Get content types available for subscriptions
+ */
+function notifications_content_types($field = NULL) {
+  // Get list of available node types
+  $types = node_get_types();
+  $omits = variable_get('notifications_omitted_content_types', array());
+  foreach ($omits as $omit) {
+    unset($types[$omit]);
+  }
+  if ($field) {
+    foreach(array_keys($types) as $type) {
+      $types[$type] = $types[$type]->$field;
+    }
+  }
+  return $types;  
+}
+
+/**
+ * Implementation of hook_token_list(). Documents the individual
+ * tokens handled by the module.
+ */
+function notifications_content_token_list($type = 'all') {
+  $tokens['node']['node-teaser']    = t('The node teaser.');
+  $tokens['node']['node-body']    = t('The node body.');
+  $tokens['node']['node-url']      = t('The node view url for read more links.');
+  $tokens['comment']['comment-url'] = t('The comment view url.');
+  $tokens['comment']['comment-reply-url'] = t('The comment reply url.');
+  return $tokens;
+}
+
+/**
+ * Implementation of hook_token_values()
+ */
+function notifications_content_token_values($type, $object = NULL, $options = array()) {
+  switch ($type) {
+    case 'node':
+      if ($node = $object) {
+        $values['node-teaser'] = $node->teaser ? check_markup($node->teaser, $node->format, FALSE) : '';
+        $values['node-body'] = $node->body ? check_markup($node->body, $node->format, FALSE) : '';
+        $values['node-url'] = url('node/'.$node->nid, NULL, NULL, TRUE);
+        return $values;
+      }
+      break;
+    case 'comment':
+      if ($comment = (object)$object) {
+        $values['comment-url'] = url('node/'.$comment->nid, NULL, 'comment-'.$comment->cid, TRUE);
+        $values['comment-reply-url'] = url('comment/reply/'.$comment->nid.'/'.$comment->cid, NULL, NULL, TRUE);
+        return $values;
+      }
+      break;
+  }
+}

@@ -1,0 +1,5 @@
+; $Id$
+name = Mixed Notifications
+description = Allows users to subscribe to mixed types.
+package = "Notifications"
+dependencies = notifications

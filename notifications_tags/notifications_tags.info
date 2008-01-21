@@ -1,0 +1,5 @@
+; $Id$
+name = Taxonomy Notifications
+description = Allows users to subscribe to taxonomy terms.
+package = "Notifications"
+dependencies = notifications notifications_content taxonomy

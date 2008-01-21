@@ -1,0 +1,125 @@
+Developer documentation for notifications framework.
+
+Overview
+--------
+The notifications module is just the main engine that handles events, queries subscribed users, queues notifications
+and does the queue processing passing the right data for message composition and sending.
+However, all the subscription and event types, and also messages and sending methods are provided by plug-in modules.
+So the notifications module just processes the data ad sends it through the different stages not knowing anything
+about specific subscription types or events or messaging methods.
+
+Subscriptions handling
+---------------------
+For each individual subscription of a user to an object/object type/user there's a row in the 'notifications' table
+The subscription conditions are stored in the 'notifications_field' table, which allows any number of
+conditions for a given subscription, one row for each condition
+I.e. 
+User a may be subscribed subscribed to
+  - Nodes of type x
+  - Posted by user y
+  - With taxonomy term t
+Or User b may be subscribed to
+  - Nodes of type 'blog'
+  - Posted by user x
+This last one would make a subscription to a user's blog.
+
+All this may cause some overlap, having more than one notification for a user in response to the same event.
+This should be resolved in the final message composition and sending steps, preventing a user being notified more than once for the same event.
+I.e. a user may be subscribed to a given taxonomy term and also to a given node type, causing the same node post to produce
+two notifications, one for the taxonomy term and one for the node type.
+However, when the user wants inmediate notifications for the first subscription but delayed ones for the second one -I.e. a daily message-
+it seems ok to send the event notification in both messages. Thus this de-duping will be done only for messages in the sime time interval.
+
+The UI for subscribing and unsubscribing is also provided by a plug-in module. There's the notifications_ui module which
+handles simple node subscriptions but this one could be replaced by a different module if you want a different kind of UI.
+ 
+The processing model
+--------------------
+How system events are processed and converted into final notifications to users
+* An event is triggered
+	These events will be defined by plug-in modules and may respond to any Drupal action, like node posting, editing, comment posting...
+  A odule triggers an event, builds an array with the event parameters and calls notifications_event($event)
+* The event is filled in and stored
+  The notifications module will add default parameters to the event and the event will be stored calling notifications_event_save($event)
+* Processing and queueing
+	Then notifications_queue($event) will be called. This function will populate the notifications_queue table with a list of pending event notifications for specific users
+	To query the list of subscribed users, hook_notifications('query', $event) will be called, with the modules returning query conditions for the notifications table
+	All the queued notifications will be filled in with a single db query
+* Queue processing on cron.
+  The notifications_queue table will be checked periodically, compiling pending notifications for each user
+  There are two kinds of notifications:
+  - Messages to send right away. When the 'delivery interval' is zero, each event produces a single message.
+  - Messages to be digested. When we have notifications to be delivered for a given interval, all the events corresponding to that interval will be compiled and digested in a single message
+* Message composition
+  All the events, and other related objects for a message -nodes, comments..- will be fetched and passed to the message composition layer
+  This layer will fetch message templates from messaging system and will run them through token replacement using these objects
+  Note: The message templates may depend on the delivery method, so message templates are handled also by messaging system.
+  I.e. you may want longer notifications for emails but shorter one for SMS's
+* Message delivery  
+  The message array is passed to the messaging layer which will do the final formatting, depending on delivery method and send away the message to the user
+  For further information on messages, see the messaging framework
+
+
+The notifications hook
+----------------------
+This hook must be implemented by modules defining event and subscription types
+
+  function hook_notifications($op, &$arg0 = NULL, $arg1 = NULL, $arg2 = NULL)
+
+Depending on the first parameter, this function will have different parameters and return values
+
+* 'names', Adds names to the subscription types for display
+   $arg1 will be a $subscriptions object.
+   It should populate the 'type_name' and the 'names' elements for subscriptions handled by the module
+   implementing it. A single subscription may join different conditions so we keep multiple names
+   in the 'names' element array.
+   
+	Example:
+  $subs = &$arg0;
+  if ($subs->event_type == 'node') {
+    $subs->type_name = t('Content');
+    if (!empty($subs->fields['type'])) {
+      $subs->names['type'] = t('Content type: %type', array('%type' => node_get_types('name', $subs->fields['type'])));
+    }
+    if (!empty($subs->fields['author'])) {
+      $author = user_load(array('uid' => $subs->fields['author']));
+      $subs->names['author'] = t('Author: %name', array('%name' => $author->name));
+    }
+  }
+
+* 'subscription types', Defines subscription types provided by this module
+  The return value will be an array of elements with the form:
+  'type name' => array(
+     'event_type' => type of event,
+     'title' => Name to display to the user,
+     'access' => Permission for using this subscription type,
+     'page' => Callback to display the user subscriptions page,
+     'fields' => Array of fields that define this subscription type. I.e. for node subscriptions, 
+  )
+  
+  Example:
+     $types['thread'] = array(
+        'event_type' => 'node',
+        'title' => t('Threads'),
+        'access' => 'subscribe to content',
+        'page' => 'notifications_content_page_thread',
+        'fields' => array('nid'),
+      );
+
+* 'query', Returns query conditions for finding subscribed users
+
+	Example:
+	$query[] = array(
+	  'fields' => array(
+	    'nid' => $node->nid,
+	    'type' => $node->type,
+	    'author' => $node->uid,
+	  ),
+	);
+  
+- 'event types', Event types supported by this module
+- 'event load', Add objects to the event for message composing
+- 'node options', Returns subscription status and options for a node object 
+See 
+- notifications_content_notifications()
+- notifications_taxonomy_notifications()
