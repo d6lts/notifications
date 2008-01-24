@@ -308,7 +308,6 @@ function notifications_queue($event) {
   $sql = 'INSERT INTO {notifications_queue} (uid, sid, eid, send_interval, send_method, cron, created) '.
     'SELECT DISTINCT s.uid, s.sid, %d, s.send_interval, s.send_method, s.cron, %d '.
     'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
-    //'INNER JOIN {notifications_user} su ON s.uid = su.uid '.
     implode (' ', $query['join']).
     " WHERE s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
     ' GROUP BY s.uid, s.sid, s.conditions '. // May need more grouping here
@@ -602,15 +601,14 @@ function notifications_module_invoke($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
 function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
     case 'message groups':
+      // Generic notifications event
       $info['notifications-event'] = array(
         'module' => 'notifications',
-        'name' => t('Subscriptions event'),
-        'tokens' => array('global', 'subscription', 'user', 'comment'),
+        'name' => t('Notifications event'),
       );
       $info['notifications-digest'] = array(
         'module' => 'notifications',
-        'name' => t('Subscriptions digest'),
-        'tokens' => array('global', 'subscription', 'user', 'comment'),
+        'name' => t('Notifications digest'),
       );
       return $info;
     case 'message keys':      
@@ -662,8 +660,16 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       }
       break;
     case 'tokens':
+      $type = explode('-', $arg1);
+      $tokens = array();
       // These are the token groups that will be used for this module's messages
-      return array('global', 'notifications', 'event');
+      if ($type[0] == 'notifications' ) {
+        $tokens = array('global', 'subscription', 'user');
+        if($type[1] == 'event') {
+          $tokens[] = 'event';
+        }
+      }
+      return $tokens;
     case 'pull':
       require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
       return notifications_process_pull($arg1, $arg2, $arg3, $arg4);      
@@ -698,10 +704,17 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
  * tokens handled by the module.
  */
 function notifications_token_list($type = 'all') {
-  $tokens['user']['subscriptions-manage']    = t('The url for the current user to manage subscriptions.');
-  $tokens['subscription']['unsubscribe-url']      = t('The url for disabling a specific subscription.');
-  $tokens['event']['event-list'] = t('List of events for message digests');
-  $tokens['event']['event-detail'] = t('Detailed information for event');
+  $tokens = array();
+  if ($type == 'user' || $type == 'all') {
+    $tokens['user']['subscriptions-manage']    = t('The url for the current user to manage subscriptions.');
+  }
+  if ($type == 'subscription' || $type == 'all') {
+    $tokens['subscription']['unsubscribe-url']      = t('The url for disabling a specific subscription.');
+  }
+  if ($type == 'event' || $type == 'all') {
+    $tokens['event']['event-list'] = t('List of events for message digests');
+    $tokens['event']['event-detail'] = t('Detailed information for event');
+  }
   return $tokens;
 }
 

@@ -320,11 +320,12 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   // Create message. Do all this in one replacemente
   $options = array($event->type, $event->action);
   $text = array(
-    'subject' => $info['title'],
+    'subject' => notifications_message_part('event', 'subject', $send_method, $options),
     'header' => notifications_message_part('event' ,'header', $send_method, $options),
-    'event'  =>  $info['detail'],
+    'event'  => notifications_message_part('event', 'main', $send_method, $options), // Was $info['detail'],
     'footer' => notifications_message_part('event', 'footer', $send_method, $options),
   );
+
   // We pass only the first subscription, which is at least something
   // @ TODO Handle nicely the case where there are more than one subscription
   if ($sid = array_shift($subscriptions)) {
@@ -347,11 +348,11 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
 /**
  * Get message part
  * 
- * It searches for optional message keys for options defaulting to $key
+ * It searches for optional message group keys for options defaulting to $type
  * thus if $options = array('part1', 'part2') it will search in this order
- * 1. $key-part1-part2
- * 2. $key-part1
- * 3. $key
+ * 1. $type-part1-part2
+ * 2. $type-part1
+ * 3. $type
  * 
  * @param $type
  *   Message type to send, either 'event' or 'digest'
@@ -367,12 +368,12 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  *
  */
 function notifications_message_part($type, $key, $method, $options = array()) {
-  $keyparts = array_merge(array($key), $options);
+  $keyparts = array_merge(array('notifications-'.$type), $options);
   // Output some debugging info in case we dont find a suitable message part
   $output = "[UNDEFINED type = $type, method = $method, key = ".implode('-', $keyparts).']';
   while ($keyparts) {
-    $msgkey = implode('-', $keyparts);
-    if ($text = messaging_message_part("notifications-$type", $msgkey, $method)) {
+    $groupkey = implode('-', $keyparts);
+    if ($text = messaging_message_part($groupkey, $key, $method)) {
       $output = $text;
       break;
     }

@@ -173,7 +173,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => '[type-name]: [title]',
         'detail' => "[node-teaser]\nRead more [node-url]",
         'line' => '[type-name] [title] by [author-name]',
-        'digest' => array('node', 'nid'),       
+        'digest' => array('node', 'nid'),
       );
       $types[] = array(
         'type' => 'node',
@@ -182,7 +182,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'detail' => "[node-teaser]\nRead more [node-url]",
         'name' => '[type-name]: [title]',
         'line' => 'The [node-type] has been updated',
-        'digest' => array('node', 'nid'),       
+        'digest' => array('node', 'nid'), 
       );      
       $types[] = array(
         'type' => 'node',
@@ -191,10 +191,103 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'detail' => "Comment by [comment-author-name]: [comment-title]\n[comment-body]\nRead more [comment-url]",
         'name' => '[type-name]: [title]',
         'line' => 'New comment by [comment-author-name]: [comment-title]', 
-        'digest' => array('node', 'nid'),       
+        'digest' => array('node', 'nid'),
       );
 
       return $types;
+  }
+}
+
+/**
+ * Implementation of hook_messaging()
+ */
+function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+  switch ($op) {
+    case 'message groups':
+      $help = t('The body header and footer will be taken from Notification events');
+      // Generic notifications event
+      $info['notifications-event-node'] = array(
+        'module' => 'notifications_content',
+        'name' => t('Notifications for node events'),
+        'help' => $help,
+      );
+      $info['notifications-event-node-insert'] = array(
+        'module' => 'notifications_content',
+        'name' => t('Notifications for node creation'),
+        'help' => $help,
+      );
+      $info['notifications-event-node-update'] = array(
+        'module' => 'notifications_content',
+        'name' => t('Notifications for node updates'),
+        'help' => $help,
+      );
+      $info['notifications-event-node-comment'] = array(
+        'module' => 'notifications_content',
+        'name' => t('Notifications for node comments'),
+        'help' => $help,
+      );
+      return $info;
+    case 'message keys':      
+      $type = $arg1;
+      switch ($type) {
+        case 'notifications-event-node':
+        case 'notifications-event-node-insert':
+        case 'notifications-event-node-update':              
+        case 'notifications-event-node-comment':
+          // Some parts will be re-used from 'notifications-event' group
+          // So we specify only subject and main message
+          return array(
+            'subject' => t('Subject'),
+            'main' => t('Body content'),
+          );
+        break;
+      }
+      break;
+    case 'messages':
+      $type = $arg1;
+      // Event notifications
+      switch ($type) {
+        case 'notifications-event-node':
+        case 'notifications-event-node-update':          
+          return array(
+            'subject' => t('Update for [type-name]: [title]'),
+            'main' => array(
+              '[node-teaser]',
+              t('Read more [node-url]'),
+            ),
+          );
+        case 'notifications-event-node-insert':
+          return array(
+            'subject' => t('New [type-name]: [title]'),
+            'main' => array(
+              '[node-teaser]',
+              t('Read more [node-url]'),            
+            ),
+          );             
+        case 'notifications-event-node-comment': 
+          return array(
+            'subject' => t('Comment for [type-name]: [title]'),
+            'main' => array(
+              t('Comment by [comment-author-name]: [comment-title]'),
+              '[comment-body]',
+              t('Read more [comment-url]'),
+            ),
+          );       
+      }
+      break;
+    case 'tokens':
+      $type = explode('-', $arg1);
+      $tokens = array();
+      // These are the token groups that will be used for this module's messages
+      if ($type[0] == 'notifications' && $type[1] == 'event') {
+        if ($type[2] == 'node') {
+          $tokens[] = 'node';
+          if ($type[3] == 'comment') {
+            $tokens[] = 'comment';
+          }
+        }
+      }
+      return $tokens;
   }
 }
 
@@ -478,11 +571,16 @@ function notifications_content_types($field = NULL) {
  * tokens handled by the module.
  */
 function notifications_content_token_list($type = 'all') {
-  $tokens['node']['node-teaser']    = t('The node teaser.');
-  $tokens['node']['node-body']    = t('The node body.');
-  $tokens['node']['node-url']      = t('The node view url for read more links.');
-  $tokens['comment']['comment-url'] = t('The comment view url.');
-  $tokens['comment']['comment-reply-url'] = t('The comment reply url.');
+  $tokens = array();
+  if ($type == 'node' || $type == 'all') {
+    $tokens['node']['node-teaser']    = t('The node teaser.');
+    $tokens['node']['node-body']    = t('The node body.');
+    $tokens['node']['node-url']      = t('The node view url for read more links.');
+  }
+  if ($type == 'comment' || $type == 'all') {  
+    $tokens['comment']['comment-url'] = t('The comment view url.');
+    $tokens['comment']['comment-reply-url'] = t('The comment reply url.');
+  }
   return $tokens;
 }
 

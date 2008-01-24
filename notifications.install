@@ -7,7 +7,7 @@ function notifications_install() {
 	switch ($GLOBALS['db_type']) {
 		case 'mysql':
 		case 'mysqli':
-		  db_query("CREATE TABLE `notifications` (
+		  db_query("CREATE TABLE {notifications} (
                 `sid` int(10) unsigned NOT NULL auto_increment,
                 `uid` int(11) NOT NULL,
                 `type` varchar(255) default NULL,
@@ -19,58 +19,72 @@ function notifications_install() {
                 PRIMARY KEY  (`sid`)
               )/*!40100 DEFAULT CHARACTER SET utf8 */");
               
-      db_query("CREATE TABLE  `notifications_fields` (
-                `sid` int(10) unsigned NOT NULL,
-                `field` varchar(255) NOT NULL,
-                `value` varchar(255) NOT NULL,
-                PRIMARY KEY  (`sid`,`field`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
+          db_query("CREATE TABLE  {notifications_fields} (
+                    `sid` int(10) unsigned NOT NULL,
+                    `field` varchar(255) NOT NULL,
+                    `value` varchar(255) NOT NULL,
+                    PRIMARY KEY  (`sid`,`field`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
+    
+          db_query("CREATE TABLE  {notifications_queue} (
+                    `sqid` int(10) unsigned NOT NULL auto_increment,
+                    `eid` int(11) unsigned NOT NULL default '0',
+                    `sid` int(11) unsigned NOT NULL default '0',
+                    `uid` int(11) default NULL,
+                    `language` varchar(255) default NULL,
+                    `type` varchar(255) default NULL,
+                    `send_interval` int(11) default NULL,
+                    `send_method` varchar(255) default NULL,
+                    `sent` int(10) unsigned NOT NULL default '0',
+                    `created` int(10) unsigned NOT NULL default '0',
+                    `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                    PRIMARY KEY  (`sqid`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
+    
+          db_query("CREATE TABLE  {notifications_event} (
+                    `eid` int(11) unsigned NOT NULL auto_increment,
+                    `module` varchar(255) default NULL,
+                    `type` varchar(255) default NULL,
+                    `action` varchar(255) default NULL,
+                    `oid` int(11) unsigned NOT NULL default '0',
+                    `language` varchar(255) default NULL,
+                    `uid` int(11) default NULL,
+                    `params` text,
+                    `created` int(11) unsigned NOT NULL default '0',
+                    PRIMARY KEY  (`eid`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
+    
+          db_query("CREATE TABLE  {notifications_sent} (
+                    `uid` int(11) NOT NULL default '0',
+                    `send_interval` int(10) NOT NULL default '0',
+                    `send_method` varchar(50) NOT NULL,
+                    `sent` int(10) unsigned NOT NULL default '0',
+                    PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
+          db_query("CREATE TABLE {notifications_user} (
+                    `uid` int(11) default NULL,
+                    `send_interval` int(11) default NULL,
+                    `send_method` varchar(50) default NULL,
+                    `sent` int(10) unsigned NOT NULL default '0',
+                    PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
 
-      db_query("CREATE TABLE  `notifications_queue` (
-                `sqid` int(10) unsigned NOT NULL auto_increment,
-                `eid` int(11) unsigned NOT NULL default '0',
-                `sid` int(11) unsigned NOT NULL default '0',
-                `uid` int(11) default NULL,
-                `language` varchar(255) default NULL,
-                `type` varchar(255) default NULL,
-                `send_interval` int(11) default NULL,
-                `send_method` varchar(255) default NULL,
-                `sent` int(10) unsigned NOT NULL default '0',
-                `created` int(10) unsigned NOT NULL default '0',
-                `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                PRIMARY KEY  (`sqid`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
-
-      db_query("CREATE TABLE  `notifications_event` (
-                `eid` int(11) unsigned NOT NULL auto_increment,
-                `module` varchar(255) default NULL,
-                `type` varchar(255) default NULL,
-                `action` varchar(255) default NULL,
-                `oid` int(11) unsigned NOT NULL default '0',
-                `language` varchar(255) default NULL,
-                `uid` int(11) default NULL,
-                `params` text,
-                `created` int(11) unsigned NOT NULL default '0',
-                PRIMARY KEY  (`eid`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
-
-      db_query("CREATE TABLE  `notifications_sent` (
-                `uid` int(11) NOT NULL default '0',
-                `send_interval` int(10) NOT NULL default '0',
-                `send_method` varchar(50) NOT NULL,
-                `sent` int(10) unsigned NOT NULL default '0',
-                PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
-
-      db_query("CREATE TABLE `notifications_user` (
-                `uid` int(11) default NULL,
-                `send_interval` int(11) default NULL,
-                `send_method` varchar(50) default NULL,
-                `sent` int(10) unsigned NOT NULL default '0',
-                PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
-    break;
+          break;
+        case 'pgsql':
+          drupal_set_message('Sorry, no install script for pgsql yet.', 'error');
+          break;
   }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function notifications_uninstall() {
+  db_query("DROP TABLE {notifications}");
+  db_query("DROP TABLE {notifications_fields}");
+  db_query("DROP TABLE {notifications_queue}");
+  db_query("DROP TABLE {notifications_event}");
+  db_query("DROP TABLE {notifications_sent}");
 }
 
 /**
@@ -86,3 +100,18 @@ function notifications_update_1() {
   $ret[] = update_sql("UPDATE {notifications_queue} SET cron = 1");
   return $ret;
 }
+
+/**
+ * Update: Remove unused table and fields
+ */
+/* Uncomment this when we have all fields here
+function notifications_update_2() {
+  $ret = array();
+  $ret[] = update_sq("DROP TABLE {notifications_user}");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `name`;");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `field`;");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `value`;");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `author`;");
+  return $ret;
+}
+*/
