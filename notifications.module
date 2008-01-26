@@ -87,7 +87,7 @@ function notifications_menu($may_cache) {
       include_once drupal_get_path('module', 'notifications') .'/notifications.admin.inc';
     }
     
-    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && ($user->uid == arg(1) || user_access('administer notifications'))) {
+    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && ($user->uid == arg(1) && user_access('maintain own subscriptions') || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
           'path' => 'user/'. $account->uid .'/notifications',
@@ -108,134 +108,11 @@ function notifications_menu($may_cache) {
 }
 
 /**
- * Menu callback add subscription
- * 
- * Presents confirmation page or not depending on confirm parameter
- */
-function notifications_page_subscribe($uid, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
-  global $user;
-  // Access checking
-  $info = notifications_subscription_types($type);
-  if ($info && $uid && !empty($info['access']) && ($uid == $user->uid && user_access($info['access']) || user_access('administer notifications'))) {
-    // Display subscription information
-    $subscription = (object)array(
-      'uid' => $uid,
-      'type' => $type,
-      'fields' => notifications_field_args($fields, $values),
-      'send_interval' => $send_interval,
-      'send_method' => $send_method,
-      'event_type' => $info['event_type'],
-    );
-    if (!isset($subscription->send_interval)) {
-      $subscription->send_interval = variable_get('notifications_default_send_interval', 0);    
-    }
-    if (!isset($subscription->send_method)) {
-      $subscription->send_method = variable_get('notifications_default_send_method', '');    
-    }
-    if (empty($_GET['confirm'])) {
-      // Subscribe, no confirmation
-      notifications_save_subscription($subscription);
-      drupal_goto();
-    } else {
-      // Ask for confirmation
-      drupal_set_title(t('Confirm your subscription'));
-      return drupal_get_form('notifications_form_confirm', $subscription, $info);
-    }
-    
-  } else {
-    drupal_access_denied();
-  }
-}
-/**
- * Form for subscription confirmation
- */
-function notifications_form_confirm($subscription, $info) {
-  // Pass on simple values
-  foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
-    $form[$field] = array('#type' => 'value', '#value' => $subscription->$field);
-  }
-
-  // The names will be added here
-  notifications_module_invoke('names', $subscription);
-
-  $form['info'] = array(
-    '#type' => 'item',
-    '#title' => t('!type subscription to', array('!type' => $subscription->type_name)),
-    '#value' => theme('item_list', $subscription->names),
-  );
-
-  // Additional parameters
-  $form['send_interval'] = array(
-    '#type' => 'select',
-    '#title' => t('Send interval'),
-    '#options' => _notifications_send_intervals(),
-    '#default_value' => $subscription->send_interval,
-  );
-  $form['send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => _notifications_send_methods(),
-    '#default_value' => $subscriptions->send_method,
-  );
-  $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
-  $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
-  return $form;
-}
-
-/**
- * Process form submission
- */
-function notifications_form_confirm_submit($form_id, $form_values) {
-  $subscription = (object)$form_values;
-  switch($form_values['op']) {
-    case t('Subscribe'):
-      notifications_save_subscription($subscription);
-      drupal_set_message(t('Your subscription was activated.'));
-      break;
-    case t('Cancel'):
-      drupal_set_message(t('Your subscription was cancelled'));
-      break;
-  }
-  return 'user/'.$form_values['uid'].'/notifications';   
-}
-
-/**
- * Process arguments and return an array of field/value pairs
- */
-function notifications_field_args($fields, $values) {
-  $names = explode(',', $fields);
-  $params = explode(',', $values);
-  return array_combine($names, $params);  
-}
-
-/**
- * Menu callback add subscription
- * 
- * This just admits one field/value pair
- */
-function notifications_page_unsubscribe($sid) {
-  global $user;
-  
-  if (is_numeric($sid) && ($subscription = notifications_load_subscription($sid)) ) {
-    if (user_access('administer notifications') ||
-      ($user->uid && $user->uid == $subscription->uid) ||
-      (!empty($_GET['signature']) && ($_GET['signature'] == _notifications_signature(array('unsubscribe', $sid))))
-    ) {
-      notifications_delete_subscription($sid);
-      drupal_set_message(t('Your subscription has been removed.'));
-      drupal_goto();
-      return;
-    }
-  }
-  drupal_access_denied();
-}
-
-/**
  * Implementation of hook_perms()
  * 
  */
 function notifications_perm() {
-  return array_merge(array('administer notifications'));
+  return array_merge(array('administer notifications', 'maintain own subscriptions'));
 }
 
 /**
@@ -789,6 +666,60 @@ function notifications_get_link($type, $params) {
   );
 }
 
+/**
+ * Check access to objects
+ * 
+ * This will check permissions for subscriptions and events before subscribing
+ * and before getting updates.
+ * 
+ * @param $type
+ *   Type of object to check for access. Possible values:
+ *   - 'event', will check access to event objects
+ *   - 'subscription', will check access to subscribed objects
+ */
+function notifications_user_allowed($type, $account, $object = NULL) {
+
+  // Invoke notifications hook and check for a FALSE return value
+  
+  $permissions = notifications_module_info('access', $type, $account, $object);
+  
+  if ($permissions) {
+    return !in_array(FALSE, $permissions);
+  } else {
+    // If no module has anthing to say about access I guess it will be true
+    return TRUE;
+  }
+}
+
+/**
+ * Implementation of notifications_hook()
+ * 
+ * Check access permissions to subscriptions
+ */
+function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+  switch ($op) {
+    case 'access':
+      if ($arg0 == 'subscription') {
+        $account = $arg1;
+        $subscription = $arg2;
+        // First we check valid subscription type
+        $access = FALSE;
+        if ($subscription->type && ($info = notifications_subscription_types($subscription->type))) {
+          // To allow mixed subscription types to work we dont have a fixed field list
+          // Then check specific access to this type. Each type must have a permission
+          if (!empty($info['access callback'])) {
+            $access = call_user_func($info['access callback'], $account, $subscription);
+          } elseif (!empty($info['access']) && user_access($info['access'], $account)|| user_access('administer notifications', $account)) {
+           // Check matching fields
+            if (!array_diff($info['fields'], array_keys($subscription->fields))) {
+              $access = TRUE;
+            }
+          }
+        }
+        return array($access);
+      }
+  }
+}
 /**
  * List of send intervals
  */

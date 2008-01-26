@@ -220,14 +220,23 @@ function notifications_ui_user_node($account, $node) {
   $node_options = notifications_module_info('node options', $account, $node);
   $allowed_types = notifications_ui_allowed_types();
   $allowed_options = array();
+  // We also keep track of event types for each subscription type
+  $event_types = array('node' => TRUE);
   foreach ($node_options as $index => $option) {
     if (isset($allowed_types[$option['type']])) {
       $allowed_options[] = $option;
+      // We add the event type to our list
+      $event_types[$allowed_types[$option['type']]['event_type']] = TRUE;
     }
   }
   
   // Check if user is subscribed to show 'subscribe'/'unsubscribe' links
-  $subscriptions = notifications_user_get_subscriptions($account->uid, 'node', $node->nid, $node);      
+  $subscriptions = array();
+  foreach (array_keys($event_types) as $type) {
+    if ($more = notifications_user_get_subscriptions($account->uid, $type, $node->nid, $node)) {
+      $subscriptions += $more;
+    }
+  }      
   foreach ($allowed_options as $index => $option) {
     foreach ($subscriptions as $sub) {
       if ($sub->type == $option['type'] && !array_diff_key($option['fields'], $sub->fields)) {

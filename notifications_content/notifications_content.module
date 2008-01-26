@@ -156,7 +156,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
     case 'event load': // $arg0 is event
       $event = &$arg0;
       $load = array();
-      if ($event->type = 'node') {
+      if ($event->type == 'node') {
         if (!empty($event->params['nid'])) {
           $event->objects['node'] = node_load($event->params['nid']);
         }
@@ -169,17 +169,13 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       $types[] = array(
         'type' => 'node',
         'action' => 'insert',
-        'title' => 'New [type-name]: [title]',
         'name' => '[type-name]: [title]',
-        'detail' => "[node-teaser]\nRead more [node-url]",
         'line' => '[type-name] [title] by [author-name]',
         'digest' => array('node', 'nid'),
       );
       $types[] = array(
         'type' => 'node',
         'action' => 'update',
-        'title' => 'Update for [type-name]: [title]',
-        'detail' => "[node-teaser]\nRead more [node-url]",
         'name' => '[type-name]: [title]',
         'line' => 'The [node-type] has been updated',
         'digest' => array('node', 'nid'), 
@@ -187,14 +183,36 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       $types[] = array(
         'type' => 'node',
         'action' => 'comment',
-        'title' => 'Comment for [type-name]: [title]',
-        'detail' => "Comment by [comment-author-name]: [comment-title]\n[comment-body]\nRead more [comment-url]",
         'name' => '[type-name]: [title]',
         'line' => 'New comment by [comment-author-name]: [comment-title]', 
         'digest' => array('node', 'nid'),
       );
-
       return $types;
+
+    case 'access': 
+      $type = $arg0;
+      $account = &$arg1;
+      $object = &$arg2;
+      $access = TRUE;
+      // For events we check that node and comment are allowed
+      if ($type == 'event' && $object->type == 'node') {        
+        if (!empty($object->objects['node'])) {
+          $access = notifications_content_node_allow($account, $object->objects['node']);
+        }
+        // If no access to node, we don't check more
+        if ($access && !empty($object->objects['comment'])) {
+          $access = $access && notifications_content_comment_allow($account, $object->objects['comment']);
+        }
+      // For node subscriptions we check that user can view the node
+      } elseif($type == 'subscription' && !empty($object->fields['nid'])) {
+        if ($node = node_load($object->fields['nid'])) {
+          $access =  notifications_content_node_allow($account, $node);
+        } else {
+          $access = FALSE;
+        }
+      }
+      return array($access);      
+      break;
   }
 }
 
@@ -576,6 +594,8 @@ function notifications_content_token_list($type = 'all') {
     $tokens['node']['node-teaser']    = t('The node teaser.');
     $tokens['node']['node-body']    = t('The node body.');
     $tokens['node']['node-url']      = t('The node view url for read more links.');
+    $tokens['node']['node-teaser-raw']    = t('Unfiltered node teaser. WARNING - raw user input.');
+    $tokens['node']['node-body-raw']    = t('Unfiltered node body. WARNING - raw user input.');
   }
   if ($type == 'comment' || $type == 'all') {  
     $tokens['comment']['comment-url'] = t('The comment view url.');
@@ -594,6 +614,8 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
         $values['node-teaser'] = $node->teaser ? check_markup($node->teaser, $node->format, FALSE) : '';
         $values['node-body'] = $node->body ? check_markup($node->body, $node->format, FALSE) : '';
         $values['node-url'] = url('node/'.$node->nid, NULL, NULL, TRUE);
+        $values['node-teaser-raw'] = $node->teaser ? $node->teaser : '';
+        $values['node-body-raw'] = $node->body ? $node->body : '';
         return $values;
       }
       break;
@@ -605,4 +627,42 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       }
       break;
   }
+}
+
+/**
+ * Determine whether the specified user may view the specified node.
+ *
+ * Does a user switching and checks for node permissions. Looking for a better way
+ * but it seems that all the node_access hooks cant be invokes without this.
+ */
+function notifications_content_node_allow($account, $node) {
+  static $access;
+  global $user;
+
+  if (!isset($access[$account->uid][$node->nid])) {
+    $current = $user;
+    $user = $account;
+    $access[$account->uid][$node->nid] = node_access('view', $node);
+    $user = $current;
+  }
+  return $access[$account->uid][$node->nid];
+}
+
+/**
+ * Determine whether the specified user may view the specified comment.
+ *
+ * Does a user switching and checks for node permissions. Looking for a better way
+ * but it seems that all the node_access hooks cant be invokes without this.
+ */
+function notifications_content_comment_allow($account, $comment) {
+  static $access;
+  $comment = is_object($comment) ? $comment : db_fetch_object(db_query("SELECT * FROM {comments} WHERE cid = %d", $comment));
+  if (!isset($access[$account->uid][$comment->cid])) {
+    if (($account->uid == $comment->uid || $comment->status == COMMENT_PUBLISHED) && user_access('access comments', $account) || user_access('administer comments', $account)) {
+      $access[$account->uid][$comment->cid] = TRUE;
+    } else {
+      $access[$account->uid][$comment->cid] = FALSE;
+    }
+  }
+  return $access[$account->uid][$comment->cid];
 }

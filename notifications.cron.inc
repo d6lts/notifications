@@ -66,11 +66,14 @@ function notifications_process_pull($method, $users, $limit, $delete) {
     $maxsqid = $queue->squid;
     $account = notifications_load_user($queue->uid);
     $event = notifications_load_event($queue->eid);
-    $subscriptions = array($queue->sid);
-    $message = notifications_process_message($account, $event, $subscriptions, $method);
-    $message['uid'] = $queue->uid;
-    $message['from'] = $event->uid;
-    $messages[] = $message;   
+    // Access control for event objects
+    if (notifications_user_allowed('event', $account, $event)) {
+      $subscriptions = array($queue->sid);
+      $message = notifications_process_message($account, $event, $subscriptions, $method);
+      $message['uid'] = $queue->uid;
+      $message['from'] = $event->uid;
+      $messages[] = $message;
+    }
   }
   // Delete returned rows
   if ($messages && $delete) {
@@ -196,24 +199,33 @@ function notifications_process_queue($send_interval, $max_sqid) {
     $send_method = $user->send_method;
     $sqid = 0;
     $account = notifications_load_user($user->uid);
+    $delete = FALSE;
     // Process all rows for this user. With some hard limit to prevent process lock ups.
     $result_subs = db_query_range("SELECT * FROM {notifications_queue} WHERE send_interval = '%d' AND uid = %d AND sqid <= %d ORDER BY send_method, sqid", $send_interval, $account->uid, $max_sqid, 0, NOTIFICATIONS_STEP_ROWS);
     while (($queue = db_fetch_object($result_subs)) && notifications_process('count', 'row')) {
       $count++;
       $sqid = $queue->sqid;
-      // This will take care of duplicated events
-      $events[$queue->eid] = $event = notifications_load_event($queue->eid, TRUE);
-      // We keep track also of subscriptions originating this event
-      $subscriptions[$queue->eid][] = $queue->sid;
+      
+      // Load event and check access
+      $event = notifications_load_event($queue->eid, TRUE);
+      if (notifications_user_allowed('event', $account, $event)) {
+        // This will take care of duplicated events
+        $events[$queue->eid] = $event;
+        // We keep track also of subscriptions originating this event
+        $subscriptions[$queue->eid][] = $queue->sid;
+      } else {
+        // Delete row right away
+        $delete = TRUE;
+      }
       notifications_log("Processing queued sid=$queue->sid event=$queue->eid ($event->type, $event->action) send_method=$send_method");
 
     }
     if ($events) {
       notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
-      if (!notifications_process('option', 'debug')) {
-        notifications_queue_delete(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));
-        notifications_update_sent($user->uid, $send_method, $send_interval, time());
-      }      
+      notifications_update_sent($user->uid, $send_method, $send_interval, time());  
+    }
+    if ($events || $delete) {
+       notifications_queue_delete(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
     }
   }
   

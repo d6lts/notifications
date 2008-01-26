@@ -94,7 +94,7 @@ function notifications_mixed_user_form($account, $subscriptions) {
   );
   foreach ($subscriptions as $subs) {
     // Name the conditions
-    notifications_module_info('names', $subs);
+    notifications_module_invoke('names', $subs);
     $options = array(
       l(t('delete'), 'subscriptions/del/'.$subs->sid),
     );

@@ -175,24 +175,29 @@ function _notifications_group_node_options($account, $node) {
  */
 function notifications_group_user_page($account = NULL) {
   global $user;
-  if (!isset($account)) {
-    $account = $user;
-  }
-  // List of all subscribed node types
-  $subscriptions = notifications_get_subscriptions(array('type' => 'author', 'event_type' => 'node', 'uid' => $account->uid), array('author' => NULL), TRUE, 'value');
-  
+  $account = $account ? $account : $user;
+
+  // Query for group subscriptions. 
+  // @ TO DO Retrieve also grouptype subscriptions
+  $query = "SELECT s.*, f.value AS nid, n.type AS node_type, n.title FROM {notifications} s 
+    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
+    WHERE s.uid = %d AND s.type = 'group' AND s.conditions = 1 AND f.field = 'group'
+    ORDER BY node_type, n.title";
+  $results = db_query($query, $account->uid);
+
+  $subscriptions = $list = array();
+
+  while ($sub = db_fetch_object($results)) {
+    $subscriptions[$sub->nid] = $sub;
+    $list[$sub->nid] = $sub->title;
+  }  
 
   if (!$subscriptions) {
-    $output = t('There are no active author subscriptions.');    
+    $output = t('There are no active group subscriptions.');    
   } else {
-    // Build author list
-    $list = array();
-    $result = db_query("SELECT uid, name FROM {users} WHERE uid IN (".implode(',', array_keys($subscriptions)).')');
-    while ($author = db_fetch_object($result)) {
-      $list[$author->uid] = $author->name;
-    }
-    $defaults = array('type' => 'author', 'event_type' => 'node');
-    $output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
+    $defaults = array('type' => 'group', 'event_type' => 'node');
+    $options = array('title' => t('Group'));
+    $output = drupal_get_form('notifications_user_form', $account, 'group', $subscriptions, $list, $defaults, $options);
   }
   return $output;
 }
