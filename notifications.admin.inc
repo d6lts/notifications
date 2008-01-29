@@ -34,6 +34,13 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_autoset', 0),
     '#description'   => t('Sets each users "autosubscribe" profile option. Default is OFF.'),
   );
+  $form['sub_settings']['notifications_send_inmediate'] = array(
+    '#title' => t('Inmediate sending'),
+    '#type' => 'checkbox',
+    '#size' => 10,
+    '#default_value' => variable_get('notifications_send_inmediate', 0),
+    '#description' => t('Do not queue notifications for inmediate sending. This will produce more timely notifications for sites with a small number of users.'),
+  );
   // Default options
   $form['defaults'] = array(
       '#type' => 'fieldset',
@@ -53,12 +60,12 @@ function notifications_settings_form() {
   );
 
   // Processing limits
-  $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'step' => 0, 'time' => 0));
+  $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'percent' => 0, 'time' => 0));
   $form['notifications_process_limit'] = array(
     '#type' => 'fieldset',
     '#title' => t('Limits for queue processing'),
     '#tree' => TRUE,
-    '#description' => t('These are the limits for each cron run on queue processing. Set to 0 for no limit.'),
+    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
   );
   $form['notifications_process_limit']['row'] = array(
     '#title' => t('Number of rows'),
@@ -78,12 +85,12 @@ function notifications_settings_form() {
     '#size' => 10,
     '#default_value' => $limit['time'],
   );
-  $form['notifications_process_limit']['step'] = array(
-    '#title' => t('Process steps'),
+  $form['notifications_process_limit']['percent'] = array(
+    '#title' => t('Time (% of cron time)'),
     '#type' => 'textfield',
     '#size' => 10,
-    '#default_value' => $limit['step'],
-    '#description' => t('One process step is counted for each user, send method and send interval'),
+    '#default_value' => $limit['percent'],
+    '#description' => t('Maximum percentage of cron time the process may use.'),
   );
   return system_settings_form($form);
 }
@@ -214,7 +221,9 @@ function notifications_admin_queue($op = 'status', $param = NULL) {
   }
   // Add operations
   $list[] = l(t('Run queue process'), "$base/run");
+  $list[] = l(t('Process inmediate sending'), "$base/run/inmediate");
   $list[] = l(t('Reset queue. Delete all notifications.'), "$base/reset");
+
   $output .= theme('box', t('Operations'), theme('item_list', $list));
   // Summary
   $output .= notifications_admin_queue_summary();
@@ -228,13 +237,19 @@ function notifications_admin_queue_process($param) {
   include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   // Set some running parameters
   switch  ($param) {
+    case 'inmediate':
+      notifications_process_rows(array('cron' => 1, 'send_interval' => 0));
+      break;
     case 'debug':
       notifications_process('option', 'debug', TRUE);
       notifications_process('option', 'output', TRUE);
+      notifications_process_run(FALSE);
       break;
+    default:
+      notifications_process_run(FALSE);
   }
-  // Go for it
-  notifications_process_run();
+  // Go for it, not cron run
+
   if ($logs = notifications_log()) {
     return theme('item_list', $logs);
   }

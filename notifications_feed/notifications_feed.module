@@ -218,11 +218,6 @@ function notifications_feed_token_list($type = 'all') {
  */
 function notifications_feed_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
-    /* debug
-    case 'event':
-      dsm($object);
-      break;
-      */
     case 'feed':
       if ($feed = $object) {
         $values['feed-name'] = check_plain($feed->title);
@@ -239,7 +234,6 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
         foreach ($updated as $item) {
           $refreshed[] = t('Updated: !title', array('!title' => $item));
         }
-
         $values['feed-items-updated'] = $updated ? implode("\n- ", $updated) : t('no updated items');
         $values['feed-items-new'] = $new ? '- '.implode("\n- ", $new) : t('no new items');
         $values['feed-items-refresh'] = implode("\n", $refreshed); 

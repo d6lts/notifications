@@ -56,7 +56,7 @@ function notifications_menu($may_cache) {
     $items[] = array(
       'path' => 'admin/notifications/settings',
       'title' => t('Settings'),
-      'description' => t('Enables site settings for user notifications.'),
+      'description' => t('Site settings for user notifications.'),
       'callback' => 'drupal_get_form',
       'callback arguments' => 'notifications_settings_form',
       'access' => user_access('administer site configuration'),
@@ -191,8 +191,14 @@ function notifications_queue($event) {
     ' HAVING s.conditions = count(f.sid)';
   db_query($sql, $query['args']);
 
-  // @ TODO Populate blank values with data from notifications_user
-  // @ TODO Add condition for active users
+  // Modules can do cleanup operations or modify the queue
+  notifications_module_invoke('event queued', $event);
+  
+  // Optional inmediate sending.
+  if (variable_get('notifications_send_inmediate', 0)) {
+    require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
+  }
 }
 
 /**
@@ -373,6 +379,8 @@ function notifications_delete_subscription($sid) {
  *   Optional array of condition fields
  * @param $limit
  *   Whether to limit the result to subscriptions with exatly that condition fields
+ * @param $key
+ *   Optional key field to use as the array index. Will default to sid 
  * 
  * @return
  *   Array of subscriptions indexed by uid, module, field, value, author
@@ -448,7 +456,8 @@ function notifications_subscription_types($type = NULL, $field = NULL) {
 }
 
 /**
- * Invokes hook_notifications() with a single parameter
+ * Invokes hook_notifications() with a single parameter or more but not needing
+ * an object to be passed as reference.
  */
 function notifications_module_info($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
   $object = NULL;
@@ -720,6 +729,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
       }
   }
 }
+
 /**
  * List of send intervals
  */

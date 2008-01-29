@@ -6,8 +6,12 @@
  */
 
 // Number of users to process for each step
-define('NOTIFICATIONS_STEP_ROWS', 100);
-define('NOTIFICATIONS_STEP_USERS', 100);
+define('NOTIFICATIONS_STEP_ROWS', 1000);
+define('NOTIFICATIONS_STEP_USERS', 1000);
+
+// Minimum amount of seconds the process will need for clean-up tasks
+// Just to make sure that after exhausting cron assigned time we'll have a few spare seconds for some cleanup
+define('NOTIFICATIONS_TIME_MARGIN', 5);
 
 /**
  * Function to be called on cron by the main notifications_cron
@@ -17,12 +21,15 @@ define('NOTIFICATIONS_STEP_USERS', 100);
  * This should send out messages starting with inmediate delivery. We send first inmediate delivery
  * because the other ones can be added up for each period. 
  * Assumption: The bigger the interval, the longer delay it may admit (?) I.e. sending hourly email 
- * after 1 hour 15 mins if the system is overloaded.
+ * after 1 hour 15 mins may be ok if the system is overloaded.
  */
-function notifications_process_run() {  
-  $output[] = 'Starting process';
+function notifications_process_run($cron = TRUE) {  
+  notifications_log('Starting queue process');
   notifications_process('start');
-
+  // There may be special time adjustments for cron
+  if ($cron) {
+    notifications_process('cron');
+  }
   $stop = FALSE;
   $send_intervals = _notifications_send_intervals();
   unset($send_intervals[-1]);
@@ -30,14 +37,13 @@ function notifications_process_run() {
   foreach ($send_intervals as $interval => $name) {
     notifications_log('Processing send interval '.$name);
     while (notifications_process_queue($interval, $max_sqid)) {
-      $stop = !notifications_process('count', 'step');
+      $stop = !notifications_process('check');
     }
     if ($stop) {
       notifications_log('Process stopped');
       break;
     }
   }
-  return $output;
 }
 
 /**
@@ -108,10 +114,11 @@ function notifications_process_prepare() {
 }
 
 /**
- * Controls limits for queue processing
+ * Controls and checks limits for queue processing
  * It can be used by other modules to add their own limits here, like number of sms sent, etc...
  * @param $op
  *   'start' => Start the counters
+ *   'cron' => Special time adjustment for cron operations
  *   'init' => Start a new counter with $value limit
  *   'option' => Sets /gets options
  *      - debug
@@ -125,15 +132,24 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
 
   switch($op) {
     case 'start':
-      $defaults = variable_get('notifications_process_limit', array('time' => 0, 'message' => 0, 'row' => 0, 'step' => 0));
-      foreach($defaults as $name => $value) {
+      $defaults = variable_get('notifications_process_limit', array('time' => 0, 'message' => 0, 'row' => 0, 'percent' => 0));
+      foreach ($defaults as $name => $value) {
         if ($value && !isset($limit[$name])) {
           $limit[$name] = $value;
         }
       }
-      if (isset($limit['time'])) {
-        $limit['time'] += time();
-      }     
+      break;
+    case 'cron':
+      // Calculate time limit. We get the smaller of all these times in seconds
+      $timelimit[] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - NOTIFICATIONS_TIME_MARGIN;
+      if ($limit['time']) {
+        $timelimit[] = time() + $limit['time'];
+      }
+      if ($limit['percent']) {
+        $timelimit[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
+        unset($limit['percent']);
+      }
+      $limit['time'] = min($timelimit);    dsm($timelimit);
       break;
     case 'init':
       $current[$name] = 0;
@@ -148,6 +164,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       }
       return $options[$name];
   }
+  
   $current['time'] = time();
   
   // Check all limits till we find a false one
@@ -161,13 +178,64 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
 }
 
 /**
+ * Process rows given query conditions
+ * 
+ * This is used by the inmediate sending feature
+ * @see notifications_queue_query()
+ * 
+ * @param $conditions
+ *   Array of query conditions
+ */
+function notifications_process_rows($conditions) {
+  $account = NULL;
+  $subscriptions = $events = $processed = array();
+  $send_method = $send_interval = NULL;
+
+  // Build query and fetch rows from queue
+  $query = notifications_queue_query($conditions);
+  $sql = "SELECT * FROM {notifications_queue} ";
+  $sql .= " WHERE ".implode(' AND ', $query['where']);
+  $sql .= " ORDER BY uid, send_method, send_interval";
+  $result = db_query($sql, $query['args']);
+
+  // Group rows by user, send_method, send_interval before sending
+  // This loop has to run a final time after all rows have been fetched
+  while (($queue = db_fetch_object($result)) || $processed) {
+    if (!$account || !$queue || ($queue->uid != $account->uid) || $queue->send_method != $send_method || $queue->send_interval != $send_interval) {
+      // New user or sending method, send if not the first row and reset
+      if ($account && $events && $subscriptions) {
+        notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
+        notifications_update_sent($account->uid, $send_method, $send_interval, time());
+      }
+      if ($processed) {
+        notifications_queue_delete(array('sqids' => $processed));        
+      }
+      $subscriptions = $events = $processed = array();
+      if ($queue) {
+        $account = notifications_load_user($queue->uid);
+        $send_method = $queue->send_method;
+        $send_interval = $queue->send_interval;
+      }
+    }
+    if ($queue) {
+      $event = notifications_load_event($queue->eid);
+      if (notifications_user_allowed('event', $account, $event)) {
+        $events[$queue->eid] = $event;
+        $subscriptions[$queue->eid][] = $queue->sid;
+      }
+      $processed[] = $queue->sqid;
+    }
+  }
+}
+
+/**
  * Process subscriptions queue
  * 
  * The subscriptions queue has the following fields
  * sqid, uid, eid, sid, digest
  * 
  * This function should be able of splitting the whole processing in several steps.
- * It will be called multiple time for each send interval
+ * It will be called multiple times for each send interval
  * 
  * Messages will be processed for each send interval, send_method, user
  * 
@@ -177,9 +245,9 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
  */
 function notifications_process_queue($send_interval, $max_sqid) {
   $count = 0;
-  $digest = $send_interval > 0;
   // This is the time from which stored rows will be sent
   $timelimit = time() - $send_interval;
+
   // Get users to process messages for, with this time interval and ordered by squid
   // Order by last sent for this send interval
   // Note: If we get the users with more messages pending first this may save some time
@@ -190,22 +258,19 @@ function notifications_process_queue($send_interval, $max_sqid) {
   $sql .= " GROUP BY q.uid, q.send_method ORDER BY su.sent";
   $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
-  $account = NULL;
-  $current_uid = 0;
+  $sqid = 0;
   // @ TODO Add time conditions
   while (($user = db_fetch_object($result)) && notifications_process('check')) {
     notifications_log("Processing user $user->uid, rows $user->count, send_method $user->send_method");
-    $events = $subscriptions = array();    
+    $events = $subscriptions = $processed = array();    
     $send_method = $user->send_method;
-    $sqid = 0;
     $account = notifications_load_user($user->uid);
-    $delete = FALSE;
+
     // Process all rows for this user. With some hard limit to prevent process lock ups.
-    $result_subs = db_query_range("SELECT * FROM {notifications_queue} WHERE send_interval = '%d' AND uid = %d AND sqid <= %d ORDER BY send_method, sqid", $send_interval, $account->uid, $max_sqid, 0, NOTIFICATIONS_STEP_ROWS);
+    $result_subs = db_query_range("SELECT * FROM {notifications_queue} WHERE cron = 1 AND send_interval = '%d' AND uid = %d AND sqid <= %d ORDER BY send_method, sqid", $send_interval, $account->uid, $max_sqid, 0, NOTIFICATIONS_STEP_ROWS);
     while (($queue = db_fetch_object($result_subs)) && notifications_process('count', 'row')) {
       $count++;
-      $sqid = $queue->sqid;
-      
+      $processed[] = $sqid = $queue->sqid;      
       // Load event and check access
       $event = notifications_load_event($queue->eid, TRUE);
       if (notifications_user_allowed('event', $account, $event)) {
@@ -213,18 +278,14 @@ function notifications_process_queue($send_interval, $max_sqid) {
         $events[$queue->eid] = $event;
         // We keep track also of subscriptions originating this event
         $subscriptions[$queue->eid][] = $queue->sid;
-      } else {
-        // Delete row right away
-        $delete = TRUE;
-      }
+      }      
       notifications_log("Processing queued sid=$queue->sid event=$queue->eid ($event->type, $event->action) send_method=$send_method");
-
     }
     if ($events) {
       notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
       notifications_update_sent($user->uid, $send_method, $send_interval, time());  
     }
-    if ($events || $delete) {
+    if ($processed && !notifications_process('option', 'debug')) {
        notifications_queue_delete(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
     }
   }
@@ -453,20 +514,46 @@ function notifications_load_event($id) {
 /**
  * Delete rows from subscriptions queue
  * 
+ * @see notifications_queue_query()
+ * 
  * Note: Handle with care if no params may delete all rows
  */
 function notifications_queue_delete($params) {
+  $query = notifications_queue_query($params);
+  db_query("DELETE FROM {notifications_queue} WHERE ".implode(' AND ', $query['where']), $query['args']);
+}
+
+/**
+ * Build query conditions for queue queries
+ * 
+ * @param $params
+ *   Array of parameters, field => value form
+ *   Special parameters
+ *     'max_squid' => max squid to delete
+ *     'rows' => array of squid values to delte
+ * @return
+ *   Array with 'where' and 'args' elements. Each of them is an array
+ */
+function notifications_queue_query($params) {
   $where = $args = array();
-  if (isset($params['max_sqid'])) {
-    $where[] = "sqid <= %d";
-    $args[] = $params['max_sqid'];
-    unset($params['max_sqid']);
-  }
+  
   foreach($params as $field => $value) {
-    $where[] = "$field = '%s'";
-    $args[] = $value;
-  }
-  db_query("DELETE FROM {notifications_queue} WHERE ".implode(' AND ', $where), $args);
+    switch ($field) {
+      case 'max_sqid':
+        $where[] = "sqid <= %d";
+        $args[] = $value;
+        break;
+      case 'sqids':
+        $where[] = "sqid IN (%s)";
+        $args[] = implode(',', array_map('db_escape_string', $value));
+        break;      
+      default:
+        $where[] = "$field = '%s'";
+        $args[] = $value;
+        break;
+    }
+  }  
+  return array('where' => $where, 'args' => $args);
 }
 
 /**
