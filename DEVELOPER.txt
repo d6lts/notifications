@@ -27,7 +27,7 @@ All this may cause some overlap, having more than one notification for a user in
 This should be resolved in the final message composition and sending steps, preventing a user being notified more than once for the same event.
 I.e. a user may be subscribed to a given taxonomy term and also to a given node type, causing the same node post to produce
 two notifications, one for the taxonomy term and one for the node type.
-However, when the user wants inmediate notifications for the first subscription but delayed ones for the second one -I.e. a daily message-
+However, when the user wants immediate notifications for the first subscription but delayed ones for the second one -I.e. a daily message-
 it seems ok to send the event notification in both messages. Thus this de-duping will be done only for messages in the sime time interval.
 
 The UI for subscribing and unsubscribing is also provided by a plug-in module. There's the notifications_ui module which

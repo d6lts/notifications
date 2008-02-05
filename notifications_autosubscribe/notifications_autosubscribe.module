@@ -20,7 +20,7 @@
 function notifications_autosubscribe($type, $event_type, $field, $value) {
   global $user;
   // if user has auto subscribe enabled and he's not already subscribed
-  if (($user->notifications_auto || !isset($user->notifications_auto) && variable_get('notifications_autoset', 0)) && !notifications_user_get_subscriptions($user->uid, $module, $field, $value)) {
+  if (notifications_user_setting('auto', $user) && !notifications_user_get_subscriptions($user->uid, $event_type, $field, $value)) {
     $subscription = array(
       'uid' => $user->uid,
       'type' => $type,
@@ -37,14 +37,25 @@ function notifications_autosubscribe($type, $event_type, $field, $value) {
  * Adds autosubscribe checkbox to user edit form.
  */
 function notifications_autosubscribe_form_alter($form_id, &$form) {
-  if ($form_id == "user_edit") {
-    $notifications_auto = $form['_account']['#value']->notifications_auto;
-    $form['notifications']['notifications_auto'] = array(
-      '#type'          => 'checkbox',
-      '#title'         => t('Autosubscribe'),
-      '#default_value' => isset($notifications_auto) ? $notifications_auto : variable_get('notifications_autoset', 0),
-      '#description'   => t('Checking this box allows you to be automatically subscribe to any thread you create or post a comment to. You will recieve an email with a title and link to the post.'),
-    );
+  switch ($form_id) {
+    case 'user_edit':
+      if (isset($form['notifications'])) {
+        $form['notifications']['notifications_auto'] = array(
+          '#type'          => 'checkbox',
+          '#title'         => t('Autosubscribe'),
+          '#default_value' => notifications_user_setting('auto', $form['_account']['#value']),
+          '#description'   => t('Checking this box allows you to be automatically subscribe to any thread you create or post a comment to. You will recieve an email with a title and link to the post.'),
+        );
+      }
+      break;
+    case 'notifications_content_settings_form':
+      $form['content']['notifications_default_auto'] = array(
+        '#type'          => 'checkbox',
+        '#title'         => t('Set all users to "autosubscribe" by default'),
+        '#default_value' => variable_get('notifications_default_auto', 0),
+        '#description'   => t('Sets each users "autosubscribe" profile option.'),
+      );
+      break;
   }
 }
 

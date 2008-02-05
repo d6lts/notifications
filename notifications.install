@@ -38,6 +38,7 @@ function notifications_install() {
                     `sent` int(10) unsigned NOT NULL default '0',
                     `created` int(10) unsigned NOT NULL default '0',
                     `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                    `conditions` INTEGER UNSIGNED NOT NULL DEFAULT 0,
                     PRIMARY KEY  (`sqid`)
                   )/*!40100 DEFAULT CHARACTER SET utf8 */");
     
@@ -61,14 +62,6 @@ function notifications_install() {
                     `sent` int(10) unsigned NOT NULL default '0',
                     PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
                   )/*!40100 DEFAULT CHARACTER SET utf8 */");
-          db_query("CREATE TABLE {notifications_user} (
-                    `uid` int(11) default NULL,
-                    `send_interval` int(11) default NULL,
-                    `send_method` varchar(50) default NULL,
-                    `sent` int(10) unsigned NOT NULL default '0',
-                    PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
-                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
-
           break;
         case 'pgsql':
           drupal_set_message('Sorry, no install script for pgsql yet.', 'error');
@@ -102,16 +95,20 @@ function notifications_update_1() {
 }
 
 /**
- * Update: Remove unused table and fields
+ * Update:
+ * - Remove unused table and fields
+ * - Add conditions field for mysql4 compatibility
+ * - Updated variable name
  */
-/* Uncomment this when we have all fields here
 function notifications_update_2() {
   $ret = array();
-  $ret[] = update_sq("DROP TABLE {notifications_user}");
+  $ret[] = update_sql("DROP TABLE {notifications_user}");
   $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `name`;");
   $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `field`;");
   $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `value`;");
   $ret[] = update_sql("ALTER TABLE {notifications_queue} DROP COLUMN `author`;");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} ADD COLUMN `conditions` INTEGER UNSIGNED NOT NULL DEFAULT 0 AFTER `cron`");
+  variable_set('notifications_default_auto', variable_get('notifications_autoset', 0));
+  variable_del('notifications_autoset');
   return $ret;
 }
-*/

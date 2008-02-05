@@ -1,4 +1,4 @@
 name = Notifications Autosubscribe
 description = Provides automatic notifications.
 package = "Notifications"
-dependencies = notifications
+dependencies = notifications notifications_content

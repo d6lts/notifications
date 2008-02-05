@@ -18,7 +18,7 @@ define('NOTIFICATIONS_TIME_MARGIN', 5);
  * 
  * It will call each subscription_process for each interval a number of times
  * 
- * This should send out messages starting with inmediate delivery. We send first inmediate delivery
+ * This should send out messages starting with immediate delivery. We send first immediate delivery
  * because the other ones can be added up for each period. 
  * Assumption: The bigger the interval, the longer delay it may admit (?) I.e. sending hourly email 
  * after 1 hour 15 mins may be ok if the system is overloaded.
@@ -149,7 +149,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
         $timelimit[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
         unset($limit['percent']);
       }
-      $limit['time'] = min($timelimit);    dsm($timelimit);
+      $limit['time'] = min($timelimit);
       break;
     case 'init':
       $current[$name] = 0;
@@ -180,7 +180,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
 /**
  * Process rows given query conditions
  * 
- * This is used by the inmediate sending feature
+ * This is used by the immediate sending feature
  * @see notifications_queue_query()
  * 
  * @param $conditions
@@ -310,7 +310,7 @@ function notifications_update_sent($uid, $method, $interval, $time) {
 function notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval) {
 
   notifications_log("Sending out, method=$send_method, interval=$send_interval, events=". count($events));
-  // Digest if send_interval > 0 (not inmediate sending)
+  // Digest if send_interval > 0 (not immediate sending)
   if ($send_interval) {
     $messages[] = notifications_process_digest($account, $events, $send_interval, $send_method);
   } else {

@@ -28,18 +28,12 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_testpost', 0),
     '#description'   => t('Tests to see if a post about to be sent by cron is still active.  Adds a small amount of overhead.  Default is OFF.'),
   );
-  $form['sub_settings']['notifications_autoset'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Set all users to "autosubscribe" by default'),
-    '#default_value' => variable_get('notifications_autoset', 0),
-    '#description'   => t('Sets each users "autosubscribe" profile option. Default is OFF.'),
-  );
-  $form['sub_settings']['notifications_send_inmediate'] = array(
-    '#title' => t('Inmediate sending'),
+  $form['sub_settings']['notifications_send_immediate'] = array(
+    '#title' => t('Immediate sending'),
     '#type' => 'checkbox',
     '#size' => 10,
-    '#default_value' => variable_get('notifications_send_inmediate', 0),
-    '#description' => t('Do not queue notifications for inmediate sending. This will produce more timely notifications for sites with a small number of users.'),
+    '#default_value' => variable_get('notifications_send_immediate', 0),
+    '#description' => t('Do not queue notifications for immediate sending. This will produce more timely notifications for sites with a small number of users.'),
   );
   // Default options
   $form['defaults'] = array(
@@ -133,15 +127,26 @@ function notifications_page_user_overview($account) {
   while ($subs = db_fetch_object($result)) {
     $count[$subs->type] =  $subs->number;
   }
-
   $header = array(t('Type'), t('Number'));
+  $rows = array();
+  
+  // List types and count for each type
   foreach (notifications_subscription_types() as $type => $info) {
-    $rows[] = array(
-        l($info['title'], "user/$account->uid/notifications/$type"),
-        isset($count[$type]) ? $count[$type] : 0,
-    );
+    $access = user_access('administer notifications') || !empty($info['access']) && user_access($info['access']);
+    // If no access and no count, skip this type.
+    // But if no access and there are some we show the type and number without link.
+    if ($access || !empty($count[$type])) {
+      $rows[] = array(
+         $access ? l($info['title'], "user/$account->uid/notifications/$type") : $info['title'],
+         isset($count[$type]) ? $count[$type] : 0,
+      );
+    }
   }
-  $output .= theme('table', $header, $rows);
+  if ($rows) {
+    $output .= theme('table', $header, $rows);
+  } else {
+    $output .= t('No existing or allowed subscriptions');
+  }
   return $output;
 }
 
@@ -221,7 +226,7 @@ function notifications_admin_queue($op = 'status', $param = NULL) {
   }
   // Add operations
   $list[] = l(t('Run queue process'), "$base/run");
-  $list[] = l(t('Process inmediate sending'), "$base/run/inmediate");
+  $list[] = l(t('Process immediate sending'), "$base/run/immediate");
   $list[] = l(t('Reset queue. Delete all notifications.'), "$base/reset");
 
   $output .= theme('box', t('Operations'), theme('item_list', $list));
@@ -237,7 +242,7 @@ function notifications_admin_queue_process($param) {
   include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   // Set some running parameters
   switch  ($param) {
-    case 'inmediate':
+    case 'immediate':
       notifications_process_rows(array('cron' => 1, 'send_interval' => 0));
       break;
     case 'debug':

@@ -124,19 +124,54 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
       if ((user_access('maintain own subscriptions') || user_access("admin users subscriptions")  )&& $category == 'account') {
         $form['notifications'] = array(
           '#type'        => 'fieldset',
-          '#title'       => t('Subscriptions settings'),
+          '#title'       => t('Notifications settings'),
           '#weight'      => 5,
           '#collapsible' => TRUE,
         );
+        $form['notifications']['notifications_send_method'] = array(
+          '#type' => 'select',
+          '#title' => t('Default send method'),
+          '#options' => _notifications_send_methods($user),
+          '#default_value' => notifications_user_setting('send_method', $user),
+        );
+        $form['notifications']['notifications_send_interval'] = array(
+          '#type' => 'select',
+          '#title' => t('Default send interval'),
+          '#options' => _notifications_send_intervals(),
+          '#default_value' => notifications_user_setting('send_interval', $user),
+        );      
+        /*
         $form['notifications']['notifications_teaser'] = array(
           '#type'          => 'checkbox',
           '#title'         => t('Include teaser'),
           '#default_value' => isset($edit['notifications_teaser']) ? $edit['notifications_teaser'] : variable_get('notifications_teaser', 0),
           '#description'   => t('Checking this box adds an excerpt of the post to the subscription email.'),
         );
+        */
         return $form;
       }
       break;
+  }
+}
+
+/**
+ * Gets a user setting, defaults to default system setting for each
+ * 
+ * @param $name
+ *   Setting name
+ * @param $account
+ *   Optional user account, will default to current user
+ * @param $default
+ *   Optional default to return if this is not set
+ */
+function notifications_user_setting($name, $account = NULL, $default = NULL) {
+  global $user;
+  $account = $account ? $account : $user;
+  $field = 'notifications_'.$name;
+  if (isset($account->$field)) {
+    return $account->$field;
+  } else {
+    return variable_get('notifications_default_'.$name, $default);
   }
 }
 
@@ -182,8 +217,8 @@ function notifications_queue($event) {
   
   // We throw in all the conditions and check the number of matching conditions
   // that must be equal to the subscription conditions number
-  $sql = 'INSERT INTO {notifications_queue} (uid, sid, eid, send_interval, send_method, cron, created) '.
-    'SELECT DISTINCT s.uid, s.sid, %d, s.send_interval, s.send_method, s.cron, %d '.
+  $sql = 'INSERT INTO {notifications_queue} (uid, sid, eid, send_interval, send_method, cron, created, conditions) '.
+    'SELECT DISTINCT s.uid, s.sid, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
     'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
     implode (' ', $query['join']).
     " WHERE s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
@@ -194,8 +229,8 @@ function notifications_queue($event) {
   // Modules can do cleanup operations or modify the queue
   notifications_module_invoke('event queued', $event);
   
-  // Optional inmediate sending.
-  if (variable_get('notifications_send_inmediate', 0)) {
+  // Optional immediate sending.
+  if (variable_get('notifications_send_immediate', 0)) {
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
     notifications_process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
   }
@@ -241,7 +276,11 @@ function notifications_event_save(&$event) {
 }
 
 /**
- * Get subscription for given user
+ * Get subscription for a given user
+ * 
+ * @param $uid
+ *   User id
+ * @param 
  */
 function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL) {
   static $subscriptions;
@@ -275,17 +314,23 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
 /**
  * Update or create subscription
  * 
+ * This function checks for duplicated subscriptions before saving.
+ * If a similar subscription is found it will be updated.
+ * If no subscription is found and it is new, the sid will be added into the object.
+ * 
  * @param $subscription
  *   Subscription object or array
  */
 function notifications_save_subscription(&$subscription) {
+  global $user;
   $subscription = (object)$subscription;
   $subscription->conditions = count($subscription->fields);
+  $account = $subscription->uid ? user_load(array('uid' => $subscription->uid)) : $user;
   if (!isset($subscription->send_interval)) {
-    $subscription->send_interval = variable_get('notifications_default_send_interval', 0);    
+    $subscription->send_interval = notifications_user_setting('send_interval', $account, 0);    
   }
   if (!isset($subscription->send_method)) {
-    $subscription->send_method = variable_get('notifications_default_send_method', '');    
+    $subscription->send_method = notifications_user_setting('send_method', $account, '');    
   }
   // If the send method is a pull method, do not mark for cron processing
   // We make the decission here to allow some flexibility in the future
@@ -749,12 +794,8 @@ function _notifications_send_intervals() {
 /**
  * List of send methods
  */
-function _notifications_send_methods() {
-  static $methods;
-  if (!$methods) {
-    $methods = variable_get('notifications_send_methods', messaging_method_list());
-  }
-  return $methods;
+function _notifications_send_methods($account = NULL) {
+  return variable_get('notifications_send_methods', messaging_method_list($account));
 }
 
 /**
