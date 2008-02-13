@@ -429,8 +429,10 @@ function notifications_content_page_thread($account = NULL) {
     $output = t('You are not currently subscribed to any active threads');
   } else {
     $output = t('You are currently subscribed to the following threads:');
-    $defaults = array('type' => 'thread');
-    $output .= drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'nid', t('Title'), $defaults);
+    $defaults = array('type' => 'thread', 'event_type' => 'node');
+    $options = array('title' => t('Title'));
+    $output .= drupal_get_form('notifications_user_form', $account, 'thread', $subscriptions, $list, $defaults, $options);
+  
   }
   return $output;
 }
@@ -450,8 +452,10 @@ function notifications_content_page_nodetype($account = NULL) {
   if (!$types) {
     $output = t('There are no active content types.');    
   } else {
-    $defaults = array('type' => 'nodetype');
-    $output = drupal_get_form('notifications_content_form', $account, $subscriptions, $types, 'type', t('Type'), $defaults);
+    $defaults = array('type' => 'nodetype', 'event_type' => 'node');
+    $options = array('title' => t('Type'));
+    $output .= drupal_get_form('notifications_user_form', $account, 'nodetype', $subscriptions, $types, $defaults, $options);
+  
   }
   return $output;
 }
@@ -477,8 +481,10 @@ function notifications_content_page_author($account = NULL) {
     while ($author = db_fetch_object($result)) {
       $list[$author->uid] = $author->name;
     }
-    $defaults = array('type' => 'author');
-    $output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
+    $defaults = array('type' => 'author', 'event_type' => 'node');
+    //$output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
+    $options = array('title' => t('Author'));
+    $output = drupal_get_form('notifications_user_form', $account, 'author', $subscriptions, $list, $defaults, $options);
   }
   return $output;
 }
@@ -665,4 +671,13 @@ function notifications_content_comment_allow($account, $comment) {
     }
   }
   return $access[$account->uid][$comment->cid];
+}
+
+/**
+ * Implementation of hook_simpletest().
+ */
+function notifications_content_simpletest() {
+  $dir = drupal_get_path('module', 'notifications_content');
+  $tests = file_scan_directory($dir, '\.test');
+  return array_keys($tests);
 }
