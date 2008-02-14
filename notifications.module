@@ -217,12 +217,12 @@ function notifications_queue($event) {
   
   // We throw in all the conditions and check the number of matching conditions
   // that must be equal to the subscription conditions number
-  $sql = 'INSERT INTO {notifications_queue} (uid, sid, eid, send_interval, send_method, cron, created, conditions) '.
-    'SELECT DISTINCT s.uid, s.sid, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
+  $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) '.
+    'SELECT DISTINCT s.uid, s.sid, s.module, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
     'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
     implode (' ', $query['join']).
-    " WHERE s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
-    ' GROUP BY s.uid, s.sid, s.conditions '. // May need more grouping here
+    " WHERE s.status = 1 AND s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
+    ' GROUP BY s.uid, s.sid, s.module, s.conditions '. // May need more grouping here
     ' HAVING s.conditions = count(f.sid)';
   db_query($sql, $query['args']);
 
@@ -280,12 +280,20 @@ function notifications_event_save(&$event) {
  * 
  * @param $uid
  *   User id
- * @param 
+ * @param $event_type
+ *   Event type
+ * @param $oid
+ *   Object id for caching. I.e. for a node it will be nid
+ * @param $object
+ *   Object to check subscriptions to. I.e. $node
+ * 
+ * @return
+ *   Array of subscriptions for this user and object indexed by sid 
  */
-function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL) {
+function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL, $refresh = FALSE) {
   static $subscriptions;
 
-  if (!isset($subscriptions[$uid][$event_type][$oid])){
+  if ($refresh || !isset($subscriptions[$uid][$event_type][$oid])){
     $subscriptions[$uid][$event_type][$oid] = array();
     $query_args = notifications_module_info('query', 'user', $event_type, $object);
     // Base query
@@ -326,11 +334,11 @@ function notifications_save_subscription(&$subscription) {
   $subscription = (object)$subscription;
   $subscription->conditions = count($subscription->fields);
   $account = $subscription->uid ? user_load(array('uid' => $subscription->uid)) : $user;
-  if (!isset($subscription->send_interval)) {
-    $subscription->send_interval = notifications_user_setting('send_interval', $account, 0);    
-  }
-  if (!isset($subscription->send_method)) {
-    $subscription->send_method = notifications_user_setting('send_method', $account, '');    
+  // Default values for fields: send_interval, send_method, etc...
+  foreach (_notifications_subscription_defaults($account) as $field => $value) {
+    if (!isset($subscription->$field)) {
+      $subscription->$field = $value;
+    }
   }
   // If the send method is a pull method, do not mark for cron processing
   // We make the decission here to allow some flexibility in the future
@@ -342,9 +350,9 @@ function notifications_save_subscription(&$subscription) {
   }
   if ($subscription->sid) {
     $op = 'update';
-    db_query("UPDATE {notifications} SET uid = %d, type = '%s', event_type = '%s', conditions = %d, send_interval = '%d', send_method = '%s', cron = %d WHERE sid = %d", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->sid);
+    db_query("UPDATE {notifications} SET uid = %d, type = '%s', event_type = '%s', conditions = %d, send_interval = '%d', send_method = '%s', cron = %d, module = '%s', status = %d WHERE sid = %d", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status, $subscription->sid);
     db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $subscription->sid);
-  } elseif ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'type' => $subscription->type, 'event_type' => $subscription->event_type), $subscription->fields)) {
+  } elseif ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module), $subscription->fields)) {
     // We've found duplicates, resolve conflict updating first, deleting the rest
     $update = array_shift($duplicate);
     $update->send_interval = $subscription->send_interval;
@@ -355,12 +363,11 @@ function notifications_save_subscription(&$subscription) {
     while (array_shift($duplicate)) {
       notifications_delete_subscription($duplicate->sid);
     }
-    return notifications_save_subscription($subscription);
-    
+    return notifications_save_subscription($subscription);    
   } else {
     $op = 'insert';
     $subscription->sid = db_next_id('{notifications}_sid');
-    db_query("INSERT INTO {notifications} (sid, uid, type, event_type, conditions, send_interval, send_method, cron) VALUES(%d, %d, '%s', '%s', %d, %d, '%s', %d)", $subscription->sid, $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron);
+    db_query("INSERT INTO {notifications} (sid, uid, type, event_type, conditions, send_interval, send_method, cron, module, status) VALUES(%d, %d, '%s', '%s', %d, %d, '%s', %d, '%s', %d)", $subscription->sid, $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status);
   }
   foreach ($subscription->fields as $name => $value) {
     db_query("INSERT INTO {notifications_fields} (sid, field, value) VALUES(%d, '%s', '%s')", $subscription->sid, $name, $value);
@@ -373,11 +380,12 @@ function notifications_save_subscription(&$subscription) {
  *
  * @param $subs
  *   Either a subscription object or a subscription id (sid).
- *
+ * @param $refresh
+ *   Force cache refresh
  * @return
  *   Subscriptions object.
  */
-function notifications_load_subscription($subs) {
+function notifications_load_subscription($subs, $refresh = FALSE) {
   static $cache = array();
   if (is_object($subs)) {
     $sid = $subs->sid;
@@ -385,7 +393,7 @@ function notifications_load_subscription($subs) {
   } else {
     $sid = $subs;
   }
-  if (!array_key_exists($sid, $cache)) {
+  if ($refresh || !array_key_exists($sid, $cache)) {
     if (!isset($subscription)) {
       $subscription = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid));
     }
@@ -393,7 +401,7 @@ function notifications_load_subscription($subs) {
       $subscription->fields = array();
       $result = db_query("SELECT * FROM {notifications_fields} WHERE sid = %d", $sid);
       while ($condition = db_fetch_object($result)) {
-        $subscriptions->fields[$codition->field] = $condition->value;
+        $subscription->fields[$condition->field] = $condition->value;
       }
     }
     $cache[$sid] = $subscription;
@@ -413,6 +421,24 @@ function notifications_delete_subscription($sid) {
   foreach (array('notifications', 'notifications_fields', 'notifications_queue') as $table) {
     db_query("DELETE FROM {$table} WHERE sid = %d", $sid);
   }
+}
+
+/**
+ * Delete multiple subscriptions and clean up related data.
+ * 
+ * It also removes pending notifications related to that subscription 
+ * 
+ * @param $conditions
+ *   Array of multiple conditions to delete subscriptions
+ */
+function notifications_delete_subscriptions($conditions) {
+  foreach ($conditions as $field => $value) {
+    $where[] =  "$field = '%s'";
+  }
+  foreach (array('notifications_fields', 'notifications_queue') as $table) {
+    db_query("DELETE FROM {$table} WHERE sid IN (SELECT sid FROM {notifications} WHERE ". implode(' AND ', $where) . ")", $conditions);
+  }
+  db_query("DELETE FROM {notifications} WHERE ". implode(' AND ', $where), $conditions);
 }
 
 /**
@@ -617,7 +643,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
     case 'subscription':
       $values = array();
       if ($subscription = $object) {
-        $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE));
+        $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'destination' => FALSE));
         $values['unsubscribe-url'] = url($link['href'], $link['query'], NULL, TRUE);      
       }
       return $values;
@@ -707,7 +733,10 @@ function notifications_get_link($type, $params) {
       break;
   }
   // Build query string
-  $query[] = 'destination='.$params['destination'];
+  $query = array();
+  if ($params['destination']) {
+    $query[] = 'destination='.$params['destination'];
+  }
   if ($params['confirm']) {
     $query[] = 'confirm=1';
   }
@@ -736,7 +765,7 @@ function notifications_user_allowed($type, $account, $object = NULL) {
   // Invoke notifications hook and check for a FALSE return value
   
   $permissions = notifications_module_info('access', $type, $account, $object);
-  
+
   if ($permissions) {
     return !in_array(FALSE, $permissions);
   } else {
@@ -803,4 +832,25 @@ function _notifications_send_methods($account = NULL) {
  */
 function _notifications_signature($params) {
   return md5('notifications:'.drupal_get_private_key().':'.implode(':', $params));
+}
+
+/**
+ * Default values for subscription
+ */
+function _notifications_subscription_defaults($account = NULL) {
+  return array(
+    'send_interval' => notifications_user_setting('send_interval', $account, 0),
+    'send_method' => notifications_user_setting('send_method', $account, ''),
+    'module' => 'notifications',
+    'status' => 1,
+  ); 
+}
+
+/**
+ * Implementation of hook_simpletest().
+ */
+function notifications_simpletest() {
+  $dir = drupal_get_path('module', 'notifications'). DIRECTORY_SEPARATOR . 'tests';
+  $tests = file_scan_directory($dir, '\.test');
+  return array_keys($tests);
 }

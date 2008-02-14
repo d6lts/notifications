@@ -16,6 +16,8 @@ function notifications_install() {
                 `send_interval` int(11) default NULL,
                 `send_method` varchar(255) NOT NULL,
                 `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+                `module` VARCHAR(255) DEFAULT NULL,
+                `status` int NOT NULL default 1,
                 PRIMARY KEY  (`sid`)
               )/*!40100 DEFAULT CHARACTER SET utf8 */");
               
@@ -39,6 +41,7 @@ function notifications_install() {
                     `created` int(10) unsigned NOT NULL default '0',
                     `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
                     `conditions` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+                    `module` VARCHAR(255) DEFAULT NULL,
                     PRIMARY KEY  (`sqid`)
                   )/*!40100 DEFAULT CHARACTER SET utf8 */");
     
@@ -110,5 +113,18 @@ function notifications_update_2() {
   $ret[] = update_sql("ALTER TABLE {notifications_queue} ADD COLUMN `conditions` INTEGER UNSIGNED NOT NULL DEFAULT 0 AFTER `cron`");
   variable_set('notifications_default_auto', variable_get('notifications_autoset', 0));
   variable_del('notifications_autoset');
+  return $ret;
+}
+
+/**
+ * - Added status and module fields
+ */
+function notifications_update_3() {
+  $ret[] = update_sql("ALTER TABLE {notifications} ADD COLUMN `module` VARCHAR(255) AFTER `cron`;");
+  $ret[] = update_sql("ALTER TABLE {notifications} ADD COLUMN `status` INT  NOT NULL DEFAULT 1 AFTER `module`;");
+  $ret[] = update_sql("ALTER TABLE {notifications_queue} ADD COLUMN `module` VARCHAR(255);");
+  // Set default module to 'notifications'
+  $ret[] = update_sql("UPDATE {notifications} SET module = 'notifications'");
+  $ret[] = update_sql("UPDATE {notifications_queue} SET module = 'notifications'");
   return $ret;
 }

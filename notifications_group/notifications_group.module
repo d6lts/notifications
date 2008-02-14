@@ -2,6 +2,9 @@
 /**
  * @file
  * Subscriptions to content in groups
+ * 
+ * Group subscriptions are allowed for user that have view access to the group node
+ * Whether a user can get a notification about a specific post will be decided later
  */
 
 /**
@@ -79,9 +82,8 @@ function notifications_group_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NU
     case 'names':
       $subs = &$arg0;
       if ($subs->event_type == 'node') {
-        if (!empty($subs->fields['group'])) {
-          $author = user_load(array('uid' => $subs->fields['author']));
-          $subs->names['group'] = t('Group: %name', array('%name' => $node->title));
+        if (!empty($subs->fields['group']) && ($group = node_load($subs->fields['group']))) {
+          $subs->names['group'] = t('Group: %name', array('%name' => $group->title));
         }
       }
       break;
@@ -127,6 +129,18 @@ function notifications_group_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NU
       break;
     case 'event types':
       // Event types for this are defined in notifications_content module
+      break;
+    case 'access':
+      $type = $arg0;
+      $account = &$arg1;
+      $object = &$arg2;
+      if ($type == 'subscription' && !empty($object->fields['group'])) {
+        if (($group = node_load($object->fields['group'])) && og_is_group_type($group->type) && notifications_content_node_allow($account, $group)) {
+          return array(TRUE);
+        } else {
+          return array(FALSE);
+        }
+      }
       break;
   }
 }

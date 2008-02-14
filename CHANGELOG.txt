@@ -1,0 +1,21 @@
+TO-DO
+------
+- Polish UI for node subscriptions
+- Handling of mixed subscription types
+- Better digest formatting
+- Add automated tests for modules
+- Support for message localization for multiple languages
+- Delete subscriptions when they don't apply anymore (I.e. node deleted)
+
+06/02/07 - 
+---------------------
+- Fixed issue with group name on form confirmation
+- Implemented access permission for group subscriptions
+- Added module field to allow other modules to handle data in notifications tables
+- Added status field to allow disabled subscriptions on the table
+- UI Type for nodes defaults to 'links'
+- Added simpletest for basic API, detected a pair bugs on notifications_get_subscriptions :-)
+- Added simpletest for content notifications. Needs more cases.
+- Fixed buggy url generation (destination not working on cron)
+- Improved page workflow and fixed bug in confirmation form (send_method)
+ 

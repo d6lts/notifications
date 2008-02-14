@@ -168,7 +168,7 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
   global $user;
   $links = array();
 
-  if ($type == 'node' && !$teaser && $user->uid && variable_get('notifications_node_ui_'.$node->type, '') == 'links') {
+  if ($type == 'node' && !$teaser && $user->uid && variable_get('notifications_node_ui_'.$node->type, 'links') == 'links') {
     // Now we have the array of allowed options ready, build links
     foreach (notifications_ui_user_node($user, $node) as $index => $option) {
       if (!empty($option['subscription'])) {

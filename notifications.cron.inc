@@ -54,7 +54,7 @@ function notifications_process_run($cron = TRUE) {
  * @return
  *  Array of pending messages
  */
-function notifications_process_pull($method, $users, $limit, $delete) {
+function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE) {
   $messages = array();
   $maxsqid = 0;
   // Just fetches row in creation order de-duping same events on the step
@@ -98,7 +98,7 @@ function notifications_process_pull($method, $users, $limit, $delete) {
  * @return
  *   Max $sqid that will be processed this cron
  */
-function notifications_process_prepare() {
+function notifications_process_prepare($module = 'notifications') {
   // Another funny race condition may occur when the event is saved but the subs queue not yet populated  
   $expiretime = time() - 60;
   // Clean up event table.
@@ -107,7 +107,7 @@ function notifications_process_prepare() {
   $squid = db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
   if ($squid) {
     // Delete non existent or blocked users
-    db_query("DELETE FROM {notifications_queue} WHERE uid NOT IN (SELECT uid FROM {users} WHERE status = 1)");
+    db_query("DELETE FROM {notifications_queue} WHERE module = '%s' AND uid NOT IN (SELECT uid FROM {users} WHERE status = 1)", $module);
   }
   // @ TODO We may use this step to fill in some data or doing some other optimizations
   return $squid;
@@ -239,11 +239,17 @@ function notifications_process_rows($conditions) {
  * 
  * Messages will be processed for each send interval, send_method, user
  * 
+ * @param $send_interval
+ *   Send interval to process
+ * @param $max_sqid
+ *   Max queue id to process
+ * @param $module
+ *   Module's rows to process. There may be other types of rows sitting on the table
  * @return Number of rows processed
  * 
  * @ TODO Review time conditions
  */
-function notifications_process_queue($send_interval, $max_sqid) {
+function notifications_process_queue($send_interval, $max_sqid, $module = 'notifications') {
   $count = 0;
   // This is the time from which stored rows will be sent
   $timelimit = time() - $send_interval;

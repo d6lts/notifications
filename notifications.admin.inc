@@ -267,44 +267,38 @@ function notifications_admin_queue_process($param) {
  */
 function notifications_page_subscribe($uid, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
   global $user;
-  // Build subscriptions object
-  $subscription = (object)array(
-    'uid' => $uid,
-    'type' => $type,
-    'fields' => notifications_field_args($fields, $values),
-    'send_interval' => $send_interval,
-    'send_method' => $send_method,
-    'event_type' => notifications_subscription_types($type, 'event_type'),
-  );
-  if (!isset($subscription->send_interval)) {
-    $subscription->send_interval = variable_get('notifications_default_send_interval', 0);    
-  }
-  if (!isset($subscription->send_method)) {
-    $subscription->send_method = variable_get('notifications_default_send_method', '');    
-  }
-  // Access checking
 
+  // Access checking
   if ($uid && ($uid == $user->uid || user_access('administer notifications'))) {
-    if ( ($account = user_load(array('uid' => $uid))) && notifications_user_allowed('subscription', $account, $subscription)) {
-    // Display subscription information
-      if (empty($_GET['confirm'])) {
-        // Subscribe, no confirmation
-        notifications_save_subscription($subscription);
-        drupal_goto();
+    if (($account = user_load(array('uid' => $uid)))) {
+      // Build subscriptions object
+      $subscription = (object)array(
+        'uid' => $uid,
+        'type' => $type,
+        'fields' => notifications_field_args($fields, $values),
+        'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
+        'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
+        'event_type' => notifications_subscription_types($type, 'event_type'),
+      );      
+      if (notifications_user_allowed('subscription', $account, $subscription)) {
+        // Display subscription information
+        if (empty($_GET['confirm'])) {
+          // Subscribe, no confirmation
+          notifications_save_subscription($subscription);
+          drupal_goto();
+        } else {
+          // Ask for confirmation
+          drupal_set_title(t('Confirm your subscription'));
+          return drupal_get_form('notifications_form_confirm', $subscription);
+        }
       } else {
-        // Ask for confirmation
-        drupal_set_title(t('Confirm your subscription'));
-        return drupal_get_form('notifications_form_confirm', $subscription);
+        drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
+        drupal_goto();
       }
-    } else {
-      drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
-      drupal_goto();
     }
     
-  } else {
-
-    drupal_access_denied();
   }
+  drupal_access_denied();
 }
 
 /**
@@ -337,8 +331,9 @@ function notifications_form_confirm($subscription) {
     '#type' => 'select',
     '#title' => t('Send method'),
     '#options' => _notifications_send_methods(),
-    '#default_value' => $subscriptions->send_method,
+    '#default_value' => $subscription->send_method,
   );
+
   $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
   $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
   return $form;
@@ -425,9 +420,8 @@ function notifications_user_form($account, $type, $subscriptions, $list, $defaul
     'sid' => 0,
     'type' => $type,
     'event_type' => $info['event_type'],
-    'send_interval' => variable_get('notifications_default_send_interval', 0), 
-    'send_method' => variable_get('notifications_default_send_method', ''),
   );
+  $defaults += _notifications_subscription_defaults($account);
   $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
   $form['account'] = array('#type' => 'value', '#value' => $account);
   $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
