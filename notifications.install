@@ -67,7 +67,64 @@ function notifications_install() {
                   )/*!40100 DEFAULT CHARACTER SET utf8 */");
           break;
         case 'pgsql':
-          drupal_set_message('Sorry, no install script for pgsql yet.', 'error');
+		  db_query("CREATE TABLE {notifications} (
+                sid serial,
+                uid int NOT NULL,
+                type varchar(255) DEFAULT NULL,
+                event_type varchar(255) DEFAULT NULL,
+              	conditions int NOT NULL,
+                send_interval int DEFAULT NULL,
+                send_method varchar(255) NOT NULL,
+                cron smallint NOT NULL DEFAULT 0,
+                module varchar(255) DEFAULT NULL,
+                status smallint NOT NULL DEFAULT 1,
+                PRIMARY KEY (sid)
+              )");
+              
+          db_query("CREATE TABLE  {notifications_fields} (
+                    sid int NOT NULL,
+                    field varchar(255) NOT NULL,
+                    value varchar(255) NOT NULL,
+                    PRIMARY KEY (sid,field)
+                  )");
+    
+          db_query("CREATE TABLE  {notifications_queue} (
+                    sqid serial,
+                    eid int NOT NULL DEFAULT '0',
+                    sid int NOT NULL DEFAULT '0',
+                    uid int DEFAULT NULL,
+                    language varchar(255) DEFAULT NULL,
+                    type varchar(255) DEFAULT NULL,
+                    send_interval int DEFAULT NULL,
+                    send_method varchar(255) DEFAULT NULL,
+                    sent int NOT NULL DEFAULT '0',
+                    created int NOT NULL DEFAULT '0',
+                    cron smallint NOT NULL DEFAULT 0,
+                    conditions smallint NOT NULL DEFAULT 0,
+                    module varchar(255) DEFAULT NULL,
+                    PRIMARY KEY (sqid)
+                  )");
+    
+          db_query("CREATE TABLE  {notifications_event} (
+                    eid serial,
+                    module varchar(255) DEFAULT NULL,
+                    type varchar(255) DEFAULT NULL,
+                    action varchar(255) DEFAULT NULL,
+                    oid int NOT NULL DEFAULT '0',
+                    language varchar(255) DEFAULT NULL,
+                    uid int DEFAULT NULL,
+                    params text,
+                    created int NOT NULL DEFAULT '0',
+                    PRIMARY KEY (eid)
+                  )");
+    
+          db_query("CREATE TABLE  {notifications_sent} (
+                    uid int NOT NULL DEFAULT '0', 
+                    send_interval int NOT NULL DEFAULT '0',
+                    send_method varchar(50) NOT NULL,
+                    sent int NOT NULL DEFAULT '0',
+                    PRIMARY KEY (uid,send_interval,send_method)
+                  )");
           break;
   }
 }

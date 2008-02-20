@@ -419,7 +419,7 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
  */
 function notifications_delete_subscription($sid) {
   foreach (array('notifications', 'notifications_fields', 'notifications_queue') as $table) {
-    db_query("DELETE FROM {$table} WHERE sid = %d", $sid);
+    db_query("DELETE FROM {".$table."} WHERE sid = %d", $sid);
   }
 }
 
@@ -436,7 +436,7 @@ function notifications_delete_subscriptions($conditions) {
     $where[] =  "$field = '%s'";
   }
   foreach (array('notifications_fields', 'notifications_queue') as $table) {
-    db_query("DELETE FROM {$table} WHERE sid IN (SELECT sid FROM {notifications} WHERE ". implode(' AND ', $where) . ")", $conditions);
+    db_query("DELETE FROM {".$table."} WHERE sid IN (SELECT sid FROM {notifications} WHERE ". implode(' AND ', $where) . ")", $conditions);
   }
   db_query("DELETE FROM {notifications} WHERE ". implode(' AND ', $where), $conditions);
 }
@@ -854,3 +854,29 @@ function notifications_simpletest() {
   $tests = file_scan_directory($dir, '\.test');
   return array_keys($tests);
 }
+
+/**
+ * Callback for module dependent data
+ * 
+ * Some data stored in the notifications system is meant to be processed by other modules and
+ * this is indicated by a module column in the data.
+ * 
+ * This function calls the module function if available, defaulting to the notifications provided
+ * function when not. The arguments are passed as is
+ * 
+ * @param $module
+ *   Module name
+ * @param $function
+ *   Function name in module
+ */
+ function notifications_callback() {
+   $args = func_get_args();
+   $module = array_shift($args);
+   $function = array_shift($args);
+   if ($module && function_exists($module.'_'.$function)) {
+     $callback = $module.'_'.$function;
+   } else {
+     $callback = 'notifications_'.$function;
+   }
+   return call_user_func_array($callback, $args);
+ }

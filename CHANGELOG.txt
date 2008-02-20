@@ -6,8 +6,18 @@ TO-DO
 - Add automated tests for modules
 - Support for message localization for multiple languages
 - Delete subscriptions when they don't apply anymore (I.e. node deleted)
+- Improve documentation and help texts
+  - Information about when messages are digested and when not
+- Usability improvements
+  - Group together scattered messaging and subscriptions user settings
 
-06/02/07 - 
+16/02/07 -
+--------------------
+- Added support for other modules in queue processing (notifications_callback)
+- Added pgsql support (untested), by jaydub, http://drupal.org/node/223670
+- Fixed db query error on unsubscribe, by chirale, http://drupal.org/node/222640
+
+06/02/07 - 15/02/07
 ---------------------
 - Fixed issue with group name on form confirmation
 - Implemented access permission for group subscriptions

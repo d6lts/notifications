@@ -2,6 +2,11 @@
 /**
  * Subscriptions module. Queue processing.
  * 
+ * Callbacks for queue processing. They may be implemented by other modules
+ *    _load_user()
+ *    _user_allowed()
+ *    _process_message()
+ * 
  * @ TO DO: Support different languages for message localization
  */
 
@@ -58,8 +63,8 @@ function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE
   $messages = array();
   $maxsqid = 0;
   // Just fetches row in creation order de-duping same events on the step
-  $sql = "SELECT uid, eid, MIN(sid) AS sid, MAX(sqid) AS sqid FROM {notifications_queue} ";
-  $sql .= "WHERE send_method = '%s' AND uid IN (%s) GROUP BY uid, eid ORDER BY sqid";
+  $sql = "SELECT uid, eid, module, MIN(sid) AS sid, MAX(sqid) AS sqid FROM {notifications_queue} ";
+  $sql .= "WHERE send_method = '%s' AND uid IN (%s) GROUP BY uid, eid, module ORDER BY sqid";
   $str_uids = implode(',', $users);
   if ($limit) {
     $result = db_query_range($sql, $method, $str_uids, 0, $limit);
@@ -70,12 +75,12 @@ function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE
   // Fetch and prepare messages
   while ($queue = db_fetch_object($result)) {
     $maxsqid = $queue->squid;
-    $account = notifications_load_user($queue->uid);
+    $account = notifications_callback($queue->module, 'load_user', $queue->uid);
     $event = notifications_load_event($queue->eid);
     // Access control for event objects
-    if (notifications_user_allowed('event', $account, $event)) {
+    if (notifications_callback($queue->module, 'user_allowed', 'event', $account, $event)) {
       $subscriptions = array($queue->sid);
-      $message = notifications_process_message($account, $event, $subscriptions, $method);
+      $message = notifications_callback($queue->module, 'process_message',$account, $event, $subscriptions, $method);
       $message['uid'] = $queue->uid;
       $message['from'] = $event->uid;
       $messages[] = $message;
@@ -270,7 +275,8 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
     notifications_log("Processing user $user->uid, rows $user->count, send_method $user->send_method");
     $events = $subscriptions = $processed = array();    
     $send_method = $user->send_method;
-    $account = notifications_load_user($user->uid);
+    // Users may be handled by a different module
+    $account = notifications_callback($module, 'load_user', $user->uid);
 
     // Process all rows for this user. With some hard limit to prevent process lock ups.
     $result_subs = db_query_range("SELECT * FROM {notifications_queue} WHERE cron = 1 AND send_interval = '%d' AND uid = %d AND sqid <= %d ORDER BY send_method, sqid", $send_interval, $account->uid, $max_sqid, 0, NOTIFICATIONS_STEP_ROWS);
@@ -279,7 +285,7 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
       $processed[] = $sqid = $queue->sqid;      
       // Load event and check access
       $event = notifications_load_event($queue->eid, TRUE);
-      if (notifications_user_allowed('event', $account, $event)) {
+      if (notifications_callback($module, 'user_allowed', 'event', $account, $event)) {
         // This will take care of duplicated events
         $events[$queue->eid] = $event;
         // We keep track also of subscriptions originating this event
@@ -288,8 +294,8 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
       notifications_log("Processing queued sid=$queue->sid event=$queue->eid ($event->type, $event->action) send_method=$send_method");
     }
     if ($events) {
-      notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
-      notifications_update_sent($user->uid, $send_method, $send_interval, time());  
+      notifications_callback($module, 'process_send', $account, $events, $subscriptions, $send_method, $send_interval);
+      notifications_callback($module, 'update_sent', $user->uid, $send_method, $send_interval, time());  
     }
     if ($processed && !notifications_process('option', 'debug')) {
        notifications_queue_delete(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
