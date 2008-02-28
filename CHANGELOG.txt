@@ -11,8 +11,13 @@ TO-DO
 - Usability improvements
   - Group together scattered messaging and subscriptions user settings
 
-16/02/07 -
+16/02/07 - 28/02/07
 --------------------
+- Delete subscriptions when user deleted
+- Added links to nodes from subscriptions list, patch by jaydub, http://drupal.org/node/226861
+- One more pgsql compatibility patch by jaydub, http://drupal.org/node/223670
+- Fixed inconsistent link in notifications_tags
+- Fixed bug with taxonomy subscriptions and multiple vocabularies, http://drupal.org/node/226931
 - Added support for other modules in queue processing (notifications_callback)
 - Added pgsql support (untested), by jaydub, http://drupal.org/node/223670
 - Fixed db query error on unsubscribe, by chirale, http://drupal.org/node/222640

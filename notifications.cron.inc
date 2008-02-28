@@ -5,7 +5,7 @@
  * Callbacks for queue processing. They may be implemented by other modules
  *    _load_user()
  *    _user_allowed()
- *    _process_message()
+ *    _process_send()
  * 
  * @ TO DO: Support different languages for message localization
  */
@@ -266,7 +266,8 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
   $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
   $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d ";
   $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
-  $sql .= " GROUP BY q.uid, q.send_method ORDER BY su.sent";
+   // Note: the group by su.sent seems to be needed by pgsql
+  $sql .= " GROUP BY q.uid, q.send_method, su.sent ORDER BY su.sent";
   $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
   $sqid = 0;

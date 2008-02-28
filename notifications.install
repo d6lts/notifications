@@ -127,6 +127,8 @@ function notifications_install() {
                   )");
           break;
   }
+  // Module weight. It must run after most modules, to make sure they've done their work before we add the notifications queries
+  db_query("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
 }
 
 /**
@@ -183,5 +185,13 @@ function notifications_update_3() {
   // Set default module to 'notifications'
   $ret[] = update_sql("UPDATE {notifications} SET module = 'notifications'");
   $ret[] = update_sql("UPDATE {notifications_queue} SET module = 'notifications'");
+  return $ret;
+}
+
+/**
+ * Change module weight
+ */
+function notifications_update_4() {
+  $ret[] = update_sql("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
   return $ret;
 }

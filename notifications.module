@@ -120,6 +120,10 @@ function notifications_perm() {
  */
 function notifications_user($type, $edit, &$user, $category = NULL) {
   switch ($type) {
+    case 'delete';
+      // Delete related data on tables
+      notifications_delete_subscriptions(array('uid' => $user->uid));
+      break;
     case 'form':
       if ((user_access('maintain own subscriptions') || user_access("admin users subscriptions")  )&& $category == 'account') {
         $form['notifications'] = array(

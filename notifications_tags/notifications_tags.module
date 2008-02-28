@@ -23,7 +23,7 @@ function notifications_tags_menu($may_cache) {
     if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
-        'path' => 'user/'. $account->uid .'/notifications/tags',
+        'path' => 'user/'. $account->uid .'/notifications/taxonomy',
         'type' => MENU_LOCAL_TASK,
         'access' => user_access('subscribe to taxonomy terms'),
         'title' => t('Tags'),
@@ -60,9 +60,8 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
     case 'subscription types':
       $types['taxonomy'] = array(
         'event_type' => 'node',
-        'title' => t('Taxonomy'),
+        'title' => t('Tags'),
         'access' => 'subscribe to taxonomy terms',
-        'page' => 'notifications_tags_page_tags',
         'fields' => array('tid'),
       );
       return $types;    
@@ -172,8 +171,9 @@ function notifications_tags_user_form($account) {
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
       '#theme' => 'notifications_form_table',
-      '#header' => array('', t('Term'), t('Send interval'), t('Send method'))
-    );    
+      '#header' => array('', t('Term'), t('Send interval'), t('Send method')),
+      '#parents' => array('subscriptions'),
+    );
     // @ TODO create mechanism to allow users to
     //        subscribe to all terms under this vocabulary
 
@@ -207,22 +207,8 @@ function notifications_tags_user_form($account) {
   }
   $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
 
+  $form['#submit']['notifications_content_form_submit'] = array();
   return $form;
-}
-
-/**
- * Form submission
- */
-function notifications_tags_user_form_submit($form_id, $form_values) {
-  // Regroup parameters and pass on
-  $values = array();
-  foreach ($form_values['subscriptions'] as $vid => $terms) {
-    foreach ($terms as $tid => $term_values) {
-      $values[$tid] = $term_values;
-    }
-  }
-  $form_values['subscriptions'] = $values;
-  return notifications_content_form_submit($form_id, $form_values);
 }
 
 /**

@@ -85,7 +85,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
     // Check subscriptions actually being created
     $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node, TRUE);
     $this->assertEqual(count($subs), 3, 'The 3 subscriptions have actually been created');
- 
+
     // Check user account pages
     $this->drupalGet(url('user/'.$user->uid.'/notifications'));
     $this->assertText(t('Thread'), 'User account overview shows threads.');
@@ -99,6 +99,9 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $this->drupalGet(url('user/'.$user->uid.'/notifications/author'));
     $this->assertText($author->name, 'User account subscriptions shows author.');
 
+    // Make sure we have some queueing before going on
+    $this->drupalVariableSet('notifications_send_immediate', 0);
+    
     // Trigger a node update event
     $node = node_load($node->nid, NULL, TRUE);   
     $node->body .= 'Updated.';
@@ -123,7 +126,6 @@ class Notifications_Content_Tests extends DrupalTestCase {
     notifications_process_queue($send_interval, $max_sqid, 'notificationstesting');
     $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($count, 0, 'All rows in queue have been processed.');
-    
     
     // Remove created subscriptions
     notifications_delete_subscriptions(array('uid' => $user->uid));
