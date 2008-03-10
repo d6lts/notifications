@@ -75,19 +75,21 @@ function notifications_ui_form_alter($form_id, &$form) {
     $form['workflow']['notifications_node_ui'] = array(
       '#type' => 'radios',
       '#title' => t('Subscriptions UI'),
-      '#default_value' => variable_get('notifications_node_ui_'.$form['#node_type']->type, ''),
+      '#default_value' => variable_get('notifications_node_ui_'.$form['#node_type']->type, 'links'),
       '#options' => array('' => t('None'), 'form' => t('As form below the node content'), 'links' => t('As node links')),  
     );  
   }
-  elseif (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && $form['#node']->comment == COMMENT_NODE_READ_WRITE) {
+  elseif (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && variable_get('notifications_node_ui_'.$form['#node']->type, 'links') == "form") {
     //  Add node forms.
     $node = $form['#node'];
     $form[] = notifications_ui_form($node);
   }
-  elseif ($form_id == "comment_form") {
+  elseif ($form_id == "comment_form")  {
     // Add to comment forms.
     $node = node_load($form['nid']['#value']);
-    $form[] = notifications_ui_form($node);    
+    if (variable_get('notifications_node_ui_'.$node->type, 'links') == "form") {
+      $form[] = notifications_ui_form($node);    
+    }
   }
 }
 
