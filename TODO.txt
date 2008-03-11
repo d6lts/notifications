@@ -1,5 +1,0 @@
-TO DO: Notifications framework
-- Implement node permissions for subscriptions
-- Support for message localization for multiple languages
-- Clean up cron processing
-- User settings, default sending method, etc...

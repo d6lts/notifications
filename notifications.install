@@ -195,3 +195,30 @@ function notifications_update_4() {
   $ret[] = update_sql("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
   return $ret;
 }
+
+/**
+ * Update content type and taxonomy options
+ */
+function notifications_update_5() {
+  $ret = array();
+  // Content types
+  if ($omitted = variable_get('notifications_omitted_content_types', array())) {
+    $allowed = array();
+    $types = node_get_types();
+    foreach ($types as $type => $info) {
+      if (!isset($omitted[$type])) {
+        $allowed[$type] = $type;
+      }
+    }
+    variable_set('notifications_content_types', $allowed);
+  }
+  // Vocabularies
+  if ($omitted = variable_get('notifications_omitted_taxa', array())) {
+    $vocabularies = taxonomy_get_vocabularies();
+    foreach ($omitted as $vid) {
+      unset($vocabularies[$vid]);
+    }
+    variable_set('notifications_tags_vocabularies', array_combine(array_keys($vocabularies), array_keys($vocabularies)));
+  }
+  return $ret;
+}

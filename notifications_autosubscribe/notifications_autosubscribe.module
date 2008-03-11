@@ -49,11 +49,12 @@ function notifications_autosubscribe_form_alter($form_id, &$form) {
       }
       break;
     case 'notifications_content_settings_form':
-      $form['content']['notifications_default_auto'] = array(
+      $form['notifications_default_auto'] = array(
         '#type'          => 'checkbox',
         '#title'         => t('Set all users to "autosubscribe" by default'),
         '#default_value' => variable_get('notifications_default_auto', 0),
         '#description'   => t('Sets each users "autosubscribe" profile option.'),
+        '#weight' => -10,
       );
       break;
   }

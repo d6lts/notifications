@@ -65,32 +65,23 @@ function notifications_content_perm() {
  * Admin settings form
  */
 function notifications_content_settings_form() {
-  // General content settings
-  $select = array();
-  $select[0] = '<'. t('none') .'>';
-  $nodetypes = node_get_types();
-  foreach ($nodetypes as $ntype => $nname) {
-    $select[$ntype] = $nname->name;
-  }
+  // Allowed content types settings
   $form['content'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Content settings'),
+    '#title' => t('Content type subscriptions'),
     '#weight' => -10,
+    '#collapsible' => TRUE,
   );
-  $form['content']['notifications_omitted_content_types'] = array(
-    '#type'          => 'select',
-    '#title'         => t('Omitted content types'),
-    '#default_value' => variable_get('notifications_omitted_content_types', array()),
-    '#options'       => $select,
-    '#description'   => t('Select content types which should be <strong>omitted</strong> from subscription listings.'),
+
+  $form['content']['notifications_content_types'] = array(
+    '#type'          => 'checkboxes',
+    '#title'         => t('Allowed content types'),
+    '#default_value' => notifications_content_types('type'),
+    '#options'       => node_get_types('names'),
+    '#description'   => t('Select content types which should be <em>allowed</em> for subscriptions to content type.'),
     '#multiple'      => TRUE,
   );
-  $form['content']['notifications_link_teaser'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Show subscribe link with teaser'),
-    '#default_value' => variable_get('notifications_link_teaser', 1),
-    '#description'   => t('Uncheck to show link only in node view.'),
-  );
+
   return system_settings_form($form);
 }
 
@@ -575,16 +566,25 @@ function notifications_content_form_submit($form_id, $form_values) {
 
 /**
  * Get content types available for subscriptions
+ * 
+ * @param $field
+ *   Optional field to return as array value. If none it will return the full objects.
  */
 function notifications_content_types($field = NULL) {
-  // Get list of available node types
-  $types = node_get_types();
-  $omits = variable_get('notifications_omitted_content_types', array());
-  foreach ($omits as $omit) {
-    unset($types[$omit]);
+  // Get list of available node types, all of them will be allowed by default
+  $types = array();
+  if ($allowed = variable_get('notifications_content_types', array())) {
+    $allowed = array_filter($allowed);
+    foreach (node_get_types() as $type => $info) {
+      if (!empty($allowed[$type])) {
+        $types[$type] = $info;
+      }
+    }
+  } else {
+    $types = node_get_types();
   }
   if ($field) {
-    foreach(array_keys($types) as $type) {
+    foreach (array_keys($types) as $type) {
       $types[$type] = $types[$type]->$field;
     }
   }

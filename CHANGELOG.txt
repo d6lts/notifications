@@ -11,6 +11,13 @@ TO-DO
 - Usability improvements
   - Group together scattered messaging and subscriptions user settings
 
+5.x-1.0-alpha1 to ...
+---------------------
+- Polished and grouped settings page
+- Changed 'omitted' settings to 'allowed', update scripts
+- Added one more test for permissions/content types
+- Fixed several minor bugs with UI options (Jeff)
+
 16/02/07 - 28/02/07
 --------------------
 - Delete subscriptions when user deleted

@@ -11,15 +11,7 @@ function notifications_tags_menu($may_cache) {
   global $user;  // we need the user to to build some urls
   $items = array();
   
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'admin/notifications/settings/taxonomy',
-      'title' => t('Taxonomy'),
-      'type' => MENU_LOCAL_TASK,
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('notifications_tags_settings_form'),
-    );
-  } else {
+  if (!$may_cache) {
     if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
@@ -102,25 +94,32 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
 }
 
 /**
+ * Implementation of hook_form_alter().
+ * 
  * Admin settings form. Omitted taxonomy vocabularies.
  */
-function notifications_tags_settings_form() {
-
-  $vocabularies = taxonomy_get_vocabularies();
-  foreach ($vocabularies as $vocabulary) {
-    $select[$vocabulary->vid] = $vocabulary->name;
+function notifications_tags_form_alter($form_id, &$form) {
+  if ($form_id == 'notifications_content_settings_form') {
+    $vocabularies = taxonomy_get_vocabularies();
+    foreach ($vocabularies as $vocabulary) {
+      $select[$vocabulary->vid] = $vocabulary->name;
+    }  
+    $form['tags'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Tag subscriptions'),
+      '#collapsible' => TRUE,
+      '#weight' => 0,
+    );
+    $form['tags']['notifications_tags_vocabularies'] = array(
+      '#type'          => 'checkboxes',
+      '#title'         => t('Allowed vocabularies'),
+      '#default_value' => notifications_tags_vocabularies('vid'),
+      '#options'       => $select,
+      '#description'   => t('Select vocabularies to which subscriptions should be <em>allowed</em>.'),
+      '#multiple'      => TRUE,
+    );
   }
 
-  $form['notifications_omitted_taxa'] = array(
-    '#type'          => 'checkboxes',
-    '#title'         => t('Omitted vocabularies'),
-    '#default_value' => variable_get('notifications_omitted_taxa', array()),
-    '#options'       => $select,
-    '#description'   => t('Select vocabularies which should be <strong>omitted</strong> from subscription listings.'),
-    '#multiple'      => TRUE,
-  );
-
-  return system_settings_form($form);
 }
 
 /**
@@ -213,13 +212,22 @@ function notifications_tags_user_form($account) {
 
 /**
  * Get list of allowed vocabularies
+ * 
+ * @param $field
+ *   Optional field to retrieve as array value.
+ *   If empty the whole vocalubary object will be returned.
  */
 function notifications_tags_vocabularies($field = NULL) {
-  $omitted = variable_get('notifications_omitted_taxa', array());
-  $vocabularies = taxonomy_get_vocabularies();
+ 
+  $allvocab = taxonomy_get_vocabularies();
 
-  foreach($omitted as $vid) {
-    unset($vocabularies[$vid]);
+  if ($allowed = variable_get('notifications_tags_vocabularies', array())) {
+    $vocabularies = array();
+    foreach (array_filter($allowed) as $vid) {
+      $vocabularies[$vid] = $allvocab[$vid];
+    } 
+  } else {
+    $vocabularies = $allvocab;
   }
   if ($field) {
     $list = array();

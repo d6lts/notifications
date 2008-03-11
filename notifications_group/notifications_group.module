@@ -14,15 +14,7 @@ function notifications_group_menu($may_cache) {
   global $user;  // we need the user to to build some urls
   $items = array();
   
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'admin/notifications/settings/group',
-      'title' => t('Group Subscriptions'),
-      'type' => MENU_LOCAL_TASK,
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('notifications_group_settings_form'),
-    );
-  } else {
+  if (!$may_cache) {
     if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
@@ -49,29 +41,30 @@ function notifications_group_perm() {
 /**
  * Admin settings form
  */
-function notifications_group_settings_form() {
-  // General content settings
-  $select = array();
-  $nodetypes = node_get_types();
-  foreach ($nodetypes as $ntype => $nname) {
-    $select[$ntype] = $nname->name;
+function notifications_group_form_alter($form_id, &$form) {
+  if ($form_id == 'notifications_content_settings_form') {
+    $form['group'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Group subscriptions'),
+      '#collapsible' => TRUE,
+      '#weight' => 0,
+    );
+    // General content settings
+    $select = array();
+    $nodetypes = node_get_types();
+    foreach ($nodetypes as $ntype => $nname) {
+      $select[$ntype] = $nname->name;
+    }
+  
+    $form['group']['notifications_group_content_types'] = array(
+      '#type'          => 'checkboxes',
+      '#title'         => t('Allowed content types'),
+      '#default_value' => variable_get('notifications_group_content_types', array()),
+      '#options'       => $select,
+      '#description'   => t('Select specific content types which should be <em>allowed</em> for subscriptions to <em>group + content type</em>.'),
+      '#multiple'      => TRUE,
+    );
   }
-
-  $form['notifications_group_content_types'] = array(
-    '#type'          => 'checkboxes',
-    '#title'         => t('Allowed content types'),
-    '#default_value' => variable_get('notifications_group_content_types', array()),
-    '#options'       => $select,
-    '#description'   => t('Select specific content types which should be <strong>allowed</strong> for group subscriptions.'),
-    '#multiple'      => TRUE,
-  );
-  $form['notifications_group_link_teaser'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Show subscribe link with teaser'),
-    '#default_value' => variable_get('notifications_grouplink_teaser', 1),
-    '#description'   => t('Uncheck to show link only in group view.'),
-  );
-  return system_settings_form($form);
 }
 
 /**

@@ -16,18 +16,6 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_sendself', 0),
     '#description'   => t("Notifies a node poster about their own posts.  Useful principally during testing.  Default is OFF."),
   );
-  $form['sub_settings']['notifications_watchgood'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Display watchdog entries for successful mailings'),
-    '#default_value' => variable_get('notifications_watchgood', 1),
-    '#description'   => t('Inserts notification of successful mailings in the watchdog log.  Default is ON.'),
-  );
-  $form['sub_settings']['notifications_testpost'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Test held posts prior to sending'),
-    '#default_value' => variable_get('notifications_testpost', 0),
-    '#description'   => t('Tests to see if a post about to be sent by cron is still active.  Adds a small amount of overhead.  Default is OFF.'),
-  );
   $form['sub_settings']['notifications_send_immediate'] = array(
     '#title' => t('Immediate sending'),
     '#type' => 'checkbox',
