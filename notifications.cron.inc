@@ -319,16 +319,21 @@ function notifications_update_sent($uid, $method, $interval, $time) {
  * Message delivery.
  * 
  * Processes everything, included digestion and sends message/s.
+ * 
+ * Adds some more information into $message['notifications'] that may be used by other modules
  */
 function notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval) {
-
   notifications_log("Sending out, method=$send_method, interval=$send_interval, events=". count($events));
   // Digest if send_interval > 0 (not immediate sending)
   if ($send_interval) {
-    $messages[] = notifications_process_digest($account, $events, $send_interval, $send_method);
+     $message = notifications_process_digest($account, $events, $send_interval, $send_method);
+     $message['notifications'] = array('events' => $events, 'subscriptions' => $subscriptions, 'digest' => TRUE);
+     $messages[] = $message;
   } else {
     foreach ($events as $event) {
-      $messages[] = notifications_process_message($account, $event, $subscriptions[$event->eid], $send_method);
+      $message = notifications_process_message($account, $event, $subscriptions[$event->eid], $send_method);
+      $message['notifications'] = array('events' => array($event), 'subscriptions' => $subscriptions);
+      $messages[] = $message;
     }
   }
   // Now send messages
@@ -399,6 +404,8 @@ function notifications_process_digest($account, $events, $send_interval, $send_m
  * @param $subscriptions
  *   Array of subscription ids
  * 
+ * @return
+ *   Message array 
  */
 function notifications_process_message($account, $event, $subscriptions, $send_method) {
   $info = notifications_event_text($event);
@@ -423,7 +430,7 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   $objects = array_merge($objects, $event->objects);
   $text = notifications_text_replace($text, $objects);
 
-  // Get subject out of text
+  // Get subject out of text and build the message array
   $subject = $text['subject'];
   unset($text['subject']);
   return array('subject' => $subject, 'body' => $text);
