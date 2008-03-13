@@ -428,21 +428,46 @@ function notifications_delete_subscription($sid) {
 }
 
 /**
- * Delete multiple subscriptions and clean up related data.
+ * Delete multiple subscriptions and clean up related data (pending notifications, fields).
  * 
- * It also removes pending notifications related to that subscription 
+ * Warning: It will delete also subscriptions with more conditions than the fields passed.
  * 
- * @param $conditions
- *   Array of multiple conditions to delete subscriptions
+ * @param array $params
+ *   Array of multiple conditions in the notifications table to delete subscriptions
+ * @param array $conditions
+ *   Array of multiple conditions in the notifications_fields table to delete subscriptions
  */
-function notifications_delete_subscriptions($conditions) {
-  foreach ($conditions as $field => $value) {
-    $where[] =  "$field = '%s'";
+function notifications_delete_subscriptions($params, $conditions = array()) {
+  $join = $where = $args = array();
+  foreach ($params as $field => $value) {
+    $where[] =  "n.$field = '%s'";
+    $args[] = $value;
   }
-  foreach (array('notifications_fields', 'notifications_queue') as $table) {
-    db_query("DELETE FROM {".$table."} WHERE sid IN (SELECT sid FROM {notifications} WHERE ". implode(' AND ', $where) . ")", $conditions);
+  // Now we need to join once the fields table for each condition
+  if ($conditions) {
+    $index = 0;
+    foreach ($conditions as $field => $value) {
+      $alias = 'nf'.$index;
+      $join[] = "INNER JOIN {notifications_fields} $alias ON s.sid = $alias.sid";
+      $where[] = "$alias.field = '%s'";
+      $where[] = "$alias.value = '%s'";
+      $args[] = $field;
+      $args[] = $value;
+    }
   }
-  db_query("DELETE FROM {notifications} WHERE ". implode(' AND ', $where), $conditions);
+  // Query notificatinons that meet these conditions and build an array
+  $result = db_query('SELECT n.sid FROM {notifications} n '.implode(' ', $join).' WHERE '.implode(' AND ', $where), $args);
+  $delete = array();
+  while ($n = db_fetch_object($result)) {
+    $delete[] = $n->sid;
+  }
+  // This is the actual deletion. We've fetched the values from the db so this needs no escaping.
+  if ($delete) {
+    $str_sids = implode(',', $delete);
+    foreach (array('notifications_fields', 'notifications_queue', 'notifications') as $table) {
+      db_query("DELETE FROM {".$table."} WHERE sid IN ($str_sids)");
+    }
+  }
 }
 
 /**
@@ -510,6 +535,7 @@ function notifications_subscription_types($type = NULL, $field = NULL) {
   static $types;
   if (!isset($types)) {
     $types = notifications_module_info('subscription types');
+    notifications_alter('subscription_types', $types);
   }
   
   if ($field && $type) {
@@ -689,7 +715,7 @@ function notifications_event_types($type = NULL, $action = NULL) {
     foreach ($types as $type_info) {
       $info[$type_info['type']][$type_info['action']] = $type_info;
     }
-    
+    notifications_alter('event_types', $info);
   }
   if ($action) {
     return isset($info[$type][$action]) ? $info[$type][$action] : array();
@@ -884,3 +910,31 @@ function notifications_simpletest() {
    }
    return call_user_func_array($callback, $args);
  }
+ 
+ /**
+ * This dispatch function hands off structured Drupal arrays to type-specific
+ * _notifications_*_alter implementations. Modelled after Drupal 6 drupal_alter()
+ * 
+ * @param $type
+ *   The data type of the structured array. 'form', 'links',
+ *   'node_content', and so on are several examples.
+ * @param $data
+ *   The structured array to be altered.
+ * @param ...
+ *   Any additional params will be passed on to the called
+ *   hook_notifications_$type_alter functions.
+ */
+function notifications_alter($type, &$data) {
+  // Now, use func_get_args() to pull in any additional parameters passed into
+  // the drupal_alter() call.
+  $args = array(&$data);
+  $additional_args = func_get_args();
+  array_shift($additional_args);
+  array_shift($additional_args);
+  $args = array_merge($args, $additional_args);
+
+  foreach (module_implements('notifications_'.$type .'_alter') as $module) {
+    $function = $module .'_notifications_'. $type .'_alter';
+    call_user_func_array($function, $args);
+  }
+}

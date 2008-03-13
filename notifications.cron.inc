@@ -380,16 +380,7 @@ function notifications_process_digest($account, $events, $send_interval, $send_m
   $text = notifications_text_replace($text, array('user' => $account, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
-  $body['header'] = $text['header'];
-  foreach ($list as $type => $objects) {
-    foreach ($objects as $oid => $data) {
-      $body[] = $data['name'];
-      foreach ($data['line'] as $line) {
-        $body[] = '- '. $line;
-      }
-    }
-  }
-  $body['footer'] = $text['footer'];
+  $body = theme('notifications_digest_body', $text, $list);
   
   return array('subject' => $text['subject'], 'body' => $body);
 }
@@ -591,4 +582,36 @@ function notifications_log($info = NULL, $type = 'info') {
   } else {
     return $logs;
   }
+}
+
+/** Themeable functions **/
+
+/**
+ * Theme notifications digest
+ * 
+ * @param $text
+ *   Array with message parts, currently only 'header' and 'footer'
+ * @param $list
+ *   Structured array with list of digested items. For each object type
+ *   'type' => (  // Type may be node, user, etc...
+ *      'oid' => ( // One for each object, may be nid, uid...
+ *        'name' => Sub header for this digest section, object name
+ *        'line' => Array of lines, one for each related event
+ *       )
+ *   )   
+ * @return
+ *   Structured array with 'header', 'footer', and multiple text lines
+ */
+function theme_notifications_digest_body($text, $list) {
+  $body['header'] = $text['header'];
+  foreach ($list as $type => $objects) {
+    foreach ($objects as $oid => $data) {
+      $body[] = $data['name'];
+      foreach ($data['line'] as $line) {
+        $body[] = '- '. $line;
+      }
+    }
+  }
+  $body['footer'] = $text['footer'];
+  return $body;
 }
