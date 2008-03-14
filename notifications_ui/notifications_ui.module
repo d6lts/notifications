@@ -191,12 +191,12 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
   global $user;
   $links = array();
 
-  if ($type == 'node' && !$teaser && $user->uid && variable_get('notifications_node_ui_'.$node->type, 'links') == 'links') {
+  if ($type == 'node' && $user->uid && (variable_get('notifications_link_teaser', 1) || !$teaser) && variable_get('notifications_node_ui_'.$node->type, 'links') == 'links') {
     // Now we have the array of allowed options ready, build links
     foreach (notifications_ui_user_node($user, $node) as $index => $option) {
       if (!empty($option['subscription'])) {
         // Unsubscribe link
-        $title = t('Unsubscribe to: !name', array('!name' => $option['name']));
+        $title = t('Unsubscribe from: !name', array('!name' => $option['name']));
         $props = notifications_get_link('unsubscribe', array('sid' => $option['subscription']->sid));
       } else {
         // Subscribe link

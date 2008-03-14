@@ -304,19 +304,19 @@ function _notifications_content_node_options($account, $node) {
   // Default node, field are the first three indexes, but they can be overridden in params
   // Thread
   $options[] = array(
-    'name' => t('To this post'),
+    'name' => t('This post'),
     'type' => 'thread',
     'fields' => array('nid' => $node->nid),
   );
   // Content type
   $options[] = array(
-    'name' => t('To posts of type %type', array('%type' => node_get_types('name', $node->type))),
+    'name' => t('Posts of type %type', array('%type' => node_get_types('name', $node->type))),
     'type' => 'nodetype',
     'fields' => array('type' => $node->type),
   );
   // Author
   $options[] = array(
-    'name' => t('To posts by %name', array('%name' => $node->name)),
+    'name' => t('Posts by %name', array('%name' => $node->name)),
     'type' => 'author',
     'fields' => array('author' => $node->uid),
   );

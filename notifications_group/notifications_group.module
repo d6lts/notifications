@@ -152,7 +152,7 @@ function _notifications_group_node_options($account, $node) {
 
     foreach (array_filter(variable_get('notifications_group_content_types', array())) as $type) {
       $options[] = array(
-        'name' => t('To %type posts in this group', array('%type' => node_get_types('name', $type))),
+        'name' => t('%type posts in this group', array('%type' => node_get_types('name', $type))),
         'type' => 'grouptype',
         'fields' => array('group' => $node->nid, 'type' => $type),
       );
@@ -163,12 +163,12 @@ function _notifications_group_node_options($account, $node) {
     foreach ($node->og_groups as $index => $gid) {
       // Content type
       $options[] = array(
-        'name' => t('To posts in group %name', array('%name' => $node->og_groups_names[$index])),
+        'name' => t('Posts in group %name', array('%name' => $node->og_groups_names[$index])),
         'type' => 'group',
         'fields' => array('group' => $gid),
       );
       $options[] = array(
-        'name' => t('To %type posts in this group', array('%type' => node_get_types('name', $node->type))),
+        'name' => t('%type posts in this group', array('%type' => node_get_types('name', $node->type))),
         'type' => 'grouptype',
         'fields' => array('group' => $gid, 'type' => $node->type),
       );
