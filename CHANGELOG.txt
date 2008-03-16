@@ -23,6 +23,11 @@ TO DO
 
 5.x-1.0-alpha1 to ...
 ---------------------
+- Changed auto subscribe option in form, fixed UI issues, see http://drupal.org/node/230035
+- Fixed error when no query conditions retrieved for the query, http://drupal.org/node/230770
+- Added select all/none checkboxes to user subscription pages, by jaydub, http://drupal.org/node/227837
+- Removed notifications_mixed module that was not working and confusing people
+
 - Added notifications_alter() hooks
   hook_alter_notifications_event_types()
 	hook_alter_notifications_subscription_types()

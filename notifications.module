@@ -212,23 +212,24 @@ function notifications_event($event){
  */
 function notifications_queue($event) {
   
-  // Build query fields for this event type
-  $query_args = notifications_module_info('query', 'event', $event->type, $event);
-  $query['args'] = array($event->eid, $event->created, $event->type);
-  foreach ($query_args as $query_params) {
-    $query = notifications_query_build($query_params, $query);
+  // Build query fields for this event type. If no arguments retrieved, skip this step
+  if ($query_args = notifications_module_info('query', 'event', $event->type, $event)) {
+    $query['args'] = array($event->eid, $event->created, $event->type);
+    foreach ($query_args as $query_params) {
+      $query = notifications_query_build($query_params, $query);
+    }
+    
+    // We throw in all the conditions and check the number of matching conditions
+    // that must be equal to the subscription conditions number
+    $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) '.
+      'SELECT DISTINCT s.uid, s.sid, s.module, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
+      'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
+      implode (' ', $query['join']).
+      " WHERE s.status = 1 AND s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
+      ' GROUP BY s.uid, s.sid, s.module, s.conditions '. // May need more grouping here
+      ' HAVING s.conditions = count(f.sid)';
+    db_query($sql, $query['args']);
   }
-  
-  // We throw in all the conditions and check the number of matching conditions
-  // that must be equal to the subscription conditions number
-  $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) '.
-    'SELECT DISTINCT s.uid, s.sid, s.module, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
-    'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
-    implode (' ', $query['join']).
-    " WHERE s.status = 1 AND s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
-    ' GROUP BY s.uid, s.sid, s.module, s.conditions '. // May need more grouping here
-    ' HAVING s.conditions = count(f.sid)';
-  db_query($sql, $query['args']);
 
   // Modules can do cleanup operations or modify the queue
   notifications_module_invoke('event queued', $event);

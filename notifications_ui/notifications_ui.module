@@ -147,7 +147,8 @@ function notifications_ui_form($node) {
       $index++;
     }
 
-    // Now we have compiled the data, build the form  
+    // Now we have compiled the data, build the form. Note that we are passing the parameters
+    // in the 'params' value as an array, while the checkboxes are in 'options' fieldset
     $form['subscriptions'] = array(
       '#type' => 'fieldset',
       '#title' => t('Subscriptions (%number)', array('%number' => $number)),
@@ -163,6 +164,10 @@ function notifications_ui_form($node) {
     );
     $form['subscriptions']['account'] = array('#type' => 'value', '#value' => $user);
   }
+  
+  // Allow other modules, i.e. autosubscribe to change this form
+  notifications_alter('node_form', $form);
+
   return $form;
 }
 

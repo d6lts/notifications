@@ -170,7 +170,7 @@ function notifications_tags_user_form($account) {
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
       '#theme' => 'notifications_form_table',
-      '#header' => array('', t('Term'), t('Send interval'), t('Send method')),
+      '#header' => array(theme('table_select_header_cell'), t('Term'), t('Send interval'), t('Send method')),
       '#parents' => array('subscriptions'),
     );
     // @ TODO create mechanism to allow users to

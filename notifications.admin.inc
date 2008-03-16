@@ -417,7 +417,7 @@ function notifications_user_form($account, $type, $subscriptions, $list, $defaul
   $form['subscriptions'] = array(
     '#tree' => TRUE,
     '#theme' => 'notifications_form_table',
-    '#header' => array('', $field_title, t('Send interval'), t('Send method'))
+    '#header' => array(theme('table_select_header_cell'), $field_title, t('Send interval'), t('Send method'))
   );  
   foreach ($list as $key => $title) {
     $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
