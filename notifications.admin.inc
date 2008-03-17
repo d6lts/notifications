@@ -19,10 +19,18 @@ function notifications_settings_form() {
   $form['sub_settings']['notifications_send_immediate'] = array(
     '#title' => t('Immediate sending'),
     '#type' => 'checkbox',
-    '#size' => 10,
     '#default_value' => variable_get('notifications_send_immediate', 0),
     '#description' => t('Do not queue notifications for immediate sending. This will produce more timely notifications for sites with a small number of users.'),
   );
+  /*
+  $form['sub_settings']['notifications_sender'] = array(
+    '#title' => t('Sender'),
+    '#type' => 'radios',
+    '#options' => array(t('None (Site)'), t('User producing the event')),
+    '#default_value' => variable_get('notifications_sender', 0),
+    '#description' => t('Who should be listed as the sender for the notifications.'),
+  );
+  */
   // Default options
   $form['defaults'] = array(
       '#type' => 'fieldset',
@@ -77,6 +85,97 @@ function notifications_settings_form() {
   return system_settings_form($form);
 }
 
+/**
+ * Send intervals administration
+ */
+function notifications_send_intervals_form() {
+  // Build options
+  $units = array(
+    60 => t('Minutes'),
+    60*60 => t('Hours'), 
+    24*60*60 => t('Days'),
+  );
+  $form['intervals'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Send intervals'),
+    '#tree' => TRUE,
+    '#theme' => 'notifications_send_intervals',
+    '#description' => t('To delete an interval, set the time unit or the name empty.'),
+  );
+  $intervals = _notifications_send_intervals() + array('new1' => '', 'new2' => '');
+  $index = 0;
+  foreach ($intervals as $time => $name) {
+    // Calculate value and unit
+    $current = $number = 0; 
+    if (is_numeric($time)) {
+      foreach (array_reverse(array_keys($units)) as $unit) {
+        if ($time % $unit == 0) {
+          $current = $unit;
+          $number = $time / $unit;
+          break;
+        }
+      }
+    } else {
+      $number = $unit = '';
+    }
+    $form['intervals'][$index]['time'] = array(
+      '#default_value' => $number,
+      '#type' => 'textfield',
+      '#size' => 2,
+    );
+    $form['intervals'][$index]['unit'] = array(
+      '#type' => 'select',
+      '#options' => array('' => '') + $units,
+      '#default_value' => $unit,
+    );
+    $form['intervals'][$index]['name'] = array(
+      '#type' => 'textfield',
+      '#default_value' => $name,
+    );
+    $index++;
+  }
+  // New row
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Update'));
+  $form['reset'] = array('#type' => 'submit', '#value' => t('Reset to defaults'));
+  return $form;
+}
+
+/**
+ * Form submit for time intervals
+ */
+function notifications_send_intervals_form_submit($form_id, $form_values) {
+  if ($form_values['op'] == t('Reset to defaults')) {
+    variable_del('notifications_send_intervals');
+  } else {
+    $intervals = array();
+    foreach ($form_values['intervals'] as $index => $values) {
+      if (is_numeric($values['time']) && $values['unit'] && $values['name']) {
+        $intervals[(int)$values['time'] * (int)$values['unit']] = $values['name'];
+      }
+    }
+    ksort($intervals);
+    variable_set('notifications_send_intervals', $intervals);
+  }
+  drupal_set_message(t('The time intervals for your subscriptions have been updated'));
+}
+
+/**
+ * Build a table with send intervals
+ */
+function theme_notifications_send_intervals($element) {
+  $output = '';
+  $header = array(array('data' => t('Time'), 'colspan' => 2), t('Display name'));
+  foreach (element_children($element) as $key) {
+    $rows[] = array(
+      drupal_render($element[$key]['time']),
+      drupal_render($element[$key]['unit']),
+      drupal_render($element[$key]['name']),
+    );  
+  }
+  $output .= theme('table', $header, $rows);
+  $output .= drupal_render($element);
+  return $output;
+}
 
 /* ******************************************************* */
 /*  user screens: display, edit functions */

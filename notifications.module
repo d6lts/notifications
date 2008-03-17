@@ -67,6 +67,13 @@ function notifications_menu($may_cache) {
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
     );
+    $items[] = array(
+      'path' => 'admin/notifications/settings/intervals',
+      'title' => t('Intervals'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'notifications_send_intervals_form',
+      'type' => MENU_LOCAL_TASK,
+    );
     // Subscribe links. For this items access will be checked later in the page
     $items[] = array(
       'path' => 'notifications/subscribe',
@@ -486,7 +493,7 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
  * @return
  *   Array of subscriptions indexed by uid, module, field, value, author
  */
-function notifications_get_subscriptions($params, $conditions = array(), $limit = TRUE, $key = 'sid') {
+function notifications_get_subscriptions($params, $conditions = array(), $limit = TRUE, $key = 'sid', $pager = NULL) {
   // Build query
   $join = $where = array();
   if ($conditions) {
@@ -512,7 +519,12 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
   $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) .
   $sql .= ' WHERE '.implode(' AND ', $where);
   
-  $result = db_query($sql, $params);
+  if ($pager) {
+    $sql .= ' ORDER BY s.sid';
+    $result = pager_query($sql, $pager, 0, NULL, $params);
+  } else {
+    $result = db_query($sql, $params);
+  }
   $subscriptions = array();
   while ($s = db_fetch_object($result)) {
     $subscriptions[$s->$key] = notifications_load_subscription($s);
@@ -836,12 +848,11 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
 }
 
 /**
- * List of send intervals
+ * List of send intervals. These may be overriden in a variable.
  */
 function _notifications_send_intervals() {
   return variable_get('notifications_send_intervals',
     array(
-      -1 => t('Never'),
       0 => t('As soon as possible'),
       900 => t('Every 15 minutes'),
       3600 => t('Hourly'),

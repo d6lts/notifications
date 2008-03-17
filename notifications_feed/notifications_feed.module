@@ -9,6 +9,9 @@
  * 
  */
 
+// Max number of feeds per page
+define('NOTIFICATIONS_FEED_PAGER', 20);
+
 /**
  * Implementation of hook_menu_()
  */
@@ -256,13 +259,13 @@ function notifications_feed_user_page($account = NULL) {
     INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
     WHERE s.uid = %d AND s.type = 'feed' AND s.event_type = 'feed' AND s.conditions = 1 AND f.field = 'feed-nid'
     ORDER BY node_type, n.title";
-  $results = db_query($query, $account->uid);
+  $results = pager_query($query, NOTIFICATIONS_FEED_PAGER, 0, NULL, $account->uid);
 
   $subscriptions = $list = array();
   $content_types = notifications_content_types('name');
   while ($sub = db_fetch_object($results)) {
     $subscriptions[$sub->nid] = $sub;
-    $list[$sub->nid] = $sub->title;
+    $list[$sub->nid] = l($sub->title, 'node/'.$sub->nid);
   }  
 
   if (!$subscriptions) {
@@ -271,6 +274,7 @@ function notifications_feed_user_page($account = NULL) {
     $defaults = array('type' => 'feed', 'event_type' => 'feed');
     $options = array('title' => t('Feed'));
     $output = drupal_get_form('notifications_user_form', $account, 'feed', $subscriptions, $list, $defaults, $options);
+    $output .= theme('pager', NOTIFICATIONS_FEED_PAGER);
   }
   return $output;
 }

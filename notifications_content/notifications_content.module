@@ -4,6 +4,9 @@
  * Subscriptions to content events
  */
 
+// Max number of elements per page for user account tabs
+define('NOTIFICATIONS_CONTENT_PAGER', 20);
+
 /**
  * Implementation of hook_menu_()
  */
@@ -407,7 +410,7 @@ function notifications_content_page_thread($account = NULL) {
     INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
     WHERE s.uid = %d AND s.type = 'thread' AND s.event_type = 'node' AND s.conditions = 1 AND f.field = 'nid'
     ORDER BY node_type, n.title";
-  $results = db_query($query, $account->uid);
+  $results = pager_query($query, NOTIFICATIONS_CONTENT_PAGER, 0, NULL, $account->uid);
 
   $subscriptions = $list = array();
   $content_types = notifications_content_types('name');
@@ -423,7 +426,7 @@ function notifications_content_page_thread($account = NULL) {
     $defaults = array('type' => 'thread', 'event_type' => 'node');
     $options = array('title' => t('Title'));
     $output .= drupal_get_form('notifications_user_form', $account, 'thread', $subscriptions, $list, $defaults, $options);
-  
+    $output .= theme('pager', NULL, NOTIFICATIONS_CONTENT_PAGER);
   }
   return $output;
 }
@@ -460,7 +463,7 @@ function notifications_content_page_author($account = NULL) {
     $account = $user;
   }
   // List of all subscribed node types
-  $subscriptions = notifications_get_subscriptions(array('type' => 'author', 'event_type' => 'node', 'uid' => $account->uid), array('author' => NULL), TRUE, 'value');
+  $subscriptions = notifications_get_subscriptions(array('type' => 'author', 'event_type' => 'node', 'uid' => $account->uid), array('author' => NULL), TRUE, 'value', NOTIFICATIONS_CONTENT_PAGER);
   
 
   if (!$subscriptions) {
@@ -476,6 +479,7 @@ function notifications_content_page_author($account = NULL) {
     //$output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
     $options = array('title' => t('Author'));
     $output = drupal_get_form('notifications_user_form', $account, 'author', $subscriptions, $list, $defaults, $options);
+    $output .= theme('pager', NULL, NOTIFICATIONS_CONTENT_PAGER);
   }
   return $output;
 }

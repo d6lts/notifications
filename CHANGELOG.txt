@@ -1,28 +1,23 @@
 TO DO
 ------
-* Configurable sending intervals. In many cases only ‘Inmediate’ and ‘Daily digest’ will be needed.
 * More digesting options. Digests per subscription type will be needed for Mothersclick, while we’ll be needing for other sites digests per thread. So we’ll have to rethink the process to make it more extendable.
 * Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
-* Extend the Notifications API so we can delete subscriptions for given field values. Right now it only supports conditions for the notifications table.
-* The administration settings need some simplification and better grouping.
 * Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
-
-- Polish UI for node subscriptions
-- Handling of mixed subscription types
-- Better digest formatting
-- Add automated tests for modules
 - Support for message localization for multiple languages
 - Delete subscriptions when they don't apply anymore (I.e. node deleted)
 - Improve documentation and help texts
   - Information about when messages are digested and when not
-- Usability improvements
-  - Group together scattered messaging and subscriptions user settings
   
 
 5.x-1.0-alpha1 to ...
 ---------------------
+- Added pager to user subscriptions (threads, authors, feeds), http://drupal.org/node/226867
+- Reworked content type UI settings, now allows multiple display options
+- Added new block for notifications UI, and new 'comment' option
+- Added nice UI for administering send intervals. Gone 'Never' that didnt make too much sense
+
 - Changed auto subscribe option in form, fixed UI issues, see http://drupal.org/node/230035
 - Fixed error when no query conditions retrieved for the query, http://drupal.org/node/230770
 - Added select all/none checkboxes to user subscription pages, by jaydub, http://drupal.org/node/227837
