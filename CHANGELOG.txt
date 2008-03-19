@@ -6,13 +6,17 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
 - Support for message localization for multiple languages
-- Delete subscriptions when they don't apply anymore (I.e. node deleted)
+
 - Improve documentation and help texts
   - Information about when messages are digested and when not
   
+5.x-1.0-alpha2 to ...
+--------------------------------
+- Delete node/feed/group subscriptions when they don't apply anymore, http://drupal.org/node/236194
+- Removed handling of pull messaging, moved that feature to messaging module [message queueing].
 
-5.x-1.0-alpha1 to ...
----------------------
+5.x-1.0-alpha1 to 5.x-1.0-alpha2
+--------------------------------
 - Added pager to user subscriptions (threads, authors, feeds), http://drupal.org/node/226867
 - Reworked content type UI settings, now allows multiple display options
 - Added new block for notifications UI, and new 'comment' option

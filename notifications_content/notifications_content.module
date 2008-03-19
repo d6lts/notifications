@@ -356,8 +356,10 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
         'params' => array('nid' => $node->nid),      
       );
       notifications_event($event);
-
       break;
+    case 'delete':
+      // Remove all subscriptions for this node
+      notifications_delete_subscriptions(array('event_type' => 'node'), array('nid' => $node->nid));
   }
 }
 

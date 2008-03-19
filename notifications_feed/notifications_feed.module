@@ -123,6 +123,17 @@ function _notifications_feed_node_options($account, $node) {
 }
 
 /**
+ * Implementation of hook_nodeapi()
+ */
+function notifications_feed_nodeapi(&$node, $op, $arg = 0) {
+  switch ($op) {
+    case 'delete':
+      // Remove all feed subscriptions for this node
+      notifications_delete_subscriptions(array('type' => 'feed'), array('feed-nid' => $node->nid));
+  }
+}
+
+/**
  * Implementation of hook_messaging()
  */
 function notifications_feed_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {

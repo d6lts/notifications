@@ -352,14 +352,9 @@ function notifications_save_subscription(&$subscription) {
       $subscription->$field = $value;
     }
   }
-  // If the send method is a pull method, do not mark for cron processing
-  // We make the decission here to allow some flexibility in the future
-  // like allowing mixed pull/push for the same sending method in the future 
-  if (messaging_method_info('type', $subscriptions->send_method, 0) & MESSAGING_TYPE_PULL) {
-    $subscription->cron = 0;
-  } else {
-    $subscription->cron = 1;
-  }
+  // The cron parameter will be always enabled because we are not managing push/pull methods anymore at this level.
+  $subscription->cron = 1;
+  
   if ($subscription->sid) {
     $op = 'update';
     db_query("UPDATE {notifications} SET uid = %d, type = '%s', event_type = '%s', conditions = %d, send_interval = '%d', send_method = '%s', cron = %d, module = '%s', status = %d WHERE sid = %d", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status, $subscription->sid);
@@ -456,7 +451,7 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
     $index = 0;
     foreach ($conditions as $field => $value) {
       $alias = 'nf'.$index;
-      $join[] = "INNER JOIN {notifications_fields} $alias ON s.sid = $alias.sid";
+      $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
       $where[] = "$alias.field = '%s'";
       $where[] = "$alias.value = '%s'";
       $args[] = $field;
