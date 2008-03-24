@@ -233,7 +233,8 @@ function notifications_queue($event) {
       'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
       implode (' ', $query['join']).
       " WHERE s.status = 1 AND s.event_type = '%s' AND ((".implode(') OR (', $query['where']).'))'.
-      ' GROUP BY s.uid, s.sid, s.module, s.conditions '. // May need more grouping here
+      // Some group by fields are not really needed but added for pgsql compatibility
+      ' GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions '. 
       ' HAVING s.conditions = count(f.sid)';
     db_query($sql, $query['args']);
   }
@@ -376,8 +377,11 @@ function notifications_save_subscription(&$subscription) {
     $subscription->sid = db_next_id('{notifications}_sid');
     db_query("INSERT INTO {notifications} (sid, uid, type, event_type, conditions, send_interval, send_method, cron, module, status) VALUES(%d, %d, '%s', '%s', %d, %d, '%s', %d, '%s', %d)", $subscription->sid, $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status);
   }
-  foreach ($subscription->fields as $name => $value) {
-    db_query("INSERT INTO {notifications_fields} (sid, field, value) VALUES(%d, '%s', '%s')", $subscription->sid, $name, $value);
+  // There may be subscriptions with no fields, some people are coding such plug-ins.
+  if ($subscription->fields) {
+    foreach ($subscription->fields as $name => $value) {
+      db_query("INSERT INTO {notifications_fields} (sid, field, value) VALUES(%d, '%s', '%s')", $subscription->sid, $name, $value);
+    }
   }
   notifications_module_invoke($op, $subscription);
 }
@@ -848,6 +852,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
 function _notifications_send_intervals() {
   return variable_get('notifications_send_intervals',
     array(
+      -1 => t('Never'),
       0 => t('As soon as possible'),
       900 => t('Every 15 minutes'),
       3600 => t('Hourly'),

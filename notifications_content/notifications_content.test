@@ -2,6 +2,9 @@
 /**
  * Class for testing notifications module.
  * Tests basic API functions
+ * 
+ * Notes:
+ *  - An exception (PHP warning) is thrown when content module (cck) is enabled, nothing to worry about.
  */
 class Notifications_Content_Tests extends DrupalTestCase {
   
@@ -15,7 +18,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
   function testNotificationsContent() {
     // Create a new content-type for creating the feed node
     $info = new Stdclass();
-    $info->type = 'notif_test_'. $this->randomName();
+    $info->type = $this->randomName();
     $info->name = 'Notifications '. str_replace('_', ' ', $this->randomName());
     $info->description = 'Test content type for notifications';
     $info->module = 'node';
@@ -26,7 +29,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $info->min_word_count = 0;
     $info->custom = TRUE;
     node_type_save($info);
-    
+
     // Author for testing, will be admin
     $author = user_load(array('uid' => 1));
         

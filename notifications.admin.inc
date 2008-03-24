@@ -100,14 +100,16 @@ function notifications_send_intervals_form() {
     '#title' => t('Send intervals'),
     '#tree' => TRUE,
     '#theme' => 'notifications_send_intervals',
-    '#description' => t('To delete an interval, set the time unit or the name empty.'),
+    '#description' => t('To delete an interval, set the time unit and the name empty.'),
   );
   $intervals = _notifications_send_intervals() + array('new1' => '', 'new2' => '');
   $index = 0;
   foreach ($intervals as $time => $name) {
     // Calculate value and unit
     $current = $number = 0; 
-    if (is_numeric($time)) {
+    if (!is_numeric($time)) {
+      $number = $unit = '';
+    } elseif ($time >= 0) {
       foreach (array_reverse(array_keys($units)) as $unit) {
         if ($time % $unit == 0) {
           $current = $unit;
@@ -116,7 +118,9 @@ function notifications_send_intervals_form() {
         }
       }
     } else {
-      $number = $unit = '';
+      // May be -1 for 'Never'
+      $number = $time;
+      $unit = '';
     }
     $form['intervals'][$index]['time'] = array(
       '#default_value' => $number,
@@ -149,8 +153,9 @@ function notifications_send_intervals_form_submit($form_id, $form_values) {
   } else {
     $intervals = array();
     foreach ($form_values['intervals'] as $index => $values) {
-      if (is_numeric($values['time']) && $values['unit'] && $values['name']) {
-        $intervals[(int)$values['time'] * (int)$values['unit']] = $values['name'];
+      if (is_numeric($values['time']) && $values['name']) {
+        $unit = $values['unit'] ? (int)$values['unit'] : 1;
+        $intervals[(int)$values['time'] * $unit] = $values['name'];
       }
     }
     ksort($intervals);

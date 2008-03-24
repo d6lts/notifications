@@ -304,6 +304,16 @@ function notifications_ui_block($op = 'list', $delta = 0) {
 }
 
 /**
+ * Implementation of hook node_type
+ */
+function notifications_ui_node_type($op, $info) {
+  if ($op == 'delete') {
+    // Remove settings for this node type
+    variable_del('notifications_node_ui_'.$info->type);
+  }
+}
+
+/**
  * Get settings value for content types
  * 
  * @param $type

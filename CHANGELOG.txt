@@ -12,6 +12,10 @@ TO DO
   
 5.x-1.0-alpha2 to ...
 --------------------------------
+- Added back 'Never' send interval.
+- Subscriptions fields not mandatory anymore, http://drupal.org/node/237972
+- Improved digesting format for new posts, http://drupal.org/node/218745
+
 - Delete node/feed/group subscriptions when they don't apply anymore, http://drupal.org/node/236194
 - Removed handling of pull messaging, moved that feature to messaging module [message queueing].
 

@@ -160,13 +160,21 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       }
       break;
     case 'event types':
+      // Node inserts are not grouped by node but all together. The digest will look like:
+      //   New content has been submitted
+      //   - Story Title1 by Author1
+      //   - Event Title2 by Author2
       $types[] = array(
         'type' => 'node',
         'action' => 'insert',
-        'name' => '[type-name]: [title]',
+        'name' => 'New content of type [type-name] has been submitted',
         'line' => '[type-name] [title] by [author-name]',
-        'digest' => array('node', 'nid'),
+        'digest' => array('node', 'type'),
       );
+      // These other events are grouped for each node. The digest will look like:
+      //   Story: Title of the story
+      //   - The story has been updated
+      //   - New comment by User: Comment title
       $types[] = array(
         'type' => 'node',
         'action' => 'update',
@@ -381,6 +389,16 @@ function notifications_content_comment($comment, $op) {
       'params' => array('nid' => $comment['nid'], 'cid' => $comment['cid']),
     );
     notifications_event($event);
+  }
+}
+
+/**
+ * Implementation of hook node_type
+ */
+function notifications_content_node_type($op, $info) {
+  if ($op == 'delete') {
+    // Remove all subscriptions for this node type
+    notifications_delete_subscriptions(array('event_type' => 'node'), array('type' => $info->type));
   }
 }
 
