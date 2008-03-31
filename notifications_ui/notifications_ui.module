@@ -255,7 +255,7 @@ function notifications_ui_allowed_types() {
  */
 function notifications_ui_user_node($account, $node) {
   // Get allowed node options and current subscriptions
-  $node_options = notifications_module_info('node options', $account, $node);
+  $node_options = notifications_module_information('node options', $account, $node);
   $allowed_types = notifications_ui_allowed_types();
   $allowed_options = array();
   // We also keep track of event types for each subscription type

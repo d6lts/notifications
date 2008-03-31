@@ -220,7 +220,7 @@ function notifications_event($event){
 function notifications_queue($event) {
   
   // Build query fields for this event type. If no arguments retrieved, skip this step
-  if ($query_args = notifications_module_info('query', 'event', $event->type, $event)) {
+  if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
     $query['args'] = array($event->eid, $event->created, $event->type);
     foreach ($query_args as $query_params) {
       $query = notifications_query_build($query_params, $query);
@@ -308,7 +308,7 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
 
   if ($refresh || !isset($subscriptions[$uid][$event_type][$oid])){
     $subscriptions[$uid][$event_type][$oid] = array();
-    $query_args = notifications_module_info('query', 'user', $event_type, $object);
+    $query_args = notifications_module_information('query', 'user', $event_type, $object);
     // Base query
     $query = array(
       'args' => array($uid, $event_type),
@@ -546,7 +546,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
 function notifications_subscription_types($type = NULL, $field = NULL) {
   static $types;
   if (!isset($types)) {
-    $types = notifications_module_info('subscription types');
+    $types = notifications_module_information('subscription types');
     notifications_alter('subscription_types', $types);
   }
   
@@ -572,7 +572,7 @@ function notifications_subscription_types($type = NULL, $field = NULL) {
  * Invokes hook_notifications() with a single parameter or more but not needing
  * an object to be passed as reference.
  */
-function notifications_module_info($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
+function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
   $object = NULL;
   return notifications_module_invoke($op, $arg0, $arg1, $arg2);
 }
@@ -723,7 +723,7 @@ function notifications_token_list($type = 'all') {
 function notifications_event_types($type = NULL, $action = NULL) {
   static $info;
   if (!$info) {
-    $types = notifications_module_info('event types');
+    $types = notifications_module_information('event types');
     foreach ($types as $type_info) {
       $info[$type_info['type']][$type_info['action']] = $type_info;
     }
@@ -806,7 +806,7 @@ function notifications_user_allowed($type, $account, $object = NULL) {
 
   // Invoke notifications hook and check for a FALSE return value
   
-  $permissions = notifications_module_info('access', $type, $account, $object);
+  $permissions = notifications_module_information('access', $type, $account, $object);
 
   if ($permissions) {
     return !in_array(FALSE, $permissions);

@@ -22,15 +22,17 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_send_immediate', 0),
     '#description' => t('Do not queue notifications for immediate sending. This will produce more timely notifications for sites with a small number of users.'),
   );
-  /*
   $form['sub_settings']['notifications_sender'] = array(
-    '#title' => t('Sender'),
+    '#title' => t('Notifications Sender'),
     '#type' => 'radios',
-    '#options' => array(t('None (Site)'), t('User producing the event')),
+    '#options' => array(
+      t('No one (All notifications will appear as coming from the web site)'),
+      t('User name, site data (Only the user name will be used)'),
+      t('Full user data (User name and available user information)'),
+    ),
     '#default_value' => variable_get('notifications_sender', 0),
-    '#description' => t('Who should be listed as the sender for the notifications.'),
+    '#description' => t('Use the site information as the sender for notification messages or use account data from the user causing the event. WARNING: Selecting the last option (Full user data) may undisclose private information to subscribers like the user e-mail address.'),
   );
-  */
   // Default options
   $form['defaults'] = array(
       '#type' => 'fieldset',

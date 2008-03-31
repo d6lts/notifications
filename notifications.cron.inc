@@ -330,9 +330,20 @@ function notifications_process_send($account, $events, $subscriptions, $send_met
      $message['notifications'] = array('events' => $events, 'subscriptions' => $subscriptions, 'digest' => TRUE);
      $messages[] = $message;
   } else {
+    $sender_option = variable_get('notifications_sender', 0);
     foreach ($events as $event) {
       $message = notifications_process_message($account, $event, $subscriptions[$event->eid], $send_method);
+      // We pass on the full information so it can be used by modules implementing some of the hooks
       $message['notifications'] = array('events' => array($event), 'subscriptions' => $subscriptions);
+      // Optional sender, if chosen will be the user account who produced the event
+      // It will be up to the sending method modules what to do with this information.
+      if ($sender_option) {
+        $sender = notifications_load_user($event->uid);
+        $message['sender_name'] = $sender->name;
+        if ($sender_option == 2) {
+          $message['sender_account'] = $sender;
+        }
+      }
       $messages[] = $message;
     }
   }
@@ -499,11 +510,7 @@ function notifications_event_text($event) {
  * Get users with static caching
  */
 function notifications_load_user($uid) {
-  static $cache = array();
-  if (!array_key_exists($uid, $cache)) {
-    $cache[$uid] = user_load(array('uid' => $uid));
-  }
-  return $cache[$uid];
+  return messaging_load_user($uid);
 }
 
 /**

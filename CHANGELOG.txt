@@ -12,10 +12,12 @@ TO DO
   
 5.x-1.0-alpha2 to ...
 --------------------------------
+- Implemented notifications sender option, see http://drupal.org/node/227377
+- Resolved naming conflict with other modules by Lynn, http://drupal.org/node/232610
+- Rewritten notifications_load_user() to use messaging_load_user() so they share caching
 - Added back 'Never' send interval.
 - Subscriptions fields not mandatory anymore, http://drupal.org/node/237972
 - Improved digesting format for new posts, http://drupal.org/node/218745
-
 - Delete node/feed/group subscriptions when they don't apply anymore, http://drupal.org/node/236194
 - Removed handling of pull messaging, moved that feature to messaging module [message queueing].
 
