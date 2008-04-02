@@ -62,7 +62,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
           $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2))      
       {
         $params[] = array(
-          'join' => "LEFT JOIN {term_node} t ON f.field = 'tid' AND f.value = t.tid",
+          'join' => "LEFT JOIN {term_node} t ON f.field = 'tid' AND f.value = CAST(t.tid AS CHAR)",
           'where' => 't.nid = %d',
           'args' => array($node->nid),
         );

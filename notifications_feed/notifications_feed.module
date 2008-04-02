@@ -267,7 +267,7 @@ function notifications_feed_user_page($account = NULL) {
 
   // query string for feed subscriptions
   $query = "SELECT s.*, f.value AS nid, n.type AS node_type, n.title FROM {notifications} s 
-    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
+    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = CAST(n.nid AS CHAR)
     WHERE s.uid = %d AND s.type = 'feed' AND s.event_type = 'feed' AND s.conditions = 1 AND f.field = 'feed-nid'
     ORDER BY node_type, n.title";
   $results = pager_query($query, NOTIFICATIONS_FEED_PAGER, 0, NULL, $account->uid);

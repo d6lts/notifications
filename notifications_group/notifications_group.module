@@ -116,7 +116,7 @@ function notifications_group_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NU
         $query = array();
         if ($node->og_groups) {
           $query[] = array(
-            'join' => "LEFT JOIN {og_ancestry} og ON f.field = 'group' AND f.value = og.group_nid",
+            'join' => "LEFT JOIN {og_ancestry} og ON f.field = 'group' AND f.value = CAST(og.group_nid AS CHAR)",
             'where' => 'og.nid = %d',
             'args' => array($node->nid),
           );
@@ -199,7 +199,7 @@ function notifications_group_user_page($account = NULL) {
   // Query for group subscriptions. 
   // @ TO DO Retrieve also grouptype subscriptions
   $query = "SELECT s.*, f.value AS nid, n.type AS node_type, n.title FROM {notifications} s 
-    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = n.nid
+    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = CAST(n.nid AS CHAR)
     WHERE s.uid = %d AND s.type = 'group' AND s.conditions = 1 AND f.field = 'group'
     ORDER BY node_type, n.title";
   $results = db_query($query, $account->uid);
