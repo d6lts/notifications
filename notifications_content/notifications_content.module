@@ -104,7 +104,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
           $subs->names['author'] = t('Author: %name', array('%name' => $author->name));
         }
         if (!empty($subs->fields['nid']) && ($node = node_load($subs->fields['nid']))) {
-          $subs->names['thread'] = t('Thread: %title', array('%title' => check_plain($node->title)));
+          $subs->names['thread'] = t('Thread: %title', array('%title' => $node->title));
         }
       }
       break;
