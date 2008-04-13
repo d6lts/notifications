@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file
  * Subscriptions to taxonomy terms
@@ -58,9 +59,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
       );
       return $types;    
     case 'query':
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
-          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2))      
-      {
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) || $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         $params[] = array(
           'join' => "LEFT JOIN {term_node} t ON f.field = 'tid' AND f.value = CAST(t.tid AS CHAR)",
           'where' => 't.nid = %d',
@@ -226,16 +225,18 @@ function notifications_tags_vocabularies($field = NULL) {
     foreach (array_filter($allowed) as $vid) {
       $vocabularies[$vid] = $allvocab[$vid];
     } 
-  } else {
+  }
+  else {
     $vocabularies = $allvocab;
   }
   if ($field) {
     $list = array();
-    foreach($vocabularies as $vid => $vocab) {
+    foreach ($vocabularies as $vid => $vocab) {
       $list[$vid] = $vocab->$field;
     }
     return $list;
-  } else {
+  }
+  else {
     return $vocabularies;
   }
 }

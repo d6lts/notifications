@@ -11,9 +11,9 @@
 function notifications_ui_help($section) {
   switch ($section) {
     case 'admin/notifications/settings/ui':
-      $output = '<p>'.t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.').'</p>';
+      $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
       if (module_exists('notifications_content')) {
-        $output .= '<p>'.t('To enable different subscription options for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))).'</p>';
+        $output .= '<p>'. t('To enable different subscription options for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
       }
       return $output;
   }
@@ -143,7 +143,8 @@ function notifications_ui_node_form($node, $subform = TRUE) {
         $params[$index] = (array)$option['subscription'];
         $defaults[] = $index;
         $number++;
-      } else {
+      }
+      else {
         $params[$index] = $option;
       }
       $index++;
@@ -159,7 +160,8 @@ function notifications_ui_node_form($node, $subform = TRUE) {
         '#collapsed' => FALSE,
         '#tree' => TRUE,
       );
-    } else {
+    }
+    else {
       $form['subscriptions'] = array('#tree' => TRUE);
     }
     $form['subscriptions']['params'] = array('#type' => 'value', '#value' => $params);
@@ -191,7 +193,7 @@ function notifications_ui_node_form_submit($form_id, $form_values) {
     if ($value) {
       notifications_save_subscription($subscription);
     }
-    elseif(!empty($subscription['sid'])) {
+    elseif (!empty($subscription['sid'])) {
       notifications_delete_subscription($subscription['sid']);
     }
   }
@@ -213,12 +215,13 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
         // Unsubscribe link
         $title = t('Unsubscribe from: !name', array('!name' => $option['name']));
         $props = notifications_get_link('unsubscribe', array('sid' => $option['subscription']->sid));
-      } else {
+      }
+      else {
         // Subscribe link
         $title = t('Subscribe to: !name', array('!name' => $option['name']));
         $props = notifications_get_link('subscribe', array('type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields']));
       }
-      $links['notifications_'.$index] = array(
+      $links['notifications_'. $index] = array(
         'title' => $title,
         'html' => TRUE,
       ) + $props;      
@@ -309,7 +312,7 @@ function notifications_ui_block($op = 'list', $delta = 0) {
 function notifications_ui_node_type($op, $info) {
   if ($op == 'delete') {
     // Remove settings for this node type
-    variable_del('notifications_node_ui_'.$info->type);
+    variable_del('notifications_node_ui_'. $info->type);
   }
 }
 
@@ -323,10 +326,11 @@ function notifications_ui_node_type($op, $info) {
  */
 function notifications_ui_type_options($type, $option = NULL, $default = NULL) {
   // The default setting will be 'links' = 1
-  $settings = variable_get('notifications_node_ui_'.$type, array('links'));
+  $settings = variable_get('notifications_node_ui_'. $type, array('links'));
   if ($option) {
     return in_array($option, $settings) ? TRUE : $default;
-  } else {
+  }
+  else {
     return $settings;
   }
 }

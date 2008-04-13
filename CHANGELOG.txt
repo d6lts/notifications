@@ -1,3 +1,5 @@
+// $Id$
+
 TO DO
 ------
 * More digesting options. Digests per subscription type will be needed for Mothersclick, while we’ll be needing for other sites digests per thread. So we’ll have to rethink the process to make it more extendable.
@@ -10,8 +12,10 @@ TO DO
 - Improve documentation and help texts
   - Information about when messages are digested and when not
   
-5.x-1.0-alpha2 to ...
+5.x-1.0-alpha2 to 5.x-1.0-beta1
 --------------------------------
+- Code clean up, compliance with coding standards
+- Fixed Notifications cron processing records ignoring module name by Brian Neisler, http://drupal.org/node/244571
 - Implemented notifications sender option, see http://drupal.org/node/227377
 - Resolved naming conflict with other modules by Lynn, http://drupal.org/node/232610
 - Rewritten notifications_load_user() to use messaging_load_user() so they share caching

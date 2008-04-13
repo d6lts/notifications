@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file
  * Subscriptions to content in groups
@@ -110,9 +111,7 @@ function notifications_group_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NU
     case 'query':
       // $arg0 = 'event' and $arg1 = 'node' and $event = $arg2
       // $arg0 = 'user'  and $arg1 = 'noe' and $node = $arg2
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) || 
-          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) 
-      {
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) || $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         $query = array();
         if ($node->og_groups) {
           $query[] = array(
@@ -142,7 +141,8 @@ function notifications_group_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NU
       if ($type == 'subscription' && !empty($object->fields['group'])) {
         if (($group = node_load($object->fields['group'])) && og_is_group_type($group->type) && notifications_content_node_allow($account, $group)) {
           return array(TRUE);
-        } else {
+        }
+        else {
           return array(FALSE);
         }
       }
@@ -213,7 +213,8 @@ function notifications_group_user_page($account = NULL) {
 
   if (!$subscriptions) {
     $output = t('There are no active group subscriptions.');    
-  } else {
+  }
+  else {
     $defaults = array('type' => 'group', 'event_type' => 'node');
     $options = array('title' => t('Group'));
     $output = drupal_get_form('notifications_user_form', $account, 'group', $subscriptions, $list, $defaults, $options);

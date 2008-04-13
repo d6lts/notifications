@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * Class for testing notifications module.
  * Tests basic API functions
@@ -35,7 +36,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
         
     // Fake node for testing
     $node = new Stdclass();
-    $node->title = 'Notifications '.$this->randomName();
+    $node->title = 'Notifications '. $this->randomName();
     $node->body = 'This is a test node for content subscriptions.';
     $node->type = $info->type;
     $node->uid = $author->uid;
@@ -90,24 +91,24 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $this->assertEqual(count($subs), 3, 'The 3 subscriptions have actually been created');
 
     // Check user account pages
-    $this->drupalGet(url('user/'.$user->uid.'/notifications'));
+    $this->drupalGet(url('user/'. $user->uid. '/notifications'));
     $this->assertText(t('Thread'), 'User account overview shows threads.');
     $this->assertText(t('Content type'), 'User account overview shows content type.');
     $this->assertText(t('Author'), 'User account overview shows author.');
     
-    $this->drupalGet(url('user/'.$user->uid.'/notifications/thread'));
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/thread'));
     $this->assertText($node->title, 'User account subscriptions shows threads.');
     
     // Check content type page before and after enabling this content type
-    $this->drupalGet(url('user/'.$user->uid.'/notifications/nodetype'));
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
     $this->assertNoText($info->name, 'User account subscriptions doesn\'t show content type.');
     $allowed = notifications_content_types('type');
     $allowed[$info->type] = $info->type;
     $this->drupalVariableSet('notifications_content_types', $allowed);
-    $this->drupalGet(url('user/'.$user->uid.'/notifications/nodetype'));
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
     $this->assertText($info->name, 'User account subscriptions shows content type.');
     
-    $this->drupalGet(url('user/'.$user->uid.'/notifications/author'));
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/author'));
     $this->assertText($author->name, 'User account subscriptions shows author.');
 
     // Make sure we have some queueing before going on

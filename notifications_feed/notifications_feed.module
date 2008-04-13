@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file
  * Subscriptions to FeedAPI feeds
@@ -29,7 +30,8 @@ function notifications_feed_menu($may_cache) {
       'callback arguments' => array('notifications_tags_settings_form'),
     );
     */
-  } else {
+  }
+  else {
     if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
@@ -77,8 +79,7 @@ function notifications_feed_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
       return $types;    
     case 'query':
       if ($arg0 == 'event' && $arg1 == 'feed' && ($node = $arg2->feed) ||
-          $arg0 == 'user' && $arg1 == 'feed' && ($node = $arg2))      
-      {
+          $arg0 == 'user' && $arg1 == 'feed' && ($node = $arg2)) {
         $query[]['fields'] = array('feed-nid' => $node->nid);
         return $query;
       }
@@ -237,7 +238,7 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
         $values['feed-name'] = check_plain($feed->title);
         $values['feed-teaser'] = $feed->teaser ? check_markup($feed->teaser, $feed->format, FALSE) : '';
         // We may need to use a different link here
-        $values['feed-url'] = url('node/'.$feed->nid, NULL, NULL, TRUE);
+        $values['feed-url'] = url('node/'. $feed->nid, NULL, NULL, TRUE);
         // Item lists
         $updated = array_map('check_plain', $feed->items_updated);
         $new = array_map('check_plain', $feed->items_new);;
@@ -249,7 +250,7 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
           $refreshed[] = t('Updated: !title', array('!title' => $item));
         }
         $values['feed-items-updated'] = $updated ? implode("\n- ", $updated) : t('no updated items');
-        $values['feed-items-new'] = $new ? '- '.implode("\n- ", $new) : t('no new items');
+        $values['feed-items-new'] = $new ? '- '. implode("\n- ", $new) : t('no new items');
         $values['feed-items-refresh'] = implode("\n", $refreshed); 
      
         return $values;
@@ -276,12 +277,13 @@ function notifications_feed_user_page($account = NULL) {
   $content_types = notifications_content_types('name');
   while ($sub = db_fetch_object($results)) {
     $subscriptions[$sub->nid] = $sub;
-    $list[$sub->nid] = l($sub->title, 'node/'.$sub->nid);
+    $list[$sub->nid] = l($sub->title, 'node/'. $sub->nid);
   }  
 
   if (!$subscriptions) {
     $output = t('There are no active feed subscriptions.');    
-  } else {
+  }
+  else {
     $defaults = array('type' => 'feed', 'event_type' => 'feed');
     $options = array('title' => t('Feed'));
     $output = drupal_get_form('notifications_user_form', $account, 'feed', $subscriptions, $list, $defaults, $options);

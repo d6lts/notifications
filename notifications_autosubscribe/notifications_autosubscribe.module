@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * Subscription_autosubscribe module allow users to automatically subscribe to threads they create. Used by
  * notifications_content.
@@ -32,7 +33,7 @@ function notifications_autosubscribe($type, $event_type, $field, $value) {
 }
 
 /**
- * Implementation of hook_form_alter().
+ * Implementation of hook_form_alter()
  *
  * Adds autosubscribe checkbox to user edit form.
  */

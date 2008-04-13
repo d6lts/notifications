@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * Subscriptions module. Queue processing.
  * 
@@ -40,7 +41,7 @@ function notifications_process_run($cron = TRUE) {
   unset($send_intervals[-1]);
   $max_sqid = notifications_process_prepare();
   foreach ($send_intervals as $interval => $name) {
-    notifications_log('Processing send interval '.$name);
+    notifications_log('Processing send interval '. $name);
     while (notifications_process_queue($interval, $max_sqid)) {
       $stop = !notifications_process('check');
     }
@@ -68,7 +69,8 @@ function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE
   $str_uids = implode(',', $users);
   if ($limit) {
     $result = db_query_range($sql, $method, $str_uids, 0, $limit);
-  } else {
+  }
+  else {
     $result = db_query($sql, $method, $str_uids);
   }
   
@@ -80,7 +82,7 @@ function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE
     // Access control for event objects
     if (notifications_callback($queue->module, 'user_allowed', 'event', $account, $event)) {
       $subscriptions = array($queue->sid);
-      $message = notifications_callback($queue->module, 'process_message',$account, $event, $subscriptions, $method);
+      $message = notifications_callback($queue->module, 'process_message', $account, $event, $subscriptions, $method);
       $message['uid'] = $queue->uid;
       $message['from'] = $event->uid;
       $messages[] = $message;
@@ -135,7 +137,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
   static $limit = array(), $options = array();
   static $current = array('message' => 0, 'step' => 0);
 
-  switch($op) {
+  switch ($op) {
     case 'start':
       $defaults = variable_get('notifications_process_limit', array('time' => 0, 'message' => 0, 'row' => 0, 'percent' => 0));
       foreach ($defaults as $name => $value) {
@@ -199,7 +201,7 @@ function notifications_process_rows($conditions) {
   // Build query and fetch rows from queue
   $query = notifications_queue_query($conditions);
   $sql = "SELECT * FROM {notifications_queue} ";
-  $sql .= " WHERE ".implode(' AND ', $query['where']);
+  $sql .= " WHERE ". implode(' AND ', $query['where']);
   $sql .= " ORDER BY uid, send_method, send_interval";
   $result = db_query($sql, $query['args']);
 
@@ -264,11 +266,11 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
   // Note: If we get the users with more messages pending first this may save some time
   $sql = "SELECT q.uid, q.send_method, count(*) AS count FROM {notifications_queue} q ";
   $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
-  $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d ";
+  $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d AND q.module = '%s'";
   $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
    // Note: the group by su.sent seems to be needed by pgsql
   $sql .= " GROUP BY q.uid, q.send_method, su.sent ORDER BY su.sent";
-  $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
+  $result = db_query_range($sql, $send_interval, $max_sqid, $module, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
   $sqid = 0;
   // @ TODO Add time conditions
@@ -329,7 +331,8 @@ function notifications_process_send($account, $events, $subscriptions, $send_met
      $message = notifications_process_digest($account, $events, $send_interval, $send_method);
      $message['notifications'] = array('events' => $events, 'subscriptions' => $subscriptions, 'digest' => TRUE);
      $messages[] = $message;
-  } else {
+  }
+  else {
     $sender_option = variable_get('notifications_sender', 0);
     foreach ($events as $event) {
       $message = notifications_process_message($account, $event, $subscriptions[$event->eid], $send_method);
@@ -416,7 +419,7 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   $options = array($event->type, $event->action);
   $text = array(
     'subject' => notifications_message_part('event', 'subject', $send_method, $options),
-    'header' => notifications_message_part('event' ,'header', $send_method, $options),
+    'header' => notifications_message_part('event' , 'header', $send_method, $options),
     'event'  => notifications_message_part('event', 'main', $send_method, $options), // Was $info['detail'],
     'footer' => notifications_message_part('event', 'footer', $send_method, $options),
   );
@@ -425,7 +428,8 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   // @ TODO Handle nicely the case where there are more than one subscription
   if ($sid = array_shift($subscriptions)) {
     $subscription = notifications_load_subscription($sid);
-  } else {
+  }
+  else {
     $subscription = NULL;
   }
   $objects = array('user' => $account, 'event' => $event, 'subscription' => $subscription);
@@ -463,9 +467,9 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  *
  */
 function notifications_message_part($type, $key, $method, $options = array()) {
-  $keyparts = array_merge(array('notifications-'.$type), $options);
+  $keyparts = array_merge(array('notifications-'. $type), $options);
   // Output some debugging info in case we dont find a suitable message part
-  $output = "[UNDEFINED type = $type, method = $method, key = ".implode('-', $keyparts).']';
+  $output = "[UNDEFINED type = $type, method = $method, key = ". implode('-', $keyparts) .']';
   while ($keyparts) {
     $groupkey = implode('-', $keyparts);
     if ($text = messaging_message_part($groupkey, $key, $method)) {
@@ -538,7 +542,7 @@ function notifications_load_event($id) {
  */
 function notifications_queue_delete($params) {
   $query = notifications_queue_query($params);
-  db_query("DELETE FROM {notifications_queue} WHERE ".implode(' AND ', $query['where']), $query['args']);
+  db_query("DELETE FROM {notifications_queue} WHERE ". implode(' AND ', $query['where']), $query['args']);
 }
 
 /**
@@ -555,7 +559,7 @@ function notifications_queue_delete($params) {
 function notifications_queue_query($params) {
   $where = $args = array();
   
-  foreach($params as $field => $value) {
+  foreach ($params as $field => $value) {
     switch ($field) {
       case 'max_sqid':
         $where[] = "sqid <= %d";
@@ -580,13 +584,14 @@ function notifications_queue_query($params) {
 function notifications_log($info = NULL, $type = 'info') {
   static $logs;
   if ($info) {
-    $message = $type.': ';
+    $message = $type .': ';
     $message .= is_string($info) ? $info : print_r($info, TRUE);
     $logs[] = $message;
     if ($type == 'watchdog') {
       watchdog('notifications', $info);
     }
-  } else {
+  }
+  else {
     return $logs;
   }
 }

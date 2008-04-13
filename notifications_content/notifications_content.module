@@ -1,4 +1,5 @@
 <?php
+// $Id$
 /**
  * @file
  * Subscriptions to content events
@@ -22,7 +23,8 @@ function notifications_content_menu($may_cache) {
       'callback' => 'drupal_get_form',
       'callback arguments' => array('notifications_content_settings_form'),
     );
-  } else {
+  }
+  else {
     if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
       $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
       $items[] = array(
@@ -89,7 +91,7 @@ function notifications_content_settings_form() {
 }
 
 /**
- * Implementation of hook_notifications().
+ * Implementation of hook_notifications()
  */
 function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
@@ -134,8 +136,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
     case 'query':
       // $arg2 is $event array.
       if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
-          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2))      
-      {
+          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         $query[]['fields'] = array(
             'nid' => $node->nid,
             'type' => $node->type,
@@ -206,10 +207,12 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
           $access = $access && notifications_content_comment_allow($account, $object->objects['comment']);
         }
       // For node subscriptions we check that user can view the node
-      } elseif($type == 'subscription' && !empty($object->fields['nid'])) {
+      }
+      elseif ($type == 'subscription' && !empty($object->fields['nid'])) {
         if ($node = node_load($object->fields['nid'])) {
           $access =  notifications_content_node_allow($account, $node);
-        } else {
+        }
+        else {
           $access = FALSE;
         }
       }
@@ -335,7 +338,7 @@ function _notifications_content_node_options($account, $node) {
 }
 
 /**
- * Implementation of hook_nodeapi().
+ * Implementation of hook_nodeapi()
  */
 function notifications_content_nodeapi(&$node, $op, $arg = 0) {
   global $user;
@@ -372,7 +375,7 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
 }
 
 /**
- * Implementation of hook_comment().
+ * Implementation of hook_comment()
  */
 function notifications_content_comment($comment, $op) {
   global $user;
@@ -436,12 +439,13 @@ function notifications_content_page_thread($account = NULL) {
   $content_types = notifications_content_types('name');
   while ($sub = db_fetch_object($results)) {
     $subscriptions[$sub->nid] = $sub;
-    $list[$sub->nid] = '['.$content_types[$sub->node_type].'] '.l($sub->title, 'node/'.$sub->nid);
+    $list[$sub->nid] = '['. $content_types[$sub->node_type] .'] '. l($sub->title, 'node/'. $sub->nid);
   }
 
   if (!$subscriptions) {
     $output = t('You are not currently subscribed to any active threads');
-  } else {
+  }
+  else {
     $output = t('You are currently subscribed to the following threads:');
     $defaults = array('type' => 'thread', 'event_type' => 'node');
     $options = array('title' => t('Title'));
@@ -465,7 +469,8 @@ function notifications_content_page_nodetype($account = NULL) {
   $types = notifications_content_types('name');
   if (!$types) {
     $output = t('There are no active content types.');    
-  } else {
+  }
+  else {
     $defaults = array('type' => 'nodetype', 'event_type' => 'node');
     $options = array('title' => t('Type'));
     $output .= drupal_get_form('notifications_user_form', $account, 'nodetype', $subscriptions, $types, $defaults, $options);
@@ -488,10 +493,11 @@ function notifications_content_page_author($account = NULL) {
 
   if (!$subscriptions) {
     $output = t('There are no active author subscriptions.');    
-  } else {
+  }
+  else {
     // Build author list
     $list = array();
-    $result = db_query("SELECT uid, name FROM {users} WHERE uid IN (".implode(',', array_keys($subscriptions)).')');
+    $result = db_query("SELECT uid, name FROM {users} WHERE uid IN (". implode(',', array_keys($subscriptions)) .')');
     while ($author = db_fetch_object($result)) {
       $list[$author->uid] = $author->name;
     }
@@ -571,7 +577,8 @@ function notifications_content_form_submit($form_id, $form_values) {
       // Checked, save only if new or changed
       if (!isset($current[$index])) {
         $subscription = $defaults;
-      } elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
+      }
+      elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
         $subscription = (array)($current[$index]);        
       }
       // Complete and save
@@ -581,7 +588,8 @@ function notifications_content_form_submit($form_id, $form_values) {
         $subscription['fields'] = $fields[$index];
         notifications_save_subscription($subscription);
       }
-    } elseif(isset($current[$index])) {
+    }
+    elseif (isset($current[$index])) {
       notifications_delete_subscription($current[$index]->sid);
     }
   }
@@ -604,7 +612,8 @@ function notifications_content_types($field = NULL) {
         $types[$type] = $info;
       }
     }
-  } else {
+  }
+  else {
     $types = node_get_types();
   }
   if ($field) {
@@ -644,7 +653,7 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       if ($node = $object) {
         $values['node-teaser'] = $node->teaser ? check_markup($node->teaser, $node->format, FALSE) : '';
         $values['node-body'] = $node->body ? check_markup($node->body, $node->format, FALSE) : '';
-        $values['node-url'] = url('node/'.$node->nid, NULL, NULL, TRUE);
+        $values['node-url'] = url('node/'. $node->nid, NULL, NULL, TRUE);
         $values['node-teaser-raw'] = $node->teaser ? $node->teaser : '';
         $values['node-body-raw'] = $node->body ? $node->body : '';
         return $values;
@@ -652,8 +661,8 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       break;
     case 'comment':
       if ($comment = (object)$object) {
-        $values['comment-url'] = url('node/'.$comment->nid, NULL, 'comment-'.$comment->cid, TRUE);
-        $values['comment-reply-url'] = url('comment/reply/'.$comment->nid.'/'.$comment->cid, NULL, NULL, TRUE);
+        $values['comment-url'] = url('node/'. $comment->nid, NULL, 'comment-'. $comment->cid, TRUE);
+        $values['comment-reply-url'] = url('comment/reply/'. $comment->nid .'/'. $comment->cid, NULL, NULL, TRUE);
         return $values;
       }
       break;
@@ -691,7 +700,8 @@ function notifications_content_comment_allow($account, $comment) {
   if (!isset($access[$account->uid][$comment->cid])) {
     if (($account->uid == $comment->uid || $comment->status == COMMENT_PUBLISHED) && user_access('access comments', $account) || user_access('administer comments', $account)) {
       $access[$account->uid][$comment->cid] = TRUE;
-    } else {
+    }
+    else {
       $access[$account->uid][$comment->cid] = FALSE;
     }
   }

@@ -111,7 +111,8 @@ function notifications_send_intervals_form() {
     $current = $number = 0; 
     if (!is_numeric($time)) {
       $number = $unit = '';
-    } elseif ($time >= 0) {
+    }
+    elseif ($time >= 0) {
       foreach (array_reverse(array_keys($units)) as $unit) {
         if ($time % $unit == 0) {
           $current = $unit;
@@ -119,7 +120,8 @@ function notifications_send_intervals_form() {
           break;
         }
       }
-    } else {
+    }
+    else {
       // May be -1 for 'Never'
       $number = $time;
       $unit = '';
@@ -152,7 +154,8 @@ function notifications_send_intervals_form() {
 function notifications_send_intervals_form_submit($form_id, $form_values) {
   if ($form_values['op'] == t('Reset to defaults')) {
     variable_del('notifications_send_intervals');
-  } else {
+  }
+  else {
     $intervals = array();
     foreach ($form_values['intervals'] as $index => $values) {
       if (is_numeric($values['time']) && $values['name']) {
@@ -238,7 +241,8 @@ function notifications_page_user_overview($account) {
   }
   if ($rows) {
     $output .= theme('table', $header, $rows);
-  } else {
+  }
+  else {
     $output .= t('No existing or allowed subscriptions');
   }
   return $output;
@@ -380,12 +384,14 @@ function notifications_page_subscribe($uid, $type, $fields, $values, $send_inter
           // Subscribe, no confirmation
           notifications_save_subscription($subscription);
           drupal_goto();
-        } else {
+        }
+        else {
           // Ask for confirmation
           drupal_set_title(t('Confirm your subscription'));
           return drupal_get_form('notifications_form_confirm', $subscription);
         }
-      } else {
+      }
+      else {
         drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
         drupal_goto();
       }
@@ -438,7 +444,7 @@ function notifications_form_confirm($subscription) {
  */
 function notifications_form_confirm_submit($form_id, $form_values) {
   $subscription = (object)$form_values;
-  switch($form_values['op']) {
+  switch ($form_values['op']) {
     case t('Subscribe'):
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
@@ -447,7 +453,7 @@ function notifications_form_confirm_submit($form_id, $form_values) {
       drupal_set_message(t('Your subscription was cancelled'));
       break;
   }
-  return 'user/'.$form_values['uid'].'/notifications';   
+  return 'user/'. $form_values['uid'] .'/notifications';   
 }
 
 /**
@@ -572,7 +578,8 @@ function notifications_user_form_submit($form_id, $form_values) {
       // Checked, save only if new or changed
       if (!isset($current[$index])) {
         $subscription = $defaults;
-      } elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
+      }
+      elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
         $subscription = (array)($current[$index]);        
       }
       // Complete and save
@@ -582,7 +589,8 @@ function notifications_user_form_submit($form_id, $form_values) {
         $subscription['fields'] = $fields[$index];
         notifications_save_subscription($subscription);
       }
-    } elseif(isset($current[$index])) {
+    }
+    elseif (isset($current[$index])) {
       notifications_delete_subscription($current[$index]->sid);
     }
   }
