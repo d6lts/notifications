@@ -22,96 +22,113 @@
 /**
  * Implementation of hook_menu().
  */
-function notifications_menu($may_cache) {
-  global $user;  // we need the user to to build some urls
-
-  if ($may_cache) {
-    // Administration
-    $items[] = array('path' => 'admin/notifications',
-      'title' => t('Notifications'),
-      'description' => t('Configure and manage notifications modules.'),
-      'callback' => 'notifications_admin_overview_page',
-      'access' => user_access('administer notifications'),
-    );
-    $items[] = array('path' => 'admin/notifications/status',
-      'title' => t('Status'),
-      'description' => t('Manage users notifications.'),
-      'callback' => 'notifications_admin_status_page',
-      'access' => user_access('administer notifications'),
-    );
-    $items[] = array('path' => 'admin/notifications/status/overview',
-      'title' => t('Overview'),
-      'description' => t('Subscriptions overview.'),
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'weight' => -10,
-    );
-    $items[] = array('path' => 'admin/notifications/status/queue', 
-      'title' => t('Queue'),
-      'description' => t('Subscriptions queue.'),
-      'callback' => 'notifications_admin_queue',
-      'type' => MENU_LOCAL_TASK
-    );
-    
-    // Site settings
-    $items[] = array(
-      'path' => 'admin/notifications/settings',
-      'title' => t('Settings'),
-      'description' => t('Site settings for user notifications.'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => 'notifications_settings_form',
-      'access' => user_access('administer site configuration'),
-    );
-    $items[] = array(
-      'path' => 'admin/notifications/settings/general',
-      'title' => t('General'),
-      'weight' => -10,
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    );
-    $items[] = array(
-      'path' => 'admin/notifications/settings/intervals',
-      'title' => t('Intervals'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => 'notifications_send_intervals_form',
-      'type' => MENU_LOCAL_TASK,
-    );
-    // Subscribe links. For this items access will be checked later in the page
-    $items[] = array(
-      'path' => 'notifications/subscribe',
-      'type' => MENU_CALLBACK,
-      'callback' => 'notifications_page_subscribe',
-      'access' => $user->uid,
-    );
-    // Unsubscribe links This page will need to work with anonymous users
-    $items[] = array(
-      'path' => 'notifications/unsubscribe',
-      'type' => MENU_CALLBACK,
-      'callback' => 'notifications_page_unsubscribe',
-      'access' => TRUE,
-    );
-  }
-  else {
-    if (arg(0) == 'notifications' || arg(1) == 'notifications' || arg(2) == 'notifications') {
-      include_once drupal_get_path('module', 'notifications') .'/notifications.admin.inc';
-    }
-    
-    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && ($user->uid == arg(1) && user_access('maintain own subscriptions') || user_access('administer notifications'))) {
-      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
-      $items[] = array(
-          'path' => 'user/'. $account->uid .'/notifications',
-          'type' => MENU_LOCAL_TASK,
-          'title' => t('Notifications'),
-          'callback' => 'notifications_page_user_overview',
-          'callback arguments' => array($account)
-      );
-      $items[] = array(
-          'path' => 'user/'. $account->uid .'/notifications/overview',
-          'type' => MENU_DEFAULT_LOCAL_TASK,
-          'title' => t('Overview'),
-          'weight' => -10,
-      );
-    }
-  }
+function notifications_menu() {
+  // Administration
+  $items['admin/notifications'] = array(
+    'title' => 'Notifications',
+    'description' => 'Configure and manage notifications modules.',
+    'page callback' => 'notifications_admin_overview_page',
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/notifications/status'] = array(
+    'title' => 'Status',
+    'description' => 'Manage users notifications.',
+    'page callback' => 'notifications_admin_status_page',
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/notifications/status/overview'] = array(
+    'title' => 'Overview',
+    'description' => 'Subscriptions overview.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/notifications/status/queue'] = array(
+    'title' => 'Queue',
+    'description' => 'Subscriptions queue.',
+    'page callback' => 'notifications_admin_queue',
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+  );
+  
+  // Site settings
+  $items['admin/notifications/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Site settings for user notifications.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/notifications/settings/general'] = array(
+    'title' => 'General',
+    'weight' => -10,
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/notifications/settings/intervals'] = array(
+    'title' =>'Intervals',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_send_intervals_form'),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+  );
+  // Subscribe links. For this items access will be checked later in the page
+  $items['notifications/subscribe/%user'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => 'notifications_page_subscribe',
+    'page arguments' => array(2),
+    'access callback' => 'notifications_access_subscribe',
+    'access arguments' => array(2),
+    'file' => 'notifications.admin.inc',
+  );
+  // Unsubscribe links This page will need to work with anonymous users
+  $items['notifications/unsubscribe/%'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => 'notifications_page_unsubscribe',
+    'page arguments' => array(2),
+    'access callback' => TRUE,
+    'file' => 'notifications.admin.inc',
+  );
+  $items['user/%user/notifications'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Notifications',
+    'page callback' => 'notifications_page_user_overview',
+    'page arguments' => array(1),
+    'access callback' => 'notifications_access_user',
+    'access arguments' => array(1),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['user/%user/notifications/overview'] = array(
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'title' => 'Overview',
+    'weight' => -10,
+  );  
+  
   return $items;
+}
+
+/**
+ * Menu access callback for user subscriptions
+ */
+function notifications_access_user($account) {
+  global $user;
+  return $account->uid && 
+  ($user->uid == $account->uid && user_access('maintain own subscriptions') || user_access('administer notifications'));
+}
+
+/**
+ * Menu access callback for subscribe links
+ * 
+ * More access checking depending on subscription type will be done at the destination page
+ */
+function notifications_access_subscribe($account) {
+  global $user;
+  return $account && $account->uid && (user_access('administer notifications') || $user->uid == $account->uid);
 }
 
 /**
@@ -119,7 +136,7 @@ function notifications_menu($may_cache) {
  * 
  */
 function notifications_perm() {
-  return array_merge(array('administer notifications', 'maintain own subscriptions'));
+  return array('administer notifications', 'maintain own subscriptions');
 }
 
 /**
@@ -285,9 +302,9 @@ function notifications_query_build($params, $base = array()) {
  */
 function notifications_event_save(&$event) {
   $event = (array)$event;
-  $event['eid'] = db_next_id('{notifications_event}_eid');
-  db_query("INSERT INTO {notifications_event} (eid, module, type, action, uid, created, params) VALUES (%d, '%s', '%s', '%s', %d, %d, '%s')",
-    $event['eid'], $event['module'], $event['type'], $event['action'], $event['uid'],  $event['created'], serialize($event['params']));
+  db_query("INSERT INTO {notifications_event} (module, type, action, uid, created, params) VALUES ('%s', '%s', '%s', %d, %d, '%s')",
+    $event['module'], $event['type'], $event['action'], $event['uid'],  $event['created'], serialize($event['params']));
+  $event['eid'] = db_last_insert_id('notifications_event', 'eid');
   $event = (object)$event;
 }
 
@@ -379,8 +396,9 @@ function notifications_save_subscription(&$subscription) {
   }
   else {
     $op = 'insert';
-    $subscription->sid = db_next_id('{notifications}_sid');
-    db_query("INSERT INTO {notifications} (sid, uid, type, event_type, conditions, send_interval, send_method, cron, module, status) VALUES(%d, %d, '%s', '%s', %d, %d, '%s', %d, '%s', %d)", $subscription->sid, $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status);
+    
+    db_query("INSERT INTO {notifications} (uid, type, event_type, conditions, send_interval, send_method, cron, module, status) VALUES(%d, '%s', '%s', %d, %d, '%s', %d, '%s', %d)", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status);
+    $subscription->sid = db_last_insert_id('notifications', 'sid');
   }
   // There may be subscriptions with no fields, some people are coding such plug-ins.
   if ($subscription->fields) {
@@ -692,14 +710,14 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
     case 'subscription':
       $values = array();
       if ($subscription = $object) {
-        $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'destination' => FALSE));
-        $values['unsubscribe-url'] = url($link['href'], $link['query'], NULL, TRUE);      
+        $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'destination' => FALSE, 'absolute' => TRUE));
+        $values['unsubscribe-url'] = url($link['href'], $link['params']);      
       }
       return $values;
     case 'user':
       if ($account = $object) {
         return array(
-          'subscriptions-manage' => $account->uid ? url("user/$account->uid/notifications", NULL, NULL, TRUE) : '',
+          'subscriptions-manage' => $account->uid ? url("user/$account->uid/notifications", array('absolute' =>TRUE)) : '',
         );
       }
   }
@@ -765,6 +783,7 @@ function notifications_get_link($type, $params) {
     'confirm' => TRUE,
     'signed' => FALSE,
     'destination' => $_GET['q'],
+    'query' => array(),
   );
   switch ($type) {
     case 'subscribe':
@@ -783,20 +802,28 @@ function notifications_get_link($type, $params) {
       );
       break;
   }
-  // Build query string
-  $query = array();
+  // Build query string using named parameters
+  $query = $params['query'];
+
   if ($params['destination']) {
-    $query[] = 'destination='. $params['destination'];
+    $query['destination'] = $params['destination'];
   }
   if ($params['confirm']) {
-    $query[] = 'confirm=1';
+    $query['confirm'] = 1;
   }
   if ($params['signed']) {
-    $query[] = 'signature='. _notifications_signature($elements);
+    $query['signature'] =  _notifications_signature($elements);
+  }
+  // Build final link parameters
+  $linkparams['query'] = $query;
+  foreach (array('absolute', 'html') as $name) {
+    if (isset($params[$name])) {
+      $linkparams[$name] = $params[$name];
+    }
   }
   return array(
     'href' => 'notifications/'. implode('/', $elements),
-    'query' => implode('&', $query),
+    'params' => $linkparams,
   );
 }
 
@@ -900,15 +927,6 @@ function _notifications_subscription_defaults($account = NULL) {
 }
 
 /**
- * Implementation of hook_simpletest()
- */
-function notifications_simpletest() {
-  $dir = drupal_get_path('module', 'notifications') . DIRECTORY_SEPARATOR .'tests';
-  $tests = file_scan_directory($dir, '\.test');
-  return array_keys($tests);
-}
-
-/**
  * Callback for module dependent data
  * 
  * Some data stored in the notifications system is meant to be processed by other modules and
@@ -961,4 +979,130 @@ function notifications_alter($type, &$data) {
     $function = $module .'_notifications_'. $type .'_alter';
     call_user_func_array($function, $args);
   }
+}
+
+/**
+ * Generic subscriptions content form
+ * 
+ * Builds a form for a user to manage its own subscriptions with
+ * some generic parameters
+ * 
+ * Currently it only manages simple condition fields
+ * @param $account 
+ *   User account
+ * @param $type
+ *   Subscription type
+ * @param $subscriptions
+ *   Current subscriptions of this type. If null they'll be loaded
+ * @param $list
+ *   Array with available subscriptions indexed by field value
+ * @param $defaults
+ *   Default value for subscriptions
+ * @param $options
+ *   Optional, array of aditional options for the form
+ */
+function notifications_user_form($form_state, $account, $type, $subscriptions, $list, $defaults, $options = array()) {
+  // Complete defaults
+  $info = notifications_subscription_types($type);
+  $field = $info['fields'][0];
+  $field_title = !empty($options['title']) ? $options['title'] : '';
+  if (is_null($subscriptions)) {
+    // Fetch subscriptions with given parameters
+    $subscriptions = notifications_get_subscriptions(array('type' => $type, 'event_type' => $info['event_type'], 'uid' => $account->uid), TRUE, 'value');
+  }
+  $defaults += array(
+    'sid' => 0,
+    'type' => $type,
+    'event_type' => $info['event_type'],
+  );
+  $defaults += _notifications_subscription_defaults($account);
+  $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
+  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
+  $form['subscriptions'] = array(
+    '#tree' => TRUE,
+    '#theme' => 'notifications_form_table',
+    '#header' => array(theme('table_select_header_cell'), $field_title, t('Send interval'), t('Send method'))
+  );  
+  foreach ($list as $key => $title) {
+    $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
+    $rowdefaults += $rowdefaults;
+    $form['subscriptions']['checkbox'][$key] = array(
+      '#type' => 'checkbox',
+      '#default_value' => $rowdefaults['sid'],
+    );
+    $form['subscriptions']['title'][$key] = array(
+      '#value' => $title,
+    );
+    $form['subscriptions']['send_interval'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_intervals(),
+      '#default_value' => $rowdefaults['send_interval'],
+    );
+    $form['subscriptions']['send_method'][$key] = array(
+      '#type' => 'select',
+      '#options' => _notifications_send_methods(),
+      '#default_value' => $rowdefaults['send_method'],
+    );
+    // Pass on the fields for processing
+    $form['subscription_fields']['#value'][$key] = array($field => $key);
+  
+  }
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+
+  return $form; 
+}
+
+/**
+ * Process generic form submission
+ */
+function notifications_user_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
+  $account = $form_values['account'];
+  $current = $form_values['current'];
+  $defaults = $form_values['defaults'];
+  $defaults += array('uid' => $account->uid);
+  $fields = $form_values['subscription_fields'];
+  $values = $form_values['subscriptions'];
+  $check = 'checkbox';
+
+  foreach ($values[$check] as $index => $value) {
+    $subscription = NULL;
+    if ($value) {
+      // Checked, save only if new or changed
+      if (!isset($current[$index])) {
+        $subscription = $defaults;
+      }
+      elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
+        $subscription = (array)($current[$index]);        
+      }
+      // Complete and save
+      if ($subscription) {
+        $subscription['send_interval'] = $values['send_interval'][$index];
+        $subscription['send_method'] = $values['send_method'][$index];
+        $subscription['fields'] = $fields[$index];
+        notifications_save_subscription($subscription);
+      }
+    }
+    elseif (isset($current[$index])) {
+      notifications_delete_subscription($current[$index]->sid);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function notifications_theme() {
+  return array(
+    'notifications_form_table' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'notifications.admin.inc',
+    ),
+    'notifications_send_intervals' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'notifications.admin.inc',
+    ),
+  );
 }

@@ -8,8 +8,8 @@
 /**
  * Implementation of hook_help()
  */
-function notifications_ui_help($section) {
-  switch ($section) {
+function notifications_ui_help($path, $arg) {
+  switch ($path) {
     case 'admin/notifications/settings/ui':
       $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
       if (module_exists('notifications_content')) {
@@ -20,21 +20,17 @@ function notifications_ui_help($section) {
 }
 
 /**
- * Implementation of hook_menu
+ * Implementation of hook_menu()
  */
-function notifications_ui_menu($may_cache) {
-  $items = array();
-  if (!$may_cache) {
-    $items[] = array(
-      'path' => 'admin/notifications/settings/ui',
-      'title' => t('User Interface'),
-      'description' => t('Enables site settings for user subscriptions.'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => 'notifications_ui_settings_form',
-      'access' => user_access('administer site configuration'),
-      'type' => MENU_LOCAL_TASK,
-    );
-  }
+function notifications_ui_menu() {
+  $items['admin/notifications/settings/ui'] = array(
+    'title' => 'User Interface',
+    'description' => 'Enables site settings for user subscriptions.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_ui_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_TASK,
+  );
   return $items;
 }
 
@@ -55,10 +51,12 @@ function notifications_ui_menu($may_cache) {
           }
         }
       }
-      notifications_ui_node_form_submit('', array('subscriptions' => $event->node->subscriptions));
+      $form_state['values']['subscriptions'] = $event->node->subscriptions;
+      notifications_ui_node_form_submit('', $form_state);
     }
     elseif ($event->type == 'node' && isset($event->comment->subscriptions)) {
-      notifications_ui_node_form_submit('', array('subscriptions' => $event->comment->subscriptions));
+      $form_state['values']['subscriptions'] = $event->comment->subscriptions;
+      notifications_ui_node_form_submit('', $form_state);      
     }
   }
 }
@@ -88,7 +86,7 @@ function notifications_ui_settings_form() {
  * Implementation of hook_form_alter()
  * 
  */
-function notifications_ui_form_alter($form_id, &$form) {
+function notifications_ui_form_alter(&$form, $form_state, $form_id) {
   global $user;
   // Content type settings
   if ($form_id == 'node_type_form' && isset($form['identity']['type'])) {
@@ -186,7 +184,8 @@ function notifications_ui_node_form($node, $subform = TRUE) {
 /**
  * Form submission, node subscriptions form
  */
-function notifications_ui_node_form_submit($form_id, $form_values) {
+function notifications_ui_node_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   $uid = $form_values['subscriptions']['account']->uid;
   foreach ($form_values['subscriptions']['options'] as $index => $value) {
     $subscription = $form_values['subscriptions']['params'][$index] + array('uid' => $uid, 'event_type' => 'node');   

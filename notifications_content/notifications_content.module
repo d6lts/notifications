@@ -11,52 +11,53 @@ define('NOTIFICATIONS_CONTENT_PAGER', 20);
 /**
  * Implementation of hook_menu_()
  */
-function notifications_content_menu($may_cache) {
-  global $user;  // we need the user to to build some urls
-  $items = array();
-  
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'admin/notifications/settings/content',
-      'title' => t('Content Subscriptions'),
-      'type' => MENU_LOCAL_TASK,
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('notifications_content_settings_form'),
-    );
-  }
-  else {
-    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
-      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
-      $items[] = array(
-        'path' => 'user/'. $account->uid .'/notifications/thread',
-        'type' => MENU_LOCAL_TASK,
-        'access' => user_access('subscribe to content'),
-        'title' => t('Thread'),
-        'callback' => 'notifications_content_page_thread',
-        'callback arguments' => array($account),
-        'weight' => 10,
-      );
-      $items[] = array(
-        'path' => 'user/'. $account->uid .'/notifications/nodetype',
-        'type' => MENU_LOCAL_TASK,
-        'access' => user_access('subscribe to content type'),
-        'title' => t('Content type'),
-        'callback' => 'notifications_content_page_nodetype',
-        'callback arguments' => array($account),
-        'weight' => 10,
-      );
-      $items[] = array(
-        'path' => 'user/'. $account->uid .'/notifications/author',
-        'type' => MENU_LOCAL_TASK,
-        'access' => user_access('subscribe to author'),
-        'title' => t('Author'),
-        'callback' => 'notifications_content_page_author',
-        'callback arguments' => array($account),
-        'weight' => 10,
-      );
-    }
-  }
+function notifications_content_menu() {
+  $items['admin/notifications/settings/content'] = array(
+    'title' => 'Content Subscriptions',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_content_settings_form'),
+    'access arguments' => array('administer site configuration'),
+  );
+  $items['user/%user/notifications/thread'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'notifications_content_access', 
+    'access arguments' => array(1, 'subscribe to content'),
+    'title' => 'Thread',
+    'page callback' => 'notifications_content_page_thread',
+    'page arguments' => array(1),
+    'weight' => 10,
+  );
+  $items['user/%user/notifications/nodetype'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'notifications_content_access', 
+    'access arguments' => array(1, 'subscribe to content type'),
+    'title' => 'Content type',
+    'page callback' => 'notifications_content_page_nodetype',
+    'page arguments' => array(1),
+    'weight' => 10,
+  );
+  $items['user/%user/notifications/author'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'notifications_content_access', 
+    'access arguments' => array(1, 'subscribe to author'),
+    'title' => t('Author'),
+    'page callback' => 'notifications_content_page_author',
+    'pàge arguments' => array(1),
+    'weight' => 10,
+  );
+
   return $items;
+}
+
+/**
+ * Menu access callback
+ */
+function notifications_content_access($account, $perm) {
+  global $user;
+  return
+    ($account->uid && $account->uid == $user->uid && user_access($perm)) ||
+    (user_access('administer notificatins') && user_access($perm, $account));
 }
 
 /**
@@ -562,7 +563,8 @@ function notifications_content_form($account, $subscriptions, $list, $field, $fi
 /**
  * Process generic form submission
  */
-function notifications_content_form_submit($form_id, $form_values) {
+function notifications_content_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   $account = $form_values['account'];
   $current = $form_values['current'];
   $defaults = $form_values['defaults'];
@@ -653,7 +655,7 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       if ($node = $object) {
         $values['node-teaser'] = $node->teaser ? check_markup($node->teaser, $node->format, FALSE) : '';
         $values['node-body'] = $node->body ? check_markup($node->body, $node->format, FALSE) : '';
-        $values['node-url'] = url('node/'. $node->nid, NULL, NULL, TRUE);
+        $values['node-url'] = url('node/'. $node->nid, array('absolute' => TRUE));
         $values['node-teaser-raw'] = $node->teaser ? $node->teaser : '';
         $values['node-body-raw'] = $node->body ? $node->body : '';
         return $values;
@@ -661,8 +663,8 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       break;
     case 'comment':
       if ($comment = (object)$object) {
-        $values['comment-url'] = url('node/'. $comment->nid, NULL, 'comment-'. $comment->cid, TRUE);
-        $values['comment-reply-url'] = url('comment/reply/'. $comment->nid .'/'. $comment->cid, NULL, NULL, TRUE);
+        $values['comment-url'] = url('node/'. $comment->nid, array('part' =>'comment-'. $comment->cid, 'absolute' => TRUE));
+        $values['comment-reply-url'] = url('comment/reply/'. $comment->nid .'/'. $comment->cid, array('absolute' => TRUE));
         return $values;
       }
       break;
@@ -706,13 +708,4 @@ function notifications_content_comment_allow($account, $comment) {
     }
   }
   return $access[$account->uid][$comment->cid];
-}
-
-/**
- * Implementation of hook_simpletest().
- */
-function notifications_content_simpletest() {
-  $dir = drupal_get_path('module', 'notifications_content');
-  $tests = file_scan_directory($dir, '\.test');
-  return array_keys($tests);
 }

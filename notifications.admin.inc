@@ -145,13 +145,16 @@ function notifications_send_intervals_form() {
   // New row
   $form['submit'] = array('#type' => 'submit', '#value' => t('Update'));
   $form['reset'] = array('#type' => 'submit', '#value' => t('Reset to defaults'));
+  $form['#theme'] = 'notifications_send_intervals';
+
   return $form;
 }
 
 /**
  * Form submit for time intervals
  */
-function notifications_send_intervals_form_submit($form_id, $form_values) {
+function notifications_send_intervals_form_submit($form, &$form_state) {
+  $form_values = $form_state['values'];
   if ($form_values['op'] == t('Reset to defaults')) {
     variable_del('notifications_send_intervals');
   }
@@ -363,48 +366,43 @@ function notifications_admin_queue_process($param) {
  * 
  * Presents confirmation page or not depending on confirm parameter
  */
-function notifications_page_subscribe($uid, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
+function notifications_page_subscribe($account, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
   global $user;
 
-  // Access checking
-  if ($uid && ($uid == $user->uid || user_access('administer notifications'))) {
-    if (($account = user_load(array('uid' => $uid)))) {
-      // Build subscriptions object
-      $subscription = (object)array(
-        'uid' => $uid,
-        'type' => $type,
-        'fields' => notifications_field_args($fields, $values),
-        'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
-        'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
-        'event_type' => notifications_subscription_types($type, 'event_type'),
-      );      
-      if (notifications_user_allowed('subscription', $account, $subscription)) {
-        // Display subscription information
-        if (empty($_GET['confirm'])) {
-          // Subscribe, no confirmation
-          notifications_save_subscription($subscription);
-          drupal_goto();
-        }
-        else {
-          // Ask for confirmation
-          drupal_set_title(t('Confirm your subscription'));
-          return drupal_get_form('notifications_form_confirm', $subscription);
-        }
-      }
-      else {
-        drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
-        drupal_goto();
-      }
+  // Build subscriptions object
+  $subscription = (object)array(
+    'uid' => $account->uid,
+    'type' => $type,
+    'fields' => notifications_field_args($fields, $values),
+    'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
+    'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
+    'event_type' => notifications_subscription_types($type, 'event_type'),
+  );      
+  if (notifications_user_allowed('subscription', $account, $subscription)) {
+    // Display subscription information
+    if (empty($_GET['confirm'])) {
+      // Subscribe, no confirmation
+      notifications_save_subscription($subscription);
+      drupal_goto();
     }
-    
+    else {
+      // Ask for confirmation
+      drupal_set_title(t('Confirm your subscription'));
+      return drupal_get_form('notifications_form_confirm', $subscription);
+    }
   }
+  else {
+    drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
+    drupal_goto();
+  }
+    
   drupal_access_denied();
 }
 
 /**
  * Form for subscription confirmation
  */
-function notifications_form_confirm($subscription) {
+function notifications_form_confirm($form_state, $subscription) {
 
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
@@ -442,9 +440,9 @@ function notifications_form_confirm($subscription) {
 /**
  * Process form submission
  */
-function notifications_form_confirm_submit($form_id, $form_values) {
-  $subscription = (object)$form_values;
-  switch ($form_values['op']) {
+function notifications_form_confirm_submit($form, &$form_state) {
+  $subscription = (object)$form_state['values'];
+  switch ($form_state['values']['op']) {
     case t('Subscribe'):
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
@@ -453,7 +451,7 @@ function notifications_form_confirm_submit($form_id, $form_values) {
       drupal_set_message(t('Your subscription was cancelled'));
       break;
   }
-  return 'user/'. $form_values['uid'] .'/notifications';   
+  return 'user/'. $subscription->uid .'/notifications';   
 }
 
 /**
@@ -487,111 +485,4 @@ function notifications_page_unsubscribe($sid) {
   drupal_access_denied();
 }
 
-/**
- * Generic subscriptions content form
- * 
- * Builds a form for a user to manage its own subscriptions with
- * some generic parameters
- * 
- * Currently it only manages simple condition fields
- * @param $account 
- *   User account
- * @param $type
- *   Subscription type
- * @param $subscriptions
- *   Current subscriptions of this type. If null they'll be loaded
- * @param $list
- *   Array with available subscriptions indexed by field value
- * @param $defaults
- *   Default value for subscriptions
- * @param $options
- *   Optional, array of aditional options for the form
- */
-function notifications_user_form($account, $type, $subscriptions, $list, $defaults, $options = array()) {
-  // Complete defaults
-  $info = notifications_subscription_types($type);
-  $field = $info['fields'][0];
-  $field_title = !empty($options['title']) ? $options['title'] : '';
-  if (is_null($subscriptions)) {
-    // Fetch subscriptions with given parameters
-    $subscriptions = notifications_get_subscriptions(array('type' => $type, 'event_type' => $info['event_type'], 'uid' => $account->uid), TRUE, 'value');
-  }
-  $defaults += array(
-    'sid' => 0,
-    'type' => $type,
-    'event_type' => $info['event_type'],
-  );
-  $defaults += _notifications_subscription_defaults($account);
-  $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
-  $form['account'] = array('#type' => 'value', '#value' => $account);
-  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
-  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
-  $form['subscriptions'] = array(
-    '#tree' => TRUE,
-    '#theme' => 'notifications_form_table',
-    '#header' => array(theme('table_select_header_cell'), $field_title, t('Send interval'), t('Send method'))
-  );  
-  foreach ($list as $key => $title) {
-    $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
-    $rowdefaults += $rowdefaults;
-    $form['subscriptions']['checkbox'][$key] = array(
-      '#type' => 'checkbox',
-      '#default_value' => $rowdefaults['sid'],
-    );
-    $form['subscriptions']['title'][$key] = array(
-      '#value' => $title,
-    );
-    $form['subscriptions']['send_interval'][$key] = array(
-      '#type' => 'select',
-      '#options' => _notifications_send_intervals(),
-      '#default_value' => $rowdefaults['send_interval'],
-    );
-    $form['subscriptions']['send_method'][$key] = array(
-      '#type' => 'select',
-      '#options' => _notifications_send_methods(),
-      '#default_value' => $rowdefaults['send_method'],
-    );
-    // Pass on the fields for processing
-    $form['subscription_fields']['#value'][$key] = array($field => $key);
-  
-  }
-  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
 
-  return $form; 
-}
-
-/**
- * Process generic form submission
- */
-function notifications_user_form_submit($form_id, $form_values) {
-  $account = $form_values['account'];
-  $current = $form_values['current'];
-  $defaults = $form_values['defaults'];
-  $defaults += array('uid' => $account->uid);
-  $fields = $form_values['subscription_fields'];
-  $values = $form_values['subscriptions'];
-  $check = 'checkbox';
-
-  foreach ($values[$check] as $index => $value) {
-    $subscription = NULL;
-    if ($value) {
-      // Checked, save only if new or changed
-      if (!isset($current[$index])) {
-        $subscription = $defaults;
-      }
-      elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
-        $subscription = (array)($current[$index]);        
-      }
-      // Complete and save
-      if ($subscription) {
-        $subscription['send_interval'] = $values['send_interval'][$index];
-        $subscription['send_method'] = $values['send_method'][$index];
-        $subscription['fields'] = $fields[$index];
-        notifications_save_subscription($subscription);
-      }
-    }
-    elseif (isset($current[$index])) {
-      notifications_delete_subscription($current[$index]->sid);
-    }
-  }
-}

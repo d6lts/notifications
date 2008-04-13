@@ -1,145 +1,89 @@
 <?php
 // $Id$
+
+/**
+ * Implementation of hook_schema()
+ */
+function notifications_schema() {
+  $schema['notifications'] = array(
+    'fields' => array(
+       'sid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+       'uid' => array('type' => 'int', 'not null' => TRUE, 'disp-width' => '11'),
+       'type' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'event_type' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'conditions' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+       'send_interval' => array('type' => 'int', 'not null' => FALSE, 'disp-width' => '11'),
+       'send_method' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE),
+       'cron' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'tiny', 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
+       'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 1, 'disp-width' => '11')
+    ),
+    'primary key' => array('sid'),
+  );
+  $schema['notifications_fields'] = array(
+    'fields' => array(
+      'sid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+      'field' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE),
+      'value' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE)
+    ),
+    'primary key' => array('sid', 'field'),
+  );
+  $schema['notifications_event'] = array(
+    'fields' => array(
+       'eid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '11'),
+       'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'type' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'action' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'oid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+       'language' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'uid' => array('type' => 'int', 'not null' => FALSE, 'disp-width' => '11'),
+       'params' => array('type' => 'text', 'not null' => FALSE),
+       'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11')
+    ),
+    'primary key' => array('eid'),
+  );
+  $schema['notifications_queue'] = array(
+    'fields' => array(
+       'sqid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+       'eid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+       'sid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+       'uid' => array('type' => 'int', 'not null' => FALSE, 'disp-width' => '11'),
+       'language' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'type' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'send_interval' => array('type' => 'int', 'not null' => FALSE, 'disp-width' => '11'),
+       'send_method' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'sent' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+       'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+       'cron' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'tiny', 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
+       'conditions' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+       'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE)
+    ),
+    'primary key' => array('sqid'),
+  );
+  $schema['notifications_sent'] = array(
+    'fields' => array(
+       'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+       'send_interval' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+       'send_method' => array('type' => 'varchar', 'length' => '50', 'not null' => TRUE),
+       'sent' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10')
+    ),
+    'primary key' => array('uid', 'send_interval', 'send_method'),
+  );
+  return $schema;  
+}
+
 /**
  * Implementation of hook_install().
  */
 function notifications_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("CREATE TABLE {notifications} (
-                `sid` int(10) unsigned NOT NULL auto_increment,
-                `uid` int(11) NOT NULL,
-                `type` varchar(255) default NULL,
-                `event_type` varchar(255) default NULL,
-                `conditions` int(10) unsigned NOT NULL,
-                `send_interval` int(11) default NULL,
-                `send_method` varchar(255) NOT NULL,
-                `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                `module` VARCHAR(255) DEFAULT NULL,
-                `status` int NOT NULL default 1,
-                PRIMARY KEY  (`sid`)
-              )/*!40100 DEFAULT CHARACTER SET utf8 */");
-              
-          db_query("CREATE TABLE  {notifications_fields} (
-                    `sid` int(10) unsigned NOT NULL,
-                    `field` varchar(255) NOT NULL,
-                    `value` varchar(255) NOT NULL,
-                    PRIMARY KEY  (`sid`,`field`)
-                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
-    
-          db_query("CREATE TABLE  {notifications_queue} (
-                    `sqid` int(10) unsigned NOT NULL auto_increment,
-                    `eid` int(11) unsigned NOT NULL default '0',
-                    `sid` int(11) unsigned NOT NULL default '0',
-                    `uid` int(11) default NULL,
-                    `language` varchar(255) default NULL,
-                    `type` varchar(255) default NULL,
-                    `send_interval` int(11) default NULL,
-                    `send_method` varchar(255) default NULL,
-                    `sent` int(10) unsigned NOT NULL default '0',
-                    `created` int(10) unsigned NOT NULL default '0',
-                    `cron` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                    `conditions` INTEGER UNSIGNED NOT NULL DEFAULT 0,
-                    `module` VARCHAR(255) DEFAULT NULL,
-                    PRIMARY KEY  (`sqid`)
-                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
-    
-          db_query("CREATE TABLE  {notifications_event} (
-                    `eid` int(11) unsigned NOT NULL auto_increment,
-                    `module` varchar(255) default NULL,
-                    `type` varchar(255) default NULL,
-                    `action` varchar(255) default NULL,
-                    `oid` int(11) unsigned NOT NULL default '0',
-                    `language` varchar(255) default NULL,
-                    `uid` int(11) default NULL,
-                    `params` text,
-                    `created` int(11) unsigned NOT NULL default '0',
-                    PRIMARY KEY  (`eid`)
-                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
-    
-          db_query("CREATE TABLE  {notifications_sent} (
-                    `uid` int(11) NOT NULL default '0',
-                    `send_interval` int(10) NOT NULL default '0',
-                    `send_method` varchar(50) NOT NULL,
-                    `sent` int(10) unsigned NOT NULL default '0',
-                    PRIMARY KEY  (`uid`,`send_interval`,`send_method`)
-                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
-          break;
-        case 'pgsql':
-          db_query("CREATE TABLE {notifications} (
-                sid serial,
-                uid int NOT NULL,
-                type varchar(255) DEFAULT NULL,
-                event_type varchar(255) DEFAULT NULL,
-                conditions int NOT NULL,
-                send_interval int DEFAULT NULL,
-                send_method varchar(255) NOT NULL,
-                cron smallint NOT NULL DEFAULT 0,
-                module varchar(255) DEFAULT NULL,
-                status smallint NOT NULL DEFAULT 1,
-                PRIMARY KEY (sid)
-              )");
-              
-          db_query("CREATE TABLE  {notifications_fields} (
-                    sid int NOT NULL,
-                    field varchar(255) NOT NULL,
-                    value varchar(255) NOT NULL,
-                    PRIMARY KEY (sid,field)
-                  )");
-    
-          db_query("CREATE TABLE  {notifications_queue} (
-                    sqid serial,
-                    eid int NOT NULL DEFAULT '0',
-                    sid int NOT NULL DEFAULT '0',
-                    uid int DEFAULT NULL,
-                    language varchar(255) DEFAULT NULL,
-                    type varchar(255) DEFAULT NULL,
-                    send_interval int DEFAULT NULL,
-                    send_method varchar(255) DEFAULT NULL,
-                    sent int NOT NULL DEFAULT '0',
-                    created int NOT NULL DEFAULT '0',
-                    cron smallint NOT NULL DEFAULT 0,
-                    conditions smallint NOT NULL DEFAULT 0,
-                    module varchar(255) DEFAULT NULL,
-                    PRIMARY KEY (sqid)
-                  )");
-    
-          db_query("CREATE TABLE  {notifications_event} (
-                    eid serial,
-                    module varchar(255) DEFAULT NULL,
-                    type varchar(255) DEFAULT NULL,
-                    action varchar(255) DEFAULT NULL,
-                    oid int NOT NULL DEFAULT '0',
-                    language varchar(255) DEFAULT NULL,
-                    uid int DEFAULT NULL,
-                    params text,
-                    created int NOT NULL DEFAULT '0',
-                    PRIMARY KEY (eid)
-                  )");
-    
-          db_query("CREATE TABLE  {notifications_sent} (
-                    uid int NOT NULL DEFAULT '0', 
-                    send_interval int NOT NULL DEFAULT '0',
-                    send_method varchar(50) NOT NULL,
-                    sent int NOT NULL DEFAULT '0',
-                    PRIMARY KEY (uid,send_interval,send_method)
-                  )");
-          break;
-  }
-  // Module weight. It must run after most modules, to make sure they've done their work before we add the notifications queries
-  db_query("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
+  drupal_install_schema('notifications');
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function notifications_uninstall() {
-  db_query("DROP TABLE {notifications}");
-  db_query("DROP TABLE {notifications_fields}");
-  db_query("DROP TABLE {notifications_queue}");
-  db_query("DROP TABLE {notifications_event}");
-  db_query("DROP TABLE {notifications_sent}");
+  drupal_uninstall_schema('notifications');
 }
 
 /**

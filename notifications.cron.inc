@@ -177,7 +177,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
   // Check all limits till we find a false one
   foreach ($limit as $name => $value) {
     if (($current[$name] >= $value)) {
-      watchdog('notifications', t('Reached processing limit on queue processing: %name = %value', array('%name' => $name, '%value' => $value)));
+      watchdog('notifications', 'Reached processing limit on queue processing: %name = %value', array('%name' => $name, '%value' => $value));
       return FALSE;
     }
   }
@@ -588,7 +588,8 @@ function notifications_log($info = NULL, $type = 'info') {
     $message .= is_string($info) ? $info : print_r($info, TRUE);
     $logs[] = $message;
     if ($type == 'watchdog') {
-      watchdog('notifications', $info);
+      // Do not localize watchdog entry
+      watchdog('notifications', $info, NULL);
     }
   }
   else {

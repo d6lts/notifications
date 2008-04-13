@@ -63,24 +63,24 @@ class Notifications_Content_Tests extends DrupalTestCase {
   
     // Create a real thread subscription for a user
     $this->drupalLoginUser($user);
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => TRUE));
-    $this->drupalGet(url($link['href'], $link['query'], NULL, TRUE));
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => TRUE, 'absolute' =>TRUE));
+    $this->drupalGet(url($link['href'], $link['params']));
     $this->assertText(t('Confirm your subscription'), 'Thread subscription: Subscriptions confirmation page is shown');
     $this->assertWantedRaw(t('Thread: %title', array('%title' => check_plain($node->title))), 'Confirmation page parameters are ok');
     $this->clickSubmit(t('Subscribe'));
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
     
     // Create content type subscription
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type), 'confirm' => TRUE));
-    $this->drupalGet(url($link['href'], $link['query'], NULL, TRUE));
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type), 'confirm' => TRUE, 'absolute' =>TRUE));
+    $this->drupalGet(url($link['href'], $link['params']));
     $this->assertText(t('Confirm your subscription'), 'Content type: Subscriptions confirmation page is shown');
     $this->assertWantedRaw(t('Content type: %type', array('%type' => $info->name)), 'Confirmation page parameters are ok');
     $this->clickSubmit(t('Subscribe'));
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
     // Create author subscription for admin
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid), 'confirm' => TRUE));
-    $this->drupalGet(url($link['href'], $link['query'], NULL, TRUE));
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid), 'confirm' => TRUE, 'absolute' =>TRUE));
+    $this->drupalGet(url($link['href'], $link['params']));
     $this->assertText(t('Confirm your subscription'), 'Author: Subscriptions confirmation page is shown');
     $this->assertWantedRaw(t('Author: %name', array('%name' => $author->name)), 'Confirmation page parameters are ok');
     $this->clickSubmit(t('Subscribe'));

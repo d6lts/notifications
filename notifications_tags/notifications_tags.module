@@ -8,24 +8,16 @@
 /**
  * Implementation of hook_menu_()
  */
-function notifications_tags_menu($may_cache) {
-  global $user;  // we need the user to to build some urls
-  $items = array();
-  
-  if (!$may_cache) {
-    if ($user->uid && arg(0) == 'user' && is_numeric(arg(1)) && arg(2) == 'notifications' && ($user->uid == arg(1) || user_access('administer notifications'))) {
-      $account = ($user->uid == arg(1)) ? $user : user_load(array('uid' => arg(1)));
-      $items[] = array(
-        'path' => 'user/'. $account->uid .'/notifications/taxonomy',
+function notifications_tags_menu() {
+      $items['user/%user/notifications/taxonomy'] = array(
         'type' => MENU_LOCAL_TASK,
-        'access' => user_access('subscribe to taxonomy terms'),
+        'access callback' => 'notifications_content_access',
+        'access arguments' => array(1, 'subscribe to taxonomy terms'),
         'title' => t('Tags'),
-        'callback' => 'notifications_tags_user_page',
-        'callback arguments' => array($account),
+        'page callback' => 'notifications_tags_user_page',
+        'page arguments' => array(1),
         'weight' => 10,
       );
-    }
-  }
   return $items;
 }
 
@@ -97,7 +89,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
  * 
  * Admin settings form. Omitted taxonomy vocabularies.
  */
-function notifications_tags_form_alter($form_id, &$form) {
+function notifications_tags_form_alter(&$form, $form_state, $form_id) {
   if ($form_id == 'notifications_content_settings_form') {
     $vocabularies = taxonomy_get_vocabularies();
     foreach ($vocabularies as $vocabulary) {

@@ -2,4 +2,6 @@
 name = Notifications UI
 description = Provides an UI to notifications
 package = "Notifications"
-dependencies = notifications
+dependencies[] = notifications
+core = 6.x
+
