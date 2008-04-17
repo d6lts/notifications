@@ -11,7 +11,15 @@ TO DO
 
 - Improve documentation and help texts
   - Information about when messages are digested and when not
-  
+
+5.x-1.0-beta1 to ....
+--------------------------------
+- Patch for PHP 4 compatibility by markus_petrux, http://drupal.org/node/222794
+- Function notifications_queue() now returns event object
+- Internal API change: notifications_message_part() now takes optional event as last argument
+- New feature for message composition: texts may be predefined in $event->text;
+- Support for empty message parts, using MESSAGING_EMPTY constant
+
 5.x-1.0-alpha2 to 5.x-1.0-beta1
 --------------------------------
 - Code clean up, compliance with coding standards

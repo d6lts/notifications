@@ -210,6 +210,8 @@ function notifications_event($event) {
   notifications_event_save($event);
   // Queue subscriptions
   notifications_queue($event);
+
+  return $event;
 }
 
 /**
@@ -960,5 +962,18 @@ function notifications_alter($type, &$data) {
   foreach (module_implements('notifications_'. $type .'_alter') as $module) {
     $function = $module .'_notifications_'. $type .'_alter';
     call_user_func_array($function, $args);
+  }
+}
+
+// For PHP4 compatibility
+if (!function_exists('array_combine')) {
+  function array_combine($arr1, $arr2) {
+    $out = array();
+    $arr1 = array_values($arr1);
+    $arr2 = array_values($arr2);
+    foreach($arr1 as $key1 => $value1) {
+      $out[(string)$value1] = $arr2[$key1];
+    }
+    return $out;
   }
 }
