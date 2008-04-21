@@ -11,7 +11,12 @@ TO DO
 
 - Improve documentation and help texts
   - Information about when messages are digested and when not
-  
+
+6.x-1.0-dev to ...............
+------------------------------
+- Ported latest features from 5.x branch
+- Main Drupal 6 upgrade
+
 5.x-1.0-alpha2 to 5.x-1.0-beta1
 --------------------------------
 - Code clean up, compliance with coding standards

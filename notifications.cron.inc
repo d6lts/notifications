@@ -293,8 +293,10 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
         $events[$queue->eid] = $event;
         // We keep track also of subscriptions originating this event
         $subscriptions[$queue->eid][] = $queue->sid;
-      }      
-      notifications_log("Processing queued sid=$queue->sid event=$queue->eid ($event->type, $event->action) send_method=$send_method");
+        notifications_log("Processing queued sid=$queue->sid event=$queue->eid ($event->type, $event->action) send_method=$send_method");
+      } else {
+        notifications_log("Access denied for queued event sid=$queue->sid event=$queue->eid ($event->type, $event->action)");
+      }
     }
     if ($events) {
       notifications_callback($module, 'process_send', $account, $events, $subscriptions, $send_method, $send_interval);
@@ -323,6 +325,13 @@ function notifications_update_sent($uid, $method, $interval, $time) {
  * Processes everything, included digestion and sends message/s.
  * 
  * Adds some more information into $message['notifications'] that may be used by other modules
+ *
+ * @param $account
+ *   User account to send the notification to
+ * @param $events
+ *   Array of loaded event objects to be processed
+ * @param $subscriptions
+ *   Array of arrays of subscription ids (sids) for each event(eid)
  */
 function notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval) {
   notifications_log("Sending out, method=$send_method, interval=$send_interval, events=". count($events));
@@ -382,8 +391,9 @@ function notifications_process_digest($account, $events, $send_interval, $send_m
     }
     // Check duplicate notifications for the same event
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
-      $line = $list[$digest_type][$digest_value]['line'][$event->eid] = notifications_text_replace($info['line'], $event->objects);
-      notifications_log("Digesting line $line");
+      $line = !empty($event->text['digest']) ? $event->text['digest'] : $info['line'];
+      $text = $list[$digest_type][$digest_value]['line'][$event->eid] = notifications_text_replace($line, $event->objects);
+      notifications_log("Digesting line $text");
     }
   }
   // Create message. Do all this in one replacement, then strip out the subject
@@ -416,12 +426,11 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   $info = notifications_event_text($event);
 
   // Create message. Do all this in one replacemente
-  $options = array($event->type, $event->action);
   $text = array(
-    'subject' => notifications_message_part('event', 'subject', $send_method, $options),
-    'header' => notifications_message_part('event' , 'header', $send_method, $options),
-    'event'  => notifications_message_part('event', 'main', $send_method, $options), // Was $info['detail'],
-    'footer' => notifications_message_part('event', 'footer', $send_method, $options),
+    'subject' => notifications_message_part('event', 'subject', $send_method, $event),
+    'header' => notifications_message_part('event' , 'header', $send_method, $event),
+    'event'  => notifications_message_part('event', 'main', $send_method, $event),
+    'footer' => notifications_message_part('event', 'footer', $send_method, $event),
   );
 
   // We pass only the first subscription, which is at least something
@@ -448,9 +457,8 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  * Get message part
  * 
  * It searches for optional message group keys for options defaulting to $type
- * thus if $options = array('part1', 'part2') it will search in this order
- * 1. $type-part1-part2
- * 2. $type-part1
+ * 1. $type-[$event->type]-[$event->action]
+ * 2. $type-[$event->type]
  * 3. $type
  * 
  * @param $type
@@ -459,21 +467,26 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  *   Id of message part, ie 'header'
  * @param $method
  *   Method by which message will be sent. Normally 'mail'
- * @param $options
- *   ?
+ * @param $event
+ *   Event data
  *
  * @return
  *   Part of the message.
  *
  */
-function notifications_message_part($type, $key, $method, $options = array()) {
+function notifications_message_part($type, $key, $method, $event = NULL) {
+  // If event passed check for predefined text or get optional keys from event
+  if ($event && isset($event->text[$key])) {
+    return $event->text[$key];  
+  }
+  $options = $event ? array($event->type, $event->action) : array();
   $keyparts = array_merge(array('notifications-'. $type), $options);
   // Output some debugging info in case we dont find a suitable message part
   $output = "[UNDEFINED type = $type, method = $method, key = ". implode('-', $keyparts) .']';
   while ($keyparts) {
     $groupkey = implode('-', $keyparts);
-    if ($text = messaging_message_part($groupkey, $key, $method)) {
-      $output = $text;
+     if ($text = messaging_message_part($groupkey, $key, $method)) {
+      $output = $text == MESSAGING_EMPTY ? '' : $text;
       break;
     }
     // If no text trim out latest part of the key and retry

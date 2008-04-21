@@ -227,6 +227,8 @@ function notifications_event($event) {
   notifications_event_save($event);
   // Queue subscriptions
   notifications_queue($event);
+  
+  return $event;
 }
 
 /**
@@ -1105,4 +1107,17 @@ function notifications_theme() {
       'file' => 'notifications.admin.inc',
     ),
   );
+}
+
+// For PHP4 compatibility
+if (!function_exists('array_combine')) {
+  function array_combine($arr1, $arr2) {
+    $out = array();
+    $arr1 = array_values($arr1);
+    $arr2 = array_values($arr2);
+    foreach($arr1 as $key1 => $value1) {
+      $out[(string)$value1] = $arr2[$key1];
+    }
+    return $out;
+  }
 }
