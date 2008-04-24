@@ -7,13 +7,15 @@ TO DO
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
-- Support for message localization for multiple languages
-
 - Improve documentation and help texts
   - Information about when messages are digested and when not
 
 5.x-1.0-beta1 to ....
 --------------------------------
+- Removed notifications_default_send_method setting and updated forms accordingly.
+- Messaging method default now shared with messaging module. Simplified user settings.
+- Disabled form control when there's only one sending method or send interval
+- Fixed bug: notifications_queue not respecting 'Notify poster of own posts' setting
 - Patch for PHP 4 compatibility by markus_petrux, http://drupal.org/node/222794
 - Function notifications_queue() now returns event object
 - Internal API change: notifications_message_part() now takes optional event as last argument

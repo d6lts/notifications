@@ -457,9 +457,8 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  * Get message part
  * 
  * It searches for optional message group keys for options defaulting to $type
- * thus if $options = array('part1', 'part2') it will search in this order
- * 1. $type-part1-part2
- * 2. $type-part1
+ * 1. $type-[$event->type]-[$event->action]
+ * 2. $type-[$event->type]
  * 3. $type
  * 
  * @param $type
@@ -468,8 +467,8 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
  *   Id of message part, ie 'header'
  * @param $method
  *   Method by which message will be sent. Normally 'mail'
- * @param $options
- *   ?
+ * @param $event
+ *   Event data
  *
  * @return
  *   Part of the message.

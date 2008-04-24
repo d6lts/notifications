@@ -111,22 +111,23 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $this->drupalGet(url('user/'. $user->uid .'/notifications/author'));
     $this->assertText($author->name, 'User account subscriptions shows author.');
 
-    // Make sure we have some queueing before going on
+    // Make sure we have some queueing before going on and we are autosubscribed
     $this->drupalVariableSet('notifications_send_immediate', 0);
-    
+    $this->drupalVariableSet('notifications_sendself', 1);
+
     // Trigger a node update event
     $node = node_load($node->nid, NULL, TRUE);   
     $node->body .= 'Updated.';
     node_save($node);
         
     // Check queued notifications. We should have three queued notifs at the end
-    $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
+    $send_method = notifications_user_setting('send_method', $user);
+    $send_interval = notifications_user_setting('send_interval', $user);    
+    $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d AND send_method = '%s' AND send_interval = %d", $user->uid, $send_method, $send_interval));
     $this->assertEqual($count, 3, 'We have the right number of rows in queue.');
     
     // Get messages from queue. After de-duping there should be only one.
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
-    $send_method = notifications_user_setting('send_method', $user);
-    $send_interval = notifications_user_setting('send_interval', $user);
     $queued = notifications_process_pull($send_method, array($user->uid));
     $this->assertEqual(count($queued), 1, 'Messages for this event have been queued.');
 

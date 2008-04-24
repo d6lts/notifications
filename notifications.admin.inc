@@ -44,12 +44,6 @@ function notifications_settings_form() {
     '#options' => _notifications_send_intervals(),
     '#default_value' => variable_get('notifications_default_send_interval', 0),
   );
-  $form['defaults']['notifications_default_send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Default send method'),
-    '#options' => _notifications_send_methods(),
-    '#default_value' => variable_get('notifications_default_send_method', ''),
-  );
 
   // Processing limits
   $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'percent' => 0, 'time' => 0));
@@ -405,12 +399,12 @@ function notifications_page_subscribe($uid, $type, $fields, $values, $send_inter
  * Form for subscription confirmation
  */
 function notifications_form_confirm($subscription) {
-
+  $account = user_load(array('uid' => $subscription->uid));
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
     $form[$field] = array('#type' => 'value', '#value' => $subscription->$field);
   }
-
+  
   // The names will be added here
   notifications_module_invoke('names', $subscription);
 
@@ -427,11 +421,13 @@ function notifications_form_confirm($subscription) {
     '#options' => _notifications_send_intervals(),
     '#default_value' => $subscription->send_interval,
   );
+  $send_methods = _notifications_send_methods($account);
   $form['send_method'] = array(
     '#type' => 'select',
     '#title' => t('Send method'),
-    '#options' => _notifications_send_methods(),
+    '#options' => $send_methods,
     '#default_value' => $subscription->send_method,
+    '#disabled' => count($send_methods) < 2,
   );
 
   $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
