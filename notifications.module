@@ -27,9 +27,10 @@ function notifications_menu() {
   $items['admin/notifications'] = array(
     'title' => 'Notifications',
     'description' => 'Configure and manage notifications modules.',
-    'page callback' => 'notifications_admin_overview_page',
+    'page callback' => 'system_admin_menu_block_page',
     'access arguments' => array('administer notifications'),
-    'file' => 'notifications.admin.inc',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
   );
   $items['admin/notifications/status'] = array(
     'title' => 'Status',
