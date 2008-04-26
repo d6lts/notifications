@@ -518,8 +518,8 @@ function notifications_content_form($account, $subscriptions, $list, $field, $fi
   // Complete defaults
   $defaults += array(
     'sid' => 0, 
-    'send_interval' => variable_get('notifications_default_send_interval', 0), 
-    'send_method' => variable_get('notifications_default_send_method', ''),
+    'send_interval' => notifications_user_setting('send_interval', $account), 
+    'send_method' => notifications_user_setting('send_method', $account),
     'event_type' => 'node',
   );
   $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  

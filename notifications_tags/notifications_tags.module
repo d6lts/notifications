@@ -136,8 +136,8 @@ function notifications_tags_user_form($account) {
   // Complete defaults
   $defaults = array(
     'sid' => 0, 
-    'send_interval' => variable_get('notifications_default_send_interval', 0), 
-    'send_method' => variable_get('notifications_default_send_method', ''),
+    'send_interval' => notifications_user_setting('send_interval', $account), 
+    'send_method' => notifications_user_setting('send_method', $account),
     'type' => 'taxonomy',
     'event_type' => 'node',
   );
