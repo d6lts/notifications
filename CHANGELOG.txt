@@ -2,7 +2,8 @@
 
 TO DO
 ------
-* More digesting options. Digests per subscription type will be needed for Mothersclick, while we’ll be needing for other sites digests per thread. So we’ll have to rethink the process to make it more extendable.
+* More digesting options. Digests per subscription type and digests per thread. So we’ll have to rethink the process to make it more extendable.
+* Full configurable digest lines/messages through the message parts UI.
 * Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
@@ -12,6 +13,9 @@ TO DO
 
 5.x-1.0-beta1 to ....
 --------------------------------
+- Added new mail2web module
+
+- Added Notifications Lite module, extra simple notifications API.
 - Removed notifications_default_send_method setting and updated forms accordingly.
 - Messaging method default now shared with messaging module. Simplified user settings.
 - Disabled form control when there's only one sending method or send interval
