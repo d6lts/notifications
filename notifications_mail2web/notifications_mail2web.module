@@ -1,0 +1,338 @@
+<?php
+/**
+ * Mail 2 Web gateway
+ * 
+ * This is a gateway module to allow responding to posts by mail
+ * 
+ * It will connect notifications/messaging outgoing mails with emails received through mailhandler
+ * The thread matching is done through a forged 'Mail-ID' header
+ * 
+ * By Jose A. Reyero, 
+ * Development Seed, http://wwww.developmentseed.org
+ * 
+ * @TODO:  consolidate message bounce functionality
+ * 
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function notifications_mail2web_menu($may_cache) {
+  global $user;  // we need the user to to build some urls
+  $items = array();
+  if ($may_cache) {
+    // Administration
+    $items[] = array('path' => 'admin/notifications/mail2web',
+      'title' => t('Mail2web'),
+      'description' => t('Configure automatic mail responses.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('notifications_mail2web_admin_settings'),
+      'access' => user_access('administer notifications'),
+    );
+    $items[] = array('path' => 'admin/notifications/mail2web/settings',
+      'title' => t('Mail2web'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+    );
+  }
+  return $items;
+}
+
+/**
+ * Admin settings form
+ */
+function notifications_mail2web_admin_settings() {
+  $form['mail2web_mailbox'] = array(
+    '#title' => t('Mailhandler Inbox'),
+    '#type' => 'select',
+    '#options' => notifications_mail2web_mailbox_list(),
+    '#required' => TRUE,
+    '#default_value' => variable_get('mail2web_mailbox', ''),
+    '#description' => t('E-mail account to be used for incoming e-mail. It needs to be set up using Mailhandler. It will be set as Reply-To for outgoing e-mail notifications.'),
+  );   
+  // Expiration time
+  $period = drupal_map_assoc(array(60,3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200), 'format_interval');
+  $period[0] = t('Never');
+  
+  $form['mail2web_expiration'] = array(
+    '#title' => t('Expiration time'),
+    '#type' => 'select',
+    '#options' => $period,
+    '#required' => TRUE,
+    '#default_value' => variable_get('mail2web_expiration', 0),
+    '#description' => t('Time after which the signature of outgoing e-mails expires and responses won\'t be accepted anymore.'),
+  );  
+  $form['mail2web_reply_text'] = array(
+    '#title' => t('Reply text'),
+    '#type' => 'textfield',
+    '#default_value' => variable_get('mail2web_reply_text', t('((( Reply ABOVE this LINE to POST a COMMENT )))')),
+    '#description' => t('Text to separate reply from the rest of the e-mail. Leave blank for not using this feature.'),
+  );  
+  $form['mail2web_server_string'] = array(
+    '#title' => t('Server string for Message Id'),
+    '#type' => 'textfield',
+    '#default_value' => variable_get('mail2web_server_string', 'example.com'),
+    '#description' => t('Server name to be used in Message Id\'s. It will be included in outgoing emails and checked on responses.'),
+  );
+ 
+  return system_settings_form($form);
+}
+
+/**
+ * Get list of available mailboxes
+ */
+function notifications_mail2web_mailbox_list() {
+  $list = array();
+  $result = db_query('SELECT mid, mail FROM {mailhandler} ORDER BY mail');
+  while ($mailbox = db_fetch_object($result)) {
+    $list[$mailbox->mid] = $mailbox->mail;
+  }
+  return $list;
+}
+
+/**
+ * Get mail to be used as reply to.
+ * 
+ * Get data from settings and mailbox with static caching.
+ */
+function notifications_mail2web_mailbox_mail() {
+  static $mail;
+  if (!isset($mail)) {
+    if (($mid = variable_get('mail2web_mailbox', 0)) && ($mailbox = mailhandler_get_mailbox($mid))) {
+      $mail = $mailbox['mail'];
+    } else {
+      $mail = '';
+    }
+  }
+  return $mail;
+}
+
+/**
+ * Implementation of hook_message_alter()
+ * 
+ * Adds message headers into outgoing emails for notifications
+ */
+function notifications_mail2web_message_alter(&$message, $info, $method) {
+  $params = array();
+  // For now, just for non digested emails
+  if (!empty($message['notifications']) && ($account = $message['account']) 
+    && empty($message['notifications']['digest']) && $info['group'] == 'mail') {
+    $event = array_shift($message['notifications']['events']);
+    if ($event->type == 'node' && !empty($event->objects['node'])) {
+      $params['uid'] = $account->uid;
+      $params['nid'] = $event->objects['node']->nid;
+      if ($event->action == 'comment' && !empty($event->objects['comment'])) {
+        $params['cid'] = $event->objects['comment']->cid;
+      }
+    }
+  }
+  // If we've got some params out of the message, embed them into the message id for emails only
+  if ($params && ($reply = notifications_mail2web_mailbox_mail())) {
+    $message['params']['mail']['headers']['Message-ID'] = notifications_mail2web_build_messageid($params);
+    $message['params']['mail']['headers']['Reply-To'] = $reply;
+    // Add marker text into the message header part taking care of already existing text
+    if ($text = variable_get('mail2web_reply_text', t('((( Reply ABOVE this LINE to POST a COMMENT )))'))) {
+      $prefix = array($text);
+      if (!empty($message['body']['#prefix'])) {
+        $prefix[] = $message['body']['#prefix'];
+      }
+      // This glue text is a best guess, may cause trouble though, also with filtering (?).
+      // So we better explicitly set glue text for all sending methods
+      $info += array('glue' => "\n");
+      $message['body']['#prefix'] = implode($info['glue'], $prefix);
+    }
+    
+  }
+}
+
+/**
+ * Implementation of hook_mailhandler()
+ */
+function notifications_mail2web_mailhandler($node, $result, $i, $header, $mailbox) {
+  // The In-reply-to header is cleaned and passed in $node->threading
+  if ($node->threading && ($params = notifications_mail2web_check_messageparams($node->threading, $header))) {
+    // Now check user id , just go ahead if they match and it is a valid user
+    if ($node->uid && $node->uid == $params['uid']) {
+      // Set comment parameters
+      $node->type = 'comment';
+      $node->nid = $params['nid'];
+      $node->pid = $params['cid'];
+      
+      // Let other modules modify properties on the node object.
+      foreach (module_list() as $name) {
+        if (module_hook($name, 'mail2web')) {
+          $function = $name .'_mail2web';
+          if (!($node = $function($node))) {
+            // Exit if a module has handled the submitted data.
+            continue;
+          }
+        }
+      }
+
+      // Now trim out the resf of the message if separator text exists
+      // @ TODO May fail for html mails
+      if ($marker = variable_get('mail2web_reply_text', t('((( Reply ABOVE this LINE to POST a COMMENT )))'))) {
+        // Now the dirty part. May need some more clean up for line endings, spare html, etc...
+        $pos = strpos($node->body, $marker);
+        if ($pos !== FALSE) {
+          $node->body = substr($node->body, 0, $pos);
+          // something specifically for mac mail clients out there
+          $split = preg_split("/On [A-Z][a-z]{2} [0-9]{1,2}, [0-9]{4}, at [0-9]{1,2}:[0-9]{2} [AP]M, [a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4} wrote/",$node->body);
+          $split = preg_split("/\>/",$split[0]);
+          $node->body = $split[0];
+        }
+      }
+      return $node;
+    } else {
+      watchdog('mail2web', t('Received an e-mail without a valid user id'), WATCHDOG_WARNING);
+			$text_vars = array(
+				'!sn' => variable_get('site_name', 'Drupal'), 
+				'!subj' => $header->subject,
+				'!to' => $header->fromaddress,
+				'!user'=>$sender->name,
+				'!url' => url('node/' . $params['nid'], NULL, NULL, TRUE)
+			);
+			$email_message  = 'Hello !to,' . chr(10) . chr(10) . 'Your email was rejected because it came from an unrecognized email address.' . chr(10) . chr(10);
+			$email_message .= 'In order for emails to be accepted by !sn, they must be sent from the email address you provided !sn, in reply to a valid notification email, and within the time allotted by the system.' . chr(10) . chr(10);;
+			$email_message .= 'You may post comments directly by visiting this URL: ' . url('node/' . $params['nid'], NULL, NULL, TRUE);
+			drupal_mail(
+				'mail2web', 
+				$header->reply_toaddress, 
+				t('There was a problem with your email to !sn (!subj)', $text_vars),
+				t($email_message, $text_vars),
+				$header->toaddress);
+    }
+  }
+	// no parameters, bounce with explanation.
+	$text_vars = array(
+		'!sn' => variable_get('site_name', 'Drupal'), 
+		'!subj' => $header->subject,
+		'!to' => $header->fromaddress,
+		'%to' => $header->fromaddress,
+		'!user'=>$sender->name,
+	);
+	watchdog('mail2web', t($err['watchdog']) . t("Rejected an email because it contained no authentication data.  From: %to",$text_vars) , WATCHDOG_WARNING);
+	$email_message  = 'Hello !to,' . chr(10) . chr(10) . 'Your email was rejected because it contained no authentication data.' . chr(10) . chr(10);
+	$email_message .= 'In order for emails to be accepted by !sn, they must be sent from the email address you provided !sn, in reply to a valid notification email, and within the time allotted by the system.' . chr(10) . chr(10);
+	drupal_mail(
+		'mail2web', 
+		$header->reply_toaddress, 
+		t('There was a problem with your email to !sn (!subj)', $text_vars),
+		t($email_message, $text_vars),
+		$header->toaddress);
+
+}
+
+/**
+ * Build messageid embedding the parameters
+ * 
+ * Not all chars are valid for our message-id, as some of them cause the PHP imap
+ * functions to retrieve an empty In-Reply-To header.
+ * 
+ * Valid formats: numbers separated by dots
+ */
+function notifications_mail2web_build_messageid($params) {
+  // This element will make the message id unique and add some information at the same time
+  $params += array(
+    'uid' => 0,
+    'nid' => 0,
+    'cid' => 0,
+    'time' => time(),
+  );
+
+  $elements = array($params['uid'], $params['nid'], $params['cid'], $params['time']);
+  // Add signature
+  $elements[] = notifications_mail2web_signature($elements);
+
+  return '<'.implode('.', $elements).'@'.variable_get('mail2web_server_string', 'example.com').'>';
+}
+
+/**
+ * Get the parameters out of the reply header
+ * 
+ * It will check the digital signature and only return parameters if they match
+ **/
+function notifications_mail2web_check_messageparams($messageid,$header) {
+  if ($params = notifications_mail2web_parse_messageparams($messageid)) {
+    $signature = $params['signature'];
+    unset ($params['signature']);
+    // Check digital signature and expiration time if set
+    if ($signature && $signature == notifications_mail2web_signature($params)) {
+      // Check signature has not expired
+      if (($expire = variable_get('mail2web_expiration', 0)) && $params['time'] + $expire < time()) {
+				$err['watchdog'] = 'Received an email with a expired signature.';
+				$err['usermail'] = 'The email you sent to !to was rejected because it was sent after the response window for the original email had expired.';
+      } else {
+        return $params;
+      }
+    } else {
+			$err['watchdog'] = 'Received an email without signed parameters.';
+			$err['usermail'] = 'The email you sent to !to was rejected because we couldn\'t authenticate it.';
+    }  
+  } else {
+  	$err['watchdog'] = 'Received an email with no parameters';
+		$err['usermail'] = 'The email you sent to !to was rejected because didn\'t contain any authentication data.';
+  }
+  if (isset($err)) {
+		$sender = user_load(array('uid' => $params['uid']));
+		$log_message .= '<BR>User: ' . l($sender->name, 'user/' . $params['uid']); 
+		$log_message .= '<BR>Node: ' . l($params['nid'],'node/' . $params['nid']); 
+		$log_message .= '<BR>Time: ' . date('l F jS, Y h:i:s A',$params['time']); 
+		$log_message .= '<BR>signature: ' . $params['signature']; 
+		$text_vars = array(
+			'!sn' => variable_get('site_name', 'Drupal'), 
+			'!subj' => $header->subject,
+			'!to' => $header->toaddress,
+			'!user'=>$sender->name,
+			'!url' => url('node/' . $params['nid'], NULL, NULL, TRUE)
+		);
+
+    watchdog('mail2web', t($err['watchdog']) . $log_message, WATCHDOG_WARNING);
+    $email_message  = 'Hello !user,' . chr(10) . chr(10) . $err['usermail'] . chr(10) . chr(10);
+    $email_message .= 'In order for emails to be accepted by !sn, they must be sent in reply to a valid notification email, and within the time allotted by the system.' . chr(10) . chr(10);;
+    $email_message .= ($params['nid'] > 0) ? 'You may post comments directly by visiting this URL: ' . url('node/' . $params['nid'], NULL, NULL, TRUE) : '';
+		drupal_mail(
+			'mail2web', 
+			$header->reply_toaddress, 
+			t('There was a problem with your email to !sn (!subj)', $text_vars),
+			t($email_message, $text_vars),
+			$header->toaddress);
+  }
+}
+
+/**
+ * Parse message id into parameters 
+ * 
+ * The message id should have this form:
+ *   uid.nid.cid.time.signature@server string
+ * @param $messageid
+ *   Incoming message id
+ * @param 
+ */
+
+function notifications_mail2web_parse_messageparams($messageid) {
+  // drupal_set_message("Message-id $messageid");
+  // Trim enclosing lt, gt
+  // $messageid = trim($messageid, ' <>');
+  $params = array();
+  $parts = explode('@', $messageid);
+  if (count($parts) == 2 && $parts[1] == variable_get('mail2web_server_string', 'example.com')) {
+    $parts = explode('.', $parts[0]);
+    if (count($parts) == 5) {
+      $params['uid'] = $parts[0];
+      $params['nid'] = $parts[1];
+      $params['cid'] = $parts[2];
+      $params['time'] = $parts[3];
+      $params['signature'] = $parts[4];
+    }
+  }
+  return $params;
+}
+
+/**
+ * Produce / verify digital signature
+ */
+function notifications_mail2web_signature($params) {
+  $params[] = drupal_get_private_key();
+  return md5(implode('-', $params));
+}
+
