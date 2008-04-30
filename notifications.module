@@ -880,11 +880,11 @@ function _notifications_send_intervals() {
   return variable_get('notifications_send_intervals',
     array(
       -1 => t('Never'),
-      0 => t('Immediately'),
-      3600 => t('Every hour'),
-      43200 => t('Twice a day'),
+      0 => t('As soon as possible'),
+      900 => t('Every 15 minutes'),
+      3600 => t('Hourly'),
+      10800 => t('Every three hours'),
       86400 => t('Daily'),
-      604800 => t('Weekly'),      
     )
   );
 }
