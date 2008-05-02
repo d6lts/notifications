@@ -531,12 +531,12 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
       }
       $index++;
     }
-  }  
+  }
   foreach ($params as $field => $value) {
     $name = strstr($field, '.') ? $field : 's.'. $field;
-    $where[] = is_numeric($value) ? $name .' = %d' : "$name = '%s'";
+    $where[] = (is_numeric($value) && strstr($field, 's.')) ? $name .' = %d' : "$name = '%s'";
   }
-  
+
   $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) .
   $sql .= ' WHERE '. implode(' AND ', $where);
   
