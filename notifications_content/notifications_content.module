@@ -430,7 +430,7 @@ function notifications_content_page_thread($account = NULL) {
   }
   // query string for node subscriptions
   $query = "SELECT s.*, f.value AS nid, n.type AS node_type, n.title FROM {notifications} s 
-    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = CAST(n.nid AS CHAR)
+    INNER JOIN {notifications_fields} f ON s.sid = f.sid LEFT JOIN {node} n ON f.value = CAST(n.nid AS CHAR(255))
     WHERE s.uid = %d AND s.type = 'thread' AND s.event_type = 'node' AND s.conditions = 1 AND f.field = 'nid'
     ORDER BY node_type, n.title";
   $results = pager_query($query, NOTIFICATIONS_CONTENT_PAGER, 0, NULL, $account->uid);
