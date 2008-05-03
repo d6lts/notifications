@@ -392,8 +392,7 @@ function notifications_process_digest($account, $events, $send_interval, $send_m
     // Check duplicate notifications for the same event
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
       $line = !empty($event->text['digest']) ? $event->text['digest'] : $info['line'];
-      $text = $list[$digest_type][$digest_value]['line'][$event->eid] = notifications_text_replace($line, $event->objects);
-      notifications_log("Digesting line $text");
+      $list[$digest_type][$digest_value]['line'][$event->eid] = notifications_text_replace($line, $event->objects);
     }
   }
   // Create message. Do all this in one replacement, then strip out the subject
