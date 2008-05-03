@@ -14,6 +14,8 @@ TO DO
 
 6.x-1.0-dev to ...............
 ------------------------------
+- Ported critical bug fix from Beta3, http://drupal.org/node/253401
+- Upgraded mail2web module for Drupal 6
 - Ported latest features from 5.x branch
 - Main Drupal 6 upgrade
 
