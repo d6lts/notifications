@@ -10,7 +10,7 @@
  */
 function notifications_ui_help($section) {
   switch ($section) {
-    case 'admin/notifications/settings/ui':
+    case 'admin/messaging/notifications/ui':
       $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
       if (module_exists('notifications_content')) {
         $output .= '<p>'. t('To enable different subscription options for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
@@ -26,7 +26,7 @@ function notifications_ui_menu($may_cache) {
   $items = array();
   if (!$may_cache) {
     $items[] = array(
-      'path' => 'admin/notifications/settings/ui',
+      'path' => 'admin/messaging/notifications/ui',
       'title' => t('User Interface'),
       'description' => t('Enables site settings for user subscriptions.'),
       'callback' => 'drupal_get_form',

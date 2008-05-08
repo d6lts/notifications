@@ -245,16 +245,6 @@ function notifications_page_user_overview($account) {
 /** Administration pages **/
 
 /**
- * Admin overview page
- */
-function notifications_admin_overview_page() {
-  $menu = menu_get_item(NULL, 'admin/notifications');
-  $content = system_admin_menu_block($menu);
-  $output = theme('admin_block_content', $content);
-  return $output;
-}
-
-/**
  * Current subscriptions page
  */
 function notifications_admin_status_page() {
@@ -299,7 +289,7 @@ function notifications_admin_queue_summary() {
  * @ TO DO Add confirmation before queue reset
  */
 function notifications_admin_queue($op = 'status', $param = NULL) {
-  $base = 'admin/notifications/status/queue';
+  $base = 'admin/messaging/notifications-status/queue';
   $output = '';
   switch ($op) {
     case 'run':

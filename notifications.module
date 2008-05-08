@@ -26,54 +26,58 @@ function notifications_menu($may_cache) {
   global $user;  // we need the user to to build some urls
 
   if ($may_cache) {
-    // Administration
-    $items[] = array('path' => 'admin/notifications',
-      'title' => t('Notifications'),
-      'description' => t('Configure and manage notifications modules.'),
-      'callback' => 'notifications_admin_overview_page',
-      'access' => user_access('administer notifications'),
-    );
-    $items[] = array('path' => 'admin/notifications/status',
-      'title' => t('Status'),
-      'description' => t('Manage users notifications.'),
-      'callback' => 'notifications_admin_status_page',
-      'access' => user_access('administer notifications'),
-    );
-    $items[] = array('path' => 'admin/notifications/status/overview',
-      'title' => t('Overview'),
-      'description' => t('Subscriptions overview.'),
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'weight' => -10,
-    );
-    $items[] = array('path' => 'admin/notifications/status/queue', 
-      'title' => t('Queue'),
-      'description' => t('Subscriptions queue.'),
-      'callback' => 'notifications_admin_queue',
-      'type' => MENU_LOCAL_TASK
-    );
-    
-    // Site settings
+    // Administration. Override messaging main item
     $items[] = array(
-      'path' => 'admin/notifications/settings',
-      'title' => t('Settings'),
+      'title' => t('Messaging & Notifications'),
+      'path' => 'admin/messaging',
+      'callback' => 'messaging_admin_overview_page',
+      'access' => user_access('administer messaging') || user_access('administer notifications'),
+      'description' => t('Administration of messaging and notifications'),
+    );
+    // Notifications settings
+    $items[] = array(
+      'path' => 'admin/messaging/notifications',
+      'title' => t('Notifications settings'),
       'description' => t('Site settings for user notifications.'),
       'callback' => 'drupal_get_form',
       'callback arguments' => 'notifications_settings_form',
       'access' => user_access('administer site configuration'),
     );
+
     $items[] = array(
-      'path' => 'admin/notifications/settings/general',
-      'title' => t('General'),
+      'path' => 'admin/messaging/notifications/settings',
+      'title' => t('Settings'),
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
     );
+
     $items[] = array(
-      'path' => 'admin/notifications/settings/intervals',
+      'path' => 'admin/messaging/notifications/intervals',
       'title' => t('Intervals'),
       'callback' => 'drupal_get_form',
       'callback arguments' => 'notifications_send_intervals_form',
       'type' => MENU_LOCAL_TASK,
     );
+    // Notifications status and queue management
+    $items[] = array('path' => 'admin/messaging/notifications-status',
+      'title' => t('Notifications status'),
+      'description' => t('Manage notifications status queue'),
+      'callback' => 'notifications_admin_status_page',
+      'access' => user_access('administer notifications'),
+    );
+    $items[] = array('path' => 'admin/messaging/notifications-status/overview',
+      'title' => t('Overview'),
+      'description' => t('Notifications queue overview.'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -10,
+    );
+    $items[] = array('path' => 'admin/messaging/notifications-status/queue', 
+      'title' => t('Queue'),
+      'description' => t('Manage notifications queue.'),
+      'callback' => 'notifications_admin_queue',
+      'type' => MENU_LOCAL_TASK
+    );    
+
     // Subscribe links. For this items access will be checked later in the page
     $items[] = array(
       'path' => 'notifications/subscribe',
@@ -90,7 +94,7 @@ function notifications_menu($may_cache) {
     );
   }
   else {
-    if (arg(0) == 'notifications' || arg(1) == 'notifications' || arg(2) == 'notifications') {
+    if (arg(0) == 'notifications' || arg(1) == 'notifications' || arg(2) == 'notifications' || arg(2) == 'notifications-status') {
       include_once drupal_get_path('module', 'notifications') .'/notifications.admin.inc';
     }
     
@@ -476,7 +480,7 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
   if ($conditions) {
     $index = 0;
     foreach ($conditions as $field => $value) {
-      $alias = 'nf'. $index;
+      $alias = 'nf'. $index++;
       $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
       $where[] = "$alias.field = '%s'";
       $where[] = "$alias.value = '%s'";

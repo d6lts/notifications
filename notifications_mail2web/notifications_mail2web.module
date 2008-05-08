@@ -31,16 +31,12 @@ function notifications_mail2web_menu($may_cache) {
   $items = array();
   if ($may_cache) {
     // Administration
-    $items[] = array('path' => 'admin/notifications/mail2web',
+    $items[] = array('path' => 'admin/messaging/mail2web',
       'title' => t('Mail to web'),
       'description' => t('Configure automatic mail responses.'),
       'callback' => 'drupal_get_form',
       'callback arguments' => array('notifications_mail2web_admin_settings'),
       'access' => user_access('administer notifications'),
-    );
-    $items[] = array('path' => 'admin/notifications/mail2web/settings',
-      'title' => t('Mail2web'),
-      'type' => MENU_DEFAULT_LOCAL_TASK,
     );
   }
   return $items;
