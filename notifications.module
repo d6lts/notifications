@@ -478,7 +478,7 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
   if ($conditions) {
     $index = 0;
     foreach ($conditions as $field => $value) {
-      $alias = 'nf'. $index;
+      $alias = 'nf'. $index++;
       $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
       $where[] = "$alias.field = '%s'";
       $where[] = "$alias.value = '%s'";
