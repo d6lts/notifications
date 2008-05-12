@@ -14,6 +14,10 @@ TO DO
 
 6.x-1.0-dev to ...............
 ------------------------------
+- Theme username for notifications by author list, by jaydub, #253989
+- Fixed Wrong redirection and user message not showing up after subscribing, #251979
+- Reworked subscribe/unsubscribe pages, added confirmation for unsubscribe.
+
 - Ported critical bug fix from Beta3, http://drupal.org/node/253401
 - Upgraded mail2web module for Drupal 6
 - Ported latest features from 5.x branch

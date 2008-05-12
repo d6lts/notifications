@@ -711,7 +711,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       $values = array();
       if ($subscription = $object) {
         $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'destination' => FALSE, 'absolute' => TRUE));
-        $values['unsubscribe-url'] = url($link['href'], $link['params']);      
+        $values['unsubscribe-url'] = url($link['href'], $link['options']);      
       }
       return $values;
     case 'user':
@@ -815,15 +815,15 @@ function notifications_get_link($type, $params) {
     $query['signature'] =  _notifications_signature($elements);
   }
   // Build final link parameters
-  $linkparams['query'] = $query;
+  $options['query'] = $query;
   foreach (array('absolute', 'html') as $name) {
     if (isset($params[$name])) {
-      $linkparams[$name] = $params[$name];
+      $options[$name] = $params[$name];
     }
   }
   return array(
     'href' => 'notifications/'. implode('/', $elements),
-    'params' => $linkparams,
+    'options' => $options,
   );
 }
 

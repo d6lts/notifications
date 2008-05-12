@@ -223,7 +223,8 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
       $links['notifications_'. $index] = array(
         'title' => $title,
         'html' => TRUE,
-      ) + $props;      
+        'href' => $props['href'],
+      ) + $props['options'];      
     }
   }
   return $links;
