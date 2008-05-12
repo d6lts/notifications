@@ -13,6 +13,11 @@ TO DO
 
 5.x-1.0-beta3 to .............
 ------------------------------
+- Fixed Wrong redirection and user message not showing up after subscribing, #251979
+- Reworked subscribe/unsubscribe pages, added confirmation for unsubscribe.
+- Autosubscribe form_alter points to incorrent form, by Liam McDermott, #256872
+- Theme username for notifications by author list, by jaydub, #253989
+ 
 - Regrouped admin pages for messaging and notifications
 - Fixed bug in notifications_delete_subscriptions(), by Zen, #255416
 - Applied big notifications_group patch, by Zen, #254036

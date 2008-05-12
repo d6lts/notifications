@@ -499,7 +499,7 @@ function notifications_content_page_author($account = NULL) {
     $list = array();
     $result = db_query("SELECT uid, name FROM {users} WHERE uid IN (". implode(',', array_keys($subscriptions)) .')');
     while ($author = db_fetch_object($result)) {
-      $list[$author->uid] = $author->name;
+      $list[$author->uid] = theme('username', $author);
     }
     $defaults = array('type' => 'author', 'event_type' => 'node');
     //$output = drupal_get_form('notifications_content_form', $account, $subscriptions, $list, 'author', t('Author'), $defaults);
