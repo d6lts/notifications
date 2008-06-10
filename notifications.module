@@ -206,7 +206,8 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
  */
 function notifications_event($event) {
   global $user;
-  // Fill in event with default values
+  // Fill in event with default values, that can be changed by modules implementing hook_notifications('event trigger', ..)
+  // Such modules can mark the event to be discarded changing the 'save' and 'queue' options
   $event += array(
     'uid' => $user->uid,
     'load_args' => '',
@@ -215,15 +216,23 @@ function notifications_event($event) {
     'type' => '', // Object/event type
     'action' => '', // Action that happened to the object
     'params' => array(), // Object parameters
+    'save' => TRUE, // Store this event, can be changed by plug-in modules
+    'queue' => TRUE, // Send to queueing, can be changed by plug-in modules
   );
   $event = (object)$event;
+
   // Notify other modules we are about to trigger some subscriptions event
   // Modules can do cleanup operations or modify event properties
   notifications_module_invoke('event trigger', $event);
-  // Store event
-  notifications_event_save($event);
-  // Queue subscriptions
-  notifications_queue($event);
+  
+  // Store event, unles marked not to be saved 
+  if ($event->save) {
+    notifications_event_save($event);
+  }
+  // Send event to queue for subscriptions, unless marked not to
+  if ($event->queue) {
+    notifications_queue($event);
+  }
 
   return $event;
 }
@@ -249,7 +258,7 @@ function notifications_queue($event) {
       'SELECT DISTINCT s.uid, s.sid, s.module, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
       'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
       implode(' ', $query['join']);
-    $sql .=  " WHERE s.status = 1 AND s.event_type = '%s' AND ((". implode(') OR (', $query['where']) .')) ';
+    $sql .=  " WHERE s.status = 1 AND s.event_type = '%s' AND s.send_interval >= 0 AND ((". implode(') OR (', $query['where']) .')) ';
     // Add one more condition if we don't send notifications on own posts
     if (!variable_get('notifications_sendself', 0)) {
       $sql .= 'AND s.uid != %d ';
@@ -390,7 +399,6 @@ function notifications_save_subscription(&$subscription) {
     $update->send_interval = $subscription->send_interval;
     $uddate->send_method = $subscription->send_method;
     $subscription = $update;
-    drupal_set_message(t('A duplicated subscription has been found and updated'));
     // If there are more, delete, keep the table clean
     while (array_shift($duplicate)) {
       notifications_delete_subscription($duplicate->sid);
@@ -983,7 +991,15 @@ function notifications_alter($type, &$data) {
   }
 }
 
-// For PHP4 compatibility
+/**
+ * PHP4 Compatibility
+ * 
+ * These modules are being developed and tested with PHP 5. 
+ * 
+ * However, patches for PHP 4.x compatibility will be welcomed here 
+ * (as long as they don't break the PHP5 version or course).
+ */
+ 
 if (!function_exists('array_combine')) {
   function array_combine($arr1, $arr2) {
     $out = array();
@@ -993,5 +1009,20 @@ if (!function_exists('array_combine')) {
       $out[(string)$value1] = $arr2[$key1];
     }
     return $out;
+  }
+}
+
+if (!function_exists('array_diff_key')) {
+  function array_diff_key() {
+    $arrs = func_get_args();
+    $result = array_shift($arrs);
+    foreach ($arrs as $array) {
+      foreach ($result as $key => $v) {
+        if (array_key_exists($key, $array)) {
+          unset($result[$key]);
+        }
+      }
+    }
+    return $result;
   }
 }
