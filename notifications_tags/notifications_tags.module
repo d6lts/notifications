@@ -9,15 +9,15 @@
  * Implementation of hook_menu_()
  */
 function notifications_tags_menu() {
-      $items['user/%user/notifications/taxonomy'] = array(
-        'type' => MENU_LOCAL_TASK,
-        'access callback' => 'notifications_content_access',
-        'access arguments' => array(1, 'subscribe to taxonomy terms'),
-        'title' => t('Tags'),
-        'page callback' => 'notifications_tags_user_page',
-        'page arguments' => array(1),
-        'weight' => 10,
-      );
+  $items['user/%user/notifications/taxonomy'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'notifications_content_access',
+    'access arguments' => array(1, 'subscribe to taxonomy terms'),
+    'title' => t('Tags'),
+    'page callback' => 'notifications_tags_user_page',
+    'page arguments' => array(1),
+    'weight' => 10,
+  );
   return $items;
 }
 
@@ -129,7 +129,7 @@ function notifications_tags_user_page($account = NULL) {
 /**
  * Returns the taxonomy subscription form
  */
-function notifications_tags_user_form($account) {
+function notifications_tags_user_form($form_state, $account) {
   // query string for category subscriptions
   $vocabularies = notifications_tags_vocabularies();
   $subscriptions = notifications_get_subscriptions(array('type' => 'taxonomy', 'uid' => $account->uid), array('tid' => NULL), TRUE, 'value');
@@ -197,7 +197,7 @@ function notifications_tags_user_form($account) {
   }
   $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
 
-  $form['#submit']['notifications_content_form_submit'] = array();
+  $form['#submit'][] = 'notifications_content_form_submit';
   return $form;
 }
 

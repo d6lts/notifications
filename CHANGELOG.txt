@@ -2,6 +2,7 @@
 
 TO DO
 ------
+* Use actions and triggers instead of old notifications' events, see http://drupal.org/node/260100
 * More digesting options. Digests per subscription type will be needed for Mothersclick, while we’ll be needing for other sites digests per thread. So we’ll have to rethink the process to make it more extendable.
 * Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
@@ -14,10 +15,17 @@ TO DO
 
 6.x-1.0-dev to ...............
 ------------------------------
+- Ported latest bug fixes from 5.x version.
+- Fixed incomplete upgrade of notifications_tags, by fab65, #269725
+- Fixed bug with notifications_ui block, incomplete upgrade of form functions, #256775
+
+- Fixed: Notifications queued when send interval is 'Never', by Scott Reinolds, #268662
+- Added: PHP4 compatibility function, by phonydream2, #261902
+- Added event/hook support for not saving/queueing some event types, #255402
+- Removed "Duplicated subscription found and updated message", #260436
 - Theme username for notifications by author list, by jaydub, #253989
 - Fixed Wrong redirection and user message not showing up after subscribing, #251979
 - Reworked subscribe/unsubscribe pages, added confirmation for unsubscribe.
-
 - Ported critical bug fix from Beta3, http://drupal.org/node/253401
 - Upgraded mail2web module for Drupal 6
 - Ported latest features from 5.x branch
