@@ -197,6 +197,7 @@ function notifications_ui_node_form_submit($form_id, $form_values) {
       notifications_delete_subscription($subscription['sid']);
     }
   }
+  drupal_set_message(t('Your subscriptions have been updated.'));
 }
 
 /**
