@@ -28,16 +28,12 @@ define('MAIL2WEB_ERROR_USER', 4);
  */
 function notifications_mail2web_menu() {
   // Administration
-  $items['admin/notifications/mail2web'] = array(
+  $items['admin/messaging/mail2web'] = array(
     'title' => 'Mail to web',
     'description' => t('Configure automatic mail responses.'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_mail2web_admin_settings'),
     'access arguments' => array('administer notifications'),
-  );
-  $items['admin/notifications/mail2web/settings'] = array(
-    'title' => 'Mail to web',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
   );
 
   return $items;

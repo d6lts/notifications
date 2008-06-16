@@ -23,30 +23,30 @@
  * Implementation of hook_menu().
  */
 function notifications_menu() {
-  // Administration
-  $items['admin/notifications'] = array(
-    'title' => 'Notifications',
-    'description' => 'Configure and manage notifications modules.',
-    'page callback' => 'system_admin_menu_block_page',
+  // Administration. This one will override messaging menu item
+  $items['admin/messaging'] = array(
+    'title' => 'Messaging & Notifications',
     'access arguments' => array('administer notifications'),
+    'description' => 'Administer and configure messaging and notifications',
+    'page callback' => 'system_admin_menu_block_page',
     'file' => 'system.admin.inc',
     'file path' => drupal_get_path('module', 'system'),
   );
-  $items['admin/notifications/status'] = array(
-    'title' => 'Status',
+  $items['admin/messaging/notifications-status'] = array(
+    'title' => 'Notifications Status',
     'description' => 'Manage users notifications.',
     'page callback' => 'notifications_admin_status_page',
     'access arguments' => array('administer notifications'),
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/notifications/status/overview'] = array(
+  $items['admin/messaging/notifications-status/overview'] = array(
     'title' => 'Overview',
     'description' => 'Subscriptions overview.',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/notifications/status/queue'] = array(
+  $items['admin/messaging/notifications-status/queue'] = array(
     'title' => 'Queue',
     'description' => 'Subscriptions queue.',
     'page callback' => 'notifications_admin_queue',
@@ -56,21 +56,21 @@ function notifications_menu() {
   );
   
   // Site settings
-  $items['admin/notifications/settings'] = array(
-    'title' => 'Settings',
+  $items['admin/messaging/notifications'] = array(
+    'title' => 'Notifications Settings',
     'description' => 'Site settings for user notifications.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_settings_form'),
     'access arguments' => array('administer site configuration'),
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/notifications/settings/general'] = array(
+  $items['admin/messaging/notifications/settings'] = array(
     'title' => 'General',
     'weight' => -10,
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/notifications/settings/intervals'] = array(
+  $items['admin/messaging/notifications/intervals'] = array(
     'title' =>'Intervals',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_send_intervals_form'),

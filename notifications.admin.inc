@@ -292,7 +292,7 @@ function notifications_admin_queue_summary() {
  * @ TO DO Add confirmation before queue reset
  */
 function notifications_admin_queue($op = 'status', $param = NULL) {
-  $base = 'admin/notifications/status/queue';
+  $base = 'admin/messaging/notifications-status/queue';
   $output = '';
   switch ($op) {
     case 'run':

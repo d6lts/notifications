@@ -10,7 +10,7 @@
  */
 function notifications_ui_help($path, $arg) {
   switch ($path) {
-    case 'admin/notifications/settings/ui':
+    case 'admin/messaging/notifications/ui':
       $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
       if (module_exists('notifications_content')) {
         $output .= '<p>'. t('To enable different subscription options for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
@@ -23,7 +23,7 @@ function notifications_ui_help($path, $arg) {
  * Implementation of hook_menu()
  */
 function notifications_ui_menu() {
-  $items['admin/notifications/settings/ui'] = array(
+  $items['admin/messaging/notifications/ui'] = array(
     'title' => 'User Interface',
     'description' => 'Enables site settings for user subscriptions.',
     'page callback' => 'drupal_get_form',

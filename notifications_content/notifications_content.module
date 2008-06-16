@@ -12,7 +12,7 @@ define('NOTIFICATIONS_CONTENT_PAGER', 20);
  * Implementation of hook_menu_()
  */
 function notifications_content_menu() {
-  $items['admin/notifications/settings/content'] = array(
+  $items['admin/messaging/notifications/content'] = array(
     'title' => 'Content Subscriptions',
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
