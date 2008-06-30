@@ -13,8 +13,8 @@ TO DO
 
 5.x-1.0-beta3 to .............
 ------------------------------
+- Moved notifications_group to og_notifications (OG package), by Zen, #254036
 - Added confirmation message when submitting subscriptions block form, #260434
-
 - Fixed: Notifications queued when send interval is 'Never', by Scott Reinolds, #268662
 - Added: PHP4 compatibility function, by phonydream2, #261902
 - Added event/hook support for not saving/queueing some event types, #255402
