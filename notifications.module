@@ -306,7 +306,7 @@ function notifications_query_build($params, $base = array()) {
  * 
  * @param $event
  *   Event object
- * @ TODO: Avoid to and from array conversion
+ * @TODO: Avoid to and from array conversion
  */
 function notifications_event_save(&$event) {
   $event = (array)$event;

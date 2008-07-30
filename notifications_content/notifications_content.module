@@ -169,8 +169,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       $types[] = array(
         'type' => 'node',
         'action' => 'insert',
-        'name' => 'New content of type [type-name] has been submitted',
-        'line' => '[type-name] [title] by [author-name]',
+        'name' => t('New content of type [type-name] has been submitted'),
+        'line' => t('[type-name] [title] by [author-name]'),
         'digest' => array('node', 'type'),
       );
       // These other events are grouped for each node. The digest will look like:
@@ -180,15 +180,15 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       $types[] = array(
         'type' => 'node',
         'action' => 'update',
-        'name' => '[type-name]: [title]',
-        'line' => 'The [node-type] has been updated',
+        'name' => t('[type-name]: [title]'),
+        'line' => t('The [node-type] has been updated'),
         'digest' => array('node', 'nid'), 
       );      
       $types[] = array(
         'type' => 'node',
         'action' => 'comment',
-        'name' => '[type-name]: [title]',
-        'line' => 'New comment by [comment-author-name]: [comment-title]', 
+        'name' => t('[type-name]: [title]'),
+        'line' => t('New comment by [comment-author-name]: [comment-title]'), 
         'digest' => array('node', 'nid'),
       );
       return $types;
@@ -348,13 +348,11 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
       if ($node->status == '0') { // unpublished
         break; // don't notify
       }
-      /*
-      // prevent already published edits from sending notifications
-      // @ TODO send nodes that have been updated could be controlled here
-      if ($node->status == 1 && $node->notifications_currentstatus == '1') {
-        break;
+      // If inmediate sending is active, need to reset the node cache so we don't send old versions of the node
+      if (variable_get('notifications_send_immediate', 0)) {
+        node_load(0, NULL, TRUE);
       }
-      //*/
+
       // else, fall through
 
     case 'insert':
@@ -679,14 +677,11 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
  */
 function notifications_content_node_allow($account, $node) {
   static $access;
-  global $user;
 
   if (!isset($access[$account->uid][$node->nid])) {
-    $current = $user;
-    $user = $account;
-    $access[$account->uid][$node->nid] = node_access('view', $node);
-    $user = $current;
+    $access[$account->uid][$node->nid] = node_access('view', $node, $account);
   }
+
   return $access[$account->uid][$node->nid];
 }
 

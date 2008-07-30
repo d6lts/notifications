@@ -13,12 +13,18 @@ TO DO
 - Improve documentation and help texts
   - Information about when messages are digested and when not
 
-6.x-1.0-dev to ...............
+6.x-1.0-dev to 6.x-1.0-beta1
 ------------------------------
+- Fixed untranslatable strings, not wrappend in t(), #274049
+- Using node_access instead of user switching, by moshe, #284444
+- Better description for autosubscribe option, by wallan, #247616
+- Fixed: Old node data sent upon node update, david_g, #278530
+- Fixed: several limit cases with cron processing, #276370, #270324
+- Updated unit tests for latest change in notifications_get_link() return values.
+
 - Ported latest bug fixes from 5.x version.
 - Fixed incomplete upgrade of notifications_tags, by fab65, #269725
 - Fixed bug with notifications_ui block, incomplete upgrade of form functions, #256775
-
 - Fixed: Notifications queued when send interval is 'Never', by Scott Reinolds, #268662
 - Added: PHP4 compatibility function, by phonydream2, #261902
 - Added event/hook support for not saving/queueing some event types, #255402
