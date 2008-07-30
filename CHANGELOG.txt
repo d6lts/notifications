@@ -11,8 +11,11 @@ TO DO
 - Improve documentation and help texts
   - Information about when messages are digested and when not
 
-5.x-1.0-beta3 to .............
+5.x-1.0-beta3 to 5.x-1.0-rc1
 ------------------------------
+- Improved security during user switching, by moshe, #284444
+- Some other bug fixes back ported from 6.x version
+
 - Moved notifications_group to og_notifications (OG package), by Zen, #254036
 - Added confirmation message when submitting subscriptions block form, #260434
 - Fixed: Notifications queued when send interval is 'Never', by Scott Reinolds, #268662

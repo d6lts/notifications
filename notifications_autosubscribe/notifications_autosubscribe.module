@@ -89,7 +89,7 @@ function notifications_autosubscribe_notifications_node_form_alter(&$form) {
           '#default_value' => 1,
           '#disabled' => TRUE,
           '#title' => $form['subscriptions']['options']['#options'][$index],
-          '#description' => t('You will be automatically subscribed to all your posts. Uncheck the autosubscribe option in your user account settings to change this.'),
+          '#description' => t('You are currenty set to receive notifications for replies to content which you create. To change this default, uncheck the autosubscribe option in your user account settings.'),
         );
         unset($form['subscriptions']['options']['#options'][$index]);
       }

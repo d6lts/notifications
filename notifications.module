@@ -352,6 +352,7 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
     $sql = 'SELECT s.*, f.* FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
       implode(' ', $query['join']) . 
       " WHERE s.uid = %d AND event_type = '%s' AND ((". implode(') OR (', $query['where']) .'))';
+    
     $result = db_query($sql, $query['args']);
     while ($sub = db_fetch_object($result)) {
       if (!isset($subscriptions[$uid][$event_type][$oid][$sub->sid])) {

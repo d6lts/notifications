@@ -148,15 +148,25 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       break;
     case 'cron':
       // Calculate time limit. We get the smaller of all these times in seconds
-      $timelimit[] = variable_get('cron_semaphore', 0) + ini_get('max_execution_time') - NOTIFICATIONS_TIME_MARGIN;
+      // There's an issue with poormanscron not setting the cron semaphore so it will default to current time
+      $timelimit = array();
+      $cronstart = variable_get('cron_semaphore', time());
+      
+      // Max execution time may be zero meaning no limit, then no limits based on this
+      if ($maxtime = ini_get('max_execution_time')) {
+        $timelimit[] =  $cronstart + $maxtime - NOTIFICATIONS_TIME_MARGIN;
+        if ($limit['percent']) {
+          $timelimit[] = time() + $maxtime * $limit['percent'] / 100;
+          unset($limit['percent']);
+        }
+      }
+      // This is an absolute limit, applies always if set
       if ($limit['time']) {
         $timelimit[] = time() + $limit['time'];
       }
-      if ($limit['percent']) {
-        $timelimit[] = time() + ini_get('max_execution_time') * $limit['percent'] / 100;
-        unset($limit['percent']);
+      if ($timelimit) {
+        $limit['time'] = min($timelimit);
       }
-      $limit['time'] = min($timelimit);
       break;
     case 'init':
       $current[$name] = 0;
@@ -176,7 +186,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
   
   // Check all limits till we find a false one
   foreach ($limit as $name => $value) {
-    if (($current[$name] >= $value)) {
+    if ($value && !empty($current[$name]) && $current[$name] >= $value) {
       watchdog('notifications', t('Reached processing limit on queue processing: %name = %value', array('%name' => $name, '%value' => $value)));
       return FALSE;
     }
