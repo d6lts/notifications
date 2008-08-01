@@ -13,6 +13,13 @@ TO DO
 - Improve documentation and help texts
   - Information about when messages are digested and when not
 
+6.x-1.0-beta1 to ....
+------------------------------
+- Fixed typo in notifications_autosubscribe form text
+- Added inline documentation about the messaging/notifications API
+- Removed obsoleted 'pull' operation in notifications_messaging()
+- Better query building and more flexibility in notifications_user_get_subscriptions()
+
 6.x-1.0-dev to 6.x-1.0-beta1
 ------------------------------
 - Fixed untranslatable strings, not wrappend in t(), #274049

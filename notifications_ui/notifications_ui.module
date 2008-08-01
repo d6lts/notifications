@@ -329,7 +329,7 @@ function notifications_ui_type_options($type, $option = NULL, $default = NULL) {
   // The default setting will be 'links' = 1
   $settings = variable_get('notifications_node_ui_'. $type, array('links'));
   if ($option) {
-    return in_array($option, $settings) ? TRUE : $default;
+    return is_array($settings) && in_array($option, $settings) ? TRUE : $default;
   }
   else {
     return $settings;
