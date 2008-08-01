@@ -223,6 +223,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 
 /**
  * Implementation of hook_messaging()
+ * 
+ * @see notifications_messaging()
  */
 function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {

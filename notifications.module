@@ -244,6 +244,7 @@ function notifications_event($event) {
  *   Event array.
  */
 function notifications_queue($event) {
+  global $notifications_send_inmediate;
   
   // Build query fields for this event type. If no arguments retrieved, skip this step
   if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
@@ -272,10 +273,26 @@ function notifications_queue($event) {
   // Modules can do cleanup operations or modify the queue
   notifications_module_invoke('event queued', $event);
   
-  // Optional immediate sending.
+  // If immediate sending enabled, store eid for sending on page exit.
   if (variable_get('notifications_send_immediate', 0)) {
+    $notifications_send_inmediate[] = $event->eid;
+  }
+}
+
+/**
+ * Implementation of hook_exit()
+ * 
+ * This is where the inmediate sending is done if enabled, so we are sure all other modules
+ * have finished node processing when node update.
+ */
+function notifications_exit() {
+  global $notifications_send_inmediate;
+  
+  if (!empty($notifications_send_inmediate)) {
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-    notifications_process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
+    foreach ($notifications_send_inmediate as $eid) {
+      notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
+    }    
   }
 }
 
@@ -349,11 +366,18 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
       $query = notifications_query_build($query_params, $query);
     }
 
-    $sql = 'SELECT s.*, f.* FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
-      implode(' ', $query['join']) . 
-      " WHERE s.uid = %d AND event_type = '%s' AND ((". implode(') OR (', $query['where']) .'))';
+    // Build the query merging all the parts
+    $sql = 'SELECT s.*, f.* FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid ';
+    if (!empty($query['join'])) {
+      $sql .= implode(' ', $query['join']);
+    }
+    $sql .= " WHERE s.uid = %d AND event_type = '%s' ";
+    if (!empty($query['where'])) {
+      $sql .= " AND ((". implode(') OR (', $query['where']) .'))';
+    }
     
     $result = db_query($sql, $query['args']);
+
     while ($sub = db_fetch_object($result)) {
       if (!isset($subscriptions[$uid][$event_type][$oid][$sub->sid])) {
         $subscriptions[$uid][$event_type][$oid][$sub->sid] = $sub;
@@ -632,6 +656,31 @@ function notifications_module_invoke($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
 
 /**
  * Implementation of hook_messaging()
+ * 
+ * This hook provides information about the mensaje templates this module uses and related tokens.
+ * 
+ * Depending on $op, this hook takes different parameters and returns different pieces of information:
+ * 
+ * - 'message groups'
+ *   Get array of message groups, each of which will have one or more keys for different templates
+ *   Each group should have a unique key, so it should start with the module name
+ * - 'message keys'
+ *   Get message template parts for a given group ($arg1)
+ *   Return array of key => name for each part
+ * - 'messages'
+ *   Get default message templates for a given group ($arg1).
+ *   It should return default texts, indexed by message key that will be the default templates
+ *   These templates may be edited on the 'Messaging templates' page
+ * - 'tokens'
+ *   Get available tokens for a given message group and key ($arg1).
+ *   Return array of token keys that will be available for this message templates
+ *   The tokens themselves may be default tokens (provided by token module) or we can add new
+ *   tokens implementing hook_token_list() and hook_token_value()
+ * 
+ * @param $op
+ *   Operation, type of information to retrieve
+ * @param $arg1, $arg2...
+ *   Different parameters depending on $op
  */
 function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
@@ -704,10 +753,7 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
           $tokens[] = 'event';
         }
       }
-      return $tokens;
-    case 'pull':
-      require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-      return notifications_process_pull($arg1, $arg2, $arg3, $arg4);      
+      return $tokens;   
   }
 }
 
