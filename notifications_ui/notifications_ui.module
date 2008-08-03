@@ -99,16 +99,16 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
       '#description' => t('Enable different display options for subscriptions to this content type'), 
     );  
   }
-  elseif (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && notifications_ui_type_options($form['#node']->type, 'form')) {
+  elseif (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && notifications_ui_type_options($form['type']['#value'], 'form')) {
     //  Add node forms.
     $node = $form['#node'];
-    $form[] = notifications_ui_node_form($node);
+    $form[] = notifications_ui_node_form(NULL, $node, TRUE);
   }
   elseif ($form_id == 'comment_form')  {
     // Add to comment forms.
     $node = node_load($form['nid']['#value']);
     if ($user->uid && notifications_ui_type_options($node->type, 'comment')) {
-      $form[] = notifications_ui_node_form($node);    
+      $form[] = notifications_ui_node_form(NULL, $node, TRUE);    
     }
   }
 }

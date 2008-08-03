@@ -15,6 +15,9 @@ TO DO
 
 6.x-1.0-beta1 to ....
 ------------------------------
+- Fixed multiple strings across all modules, by rastatt, #290063
+- Implemented hook_requirements for checking enabled sending methods
+- Fixed node subform parameters in notifications_ui_form_alter
 - Fixed typo in notifications_autosubscribe form text
 - Added inline documentation about the messaging/notifications API
 - Removed obsoleted 'pull' operation in notifications_messaging()

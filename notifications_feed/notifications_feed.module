@@ -154,7 +154,7 @@ function notifications_feed_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = N
           // So we specify only subject and main message
           return array(
             'subject' => t('Subject'),
-            'main' => t('Body content'),
+            'main' => t('Content'),
           );
         break;
       }
@@ -221,7 +221,7 @@ function notifications_feed_token_list($type = 'all') {
     $tokens['feed']['feed-name'] = t('The feed name');
     $tokens['feed']['feed-teaser']    = t('The feed teaser.');
     $tokens['feed']['feed-url'] = t('The URL for the feed');
-    $tokens['feed']['feed-items-refresh']    = t('The list of refresed (new and updated) items.');
+    $tokens['feed']['feed-items-refresh']    = t('The list of refreshed (new and updated) items.');
     $tokens['feed']['feed-items-updated']    = t('The list of updated feed items.');
     $tokens['feed']['feed-items-new'] = t('The list of new feed items');
   }

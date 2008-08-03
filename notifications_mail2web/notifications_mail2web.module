@@ -262,7 +262,7 @@ function notifications_mail2web_mail($key, &$message, $params) {
       $text[] = t('The email you sent to @to was rejected because there was a validation error.', $text_vars, $language->language);
       break;
     case MAIL2WEB_ERROR_EXPIRED:
-      $text[] = t('The email you sent to @to was rejected because it was sent after the response window for the original email had expired.', $text_vars, $language->language);
+      $text[] = t('The email you sent to @to was rejected because it was sent after the allowed response time for the original email.', $text_vars, $language->language);
       break;
     case MAIL2WEB_ERROR_USER:
       $text[] = t('The email you sent to @to was rejected because we couldn\'t authenticate it.', $text_vars, $language->language);
