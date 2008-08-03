@@ -154,7 +154,7 @@ function notifications_feed_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = N
           // So we specify only subject and main message
           return array(
             'subject' => t('Subject'),
-            'main' => t('Body content'),
+            'main' => t('Content'),
           );
         break;
       }

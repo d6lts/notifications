@@ -229,7 +229,7 @@ function notifications_mail2web_error($error, $node, $header, $params = array())
       break;
     case MAIL2WEB_ERROR_EXPIRED:
       watchdog('mail2web', t('Received an email with a expired signature from @from: @subject', $text_vars));
-      $message[] = t('The email you sent to @to was rejected because it was sent after the response window for the original email had expired.', $text_vars);
+      $message[] = t('The email you sent to @to was rejected because it was sent after the allowed response time for the original email.', $text_vars);
       break;
     case MAIL2WEB_ERROR_USER:
       watchdog('mail2web', t('Received an e-mail without a valid user id from @from: @subject', $text_vars), WATCHDOG_WARNING);

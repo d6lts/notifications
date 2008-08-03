@@ -13,6 +13,7 @@ TO DO
 
 5.x-1.0-rc1 to ...
 ------------------------------
+- Fixed multiple strings across all modules, by rastatt, #290063
 - Fixed typo in notifications_autosubscribe form text
 - Added inline documentation about the messaging/notifications API
 - Removed obsoleted 'pull' operation in notifications_messaging()
