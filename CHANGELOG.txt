@@ -13,6 +13,7 @@ TO DO
 
 5.x-1.0-rc1 to ...
 ------------------------------
+- Spin off notifications_mail2web to it's own package, http://drupal.org/project/mail2web
 - Fixed multiple strings across all modules, by rastatt, #290063
 - Fixed typo in notifications_autosubscribe form text
 - Added inline documentation about the messaging/notifications API
