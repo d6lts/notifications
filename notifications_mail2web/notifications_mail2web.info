@@ -1,7 +1,0 @@
-; $Id$
-name = Mail to Web
-description = Gateway module for responding to posts via mail
-package = "Notifications"
-dependencies[] = notifications
-dependencies[] = mailhandler
-core = 6.x

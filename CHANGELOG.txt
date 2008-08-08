@@ -15,6 +15,7 @@ TO DO
 
 6.x-1.0-beta1 to ....
 ------------------------------
+- Spin off notifications_mail2web to it's own package, http://drupal.org/project/mail2web
 - Fixed multiple strings across all modules, by rastatt, #290063
 - Implemented hook_requirements for checking enabled sending methods
 - Fixed node subform parameters in notifications_ui_form_alter
