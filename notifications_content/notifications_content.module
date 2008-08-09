@@ -229,7 +229,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
     case 'message groups':
-      $help = t('The body header and footer will be taken from Notification events');
+      $help = t('The header and footer will be taken from Notification events');
       // Generic notifications event
       $info['notifications-event-node'] = array(
         'module' => 'notifications_content',
