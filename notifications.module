@@ -1071,6 +1071,12 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
     'event_type' => $info['event_type'],
   );
   $defaults += _notifications_subscription_defaults($account);
+  // Hide Send method column if only one
+  $send_methods = _notifications_send_methods();
+  $header = array(theme('table_select_header_cell'), $field_title, t('Send interval'));
+  if (count($send_methods) > 1) {
+    $header[] = t('Send method');
+  }  
   $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
   $form['account'] = array('#type' => 'value', '#value' => $account);
   $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
@@ -1078,8 +1084,10 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
   $form['subscriptions'] = array(
     '#tree' => TRUE,
     '#theme' => 'notifications_form_table',
-    '#header' => array(theme('table_select_header_cell'), $field_title, t('Send interval'), t('Send method'))
+    '#header' => $header,
   );  
+
+
   foreach ($list as $key => $title) {
     $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
     $rowdefaults += $rowdefaults;
@@ -1095,11 +1103,16 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
       '#options' => _notifications_send_intervals(),
       '#default_value' => $rowdefaults['send_interval'],
     );
-    $form['subscriptions']['send_method'][$key] = array(
-      '#type' => 'select',
-      '#options' => _notifications_send_methods(),
-      '#default_value' => $rowdefaults['send_method'],
-    );
+    // Hide send methods if only one available
+    if (count($send_methods) > 1) {
+      $form['subscriptions']['send_method'][$key] = array(
+        '#type' => 'select',
+        '#options' => _notifications_send_methods(),
+        '#default_value' => $rowdefaults['send_method'],
+      );
+    } else {
+      $form['subscriptions']['send_method'][$key] = array('#type' => 'value', '#value' => $rowdefaults['send_method']);
+    }
     // Pass on the fields for processing
     $form['subscription_fields']['#value'][$key] = array($field => $key);
   

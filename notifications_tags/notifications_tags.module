@@ -152,6 +152,12 @@ function notifications_tags_user_form($form_state, $account) {
   $form['subscriptions'] = array(
     '#tree' => TRUE,
   );
+  // Hide send methods if only one
+  $send_methods = _notifications_send_methods();
+  $header = array(theme('table_select_header_cell'), t('Term'), t('Send interval'));
+  if (count($send_methods) > 1) {
+    $header[] = t('Send method');
+  }  
   foreach ($vocabularies as $vid => $vocab) {
     // display vocabulary name and group terms together
     $form['subscriptions'][$vid] = array(
@@ -161,7 +167,7 @@ function notifications_tags_user_form($form_state, $account) {
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
       '#theme' => 'notifications_form_table',
-      '#header' => array(theme('table_select_header_cell'), t('Term'), t('Send interval'), t('Send method')),
+      '#header' => $header,
       '#parents' => array('subscriptions'),
     );
     // @ TODO create mechanism to allow users to
@@ -185,11 +191,16 @@ function notifications_tags_user_form($form_state, $account) {
         '#options' => _notifications_send_intervals(),
         '#default_value' => $rowdefaults['send_interval'],
       );
-      $form['subscriptions'][$vid]['send_method'][$key] = array(
-        '#type' => 'select',
-        '#options' => _notifications_send_methods(),
-        '#default_value' => $rowdefaults['send_method'],
-      );
+      
+      if (count($send_methods) > 1) {
+        $form['subscriptions'][$vid]['send_method'][$key] = array(
+          '#type' => 'select',
+          '#options' => _notifications_send_methods(),
+          '#default_value' => $rowdefaults['send_method'],
+        );
+      } else {
+        $form['subscriptions'][$vid]['send_method'][$key] =  array('#type' => 'value', '#value' => $rowdefaults['send_method']);
+      }
       // Pass on the fields for processing
       $form['subscription_fields']['#value'][$key] = array($field => $key);
     
