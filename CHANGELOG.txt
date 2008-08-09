@@ -13,7 +13,11 @@ TO DO
 - Improve documentation and help texts
   - Information about when messages are digested and when not
 
-6.x-1.0-beta1 to ....
+6.x-1.0-beta2 to ...........
+------------------------------
+- Moved developer documentation to online handbook, http://drupal.org/node/253102
+
+6.x-1.0-beta1 to 6.x-1.0-beta2
 ------------------------------
 - Hiding sending methods for user pages if only one, by jaydub, #250161
 - Spin off notifications_mail2web to it's own package, http://drupal.org/project/mail2web
