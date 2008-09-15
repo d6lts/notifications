@@ -121,13 +121,17 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
  *   a node object
  * @param $subform
  *   Optional produce subform instead of full form with buttons
+ * @param $node_options
+ *   Allows to override node subscription options to display
  * @return 
  *   Partial subscription form, just missing submit button.
  */
-function notifications_ui_node_form($form_state, $node, $subform = TRUE) {
+function notifications_ui_node_form($form_state, $node, $subform = TRUE, $node_options = NULL) {
   global $user;
   $form = array();
-  $node_options = notifications_ui_user_node($user, $node);
+  
+  // Retrieve node options if not passed
+  $node_options = is_null($node_options) ? notifications_ui_user_node($user, $node) : $node_options;
   
   if (count($node_options)) {
     // Process all options building the array of indexed params for each
@@ -293,17 +297,21 @@ function notifications_ui_user_node($account, $node) {
  * Implementation of hook_block()
  */
 function notifications_ui_block($op = 'list', $delta = 0) {
+  global $user;
+  
   if ($op == 'list') {
     $blocks[0]['info'] = t('Subscriptions');
     return $blocks;
   }
   else if ($op == 'view') {
     if ((arg(0) == 'node') && is_numeric(arg(1)) && ($node = node_load(arg(1))) && notifications_ui_type_options($node->type, 'block')) {
-      $block['subject'] = t('Subscriptions');
-      $block['content'] = drupal_get_form('notifications_ui_node_form', $node, FALSE);
-      return $block;
+      // Only display if we have something for the form
+      if ($node_options = notifications_ui_user_node($user, $node)) {
+        $block['subject'] = t('Subscriptions');
+        $block['content'] = drupal_get_form('notifications_ui_node_form', $node, FALSE, $node_options);
+        return $block;
+      }      
     }
-
   }  
 }
 

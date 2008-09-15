@@ -1172,6 +1172,10 @@ function notifications_theme() {
       'arguments' => array('element' => NULL),
       'file' => 'notifications.admin.inc',
     ),
+    'notifications_digest_body' => array(
+      'arguments' => array('text' => NULL, 'list' => NULL),
+      'file' => 'notifications.cron.inc',
+    ),
   );
 }
 

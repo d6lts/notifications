@@ -139,7 +139,6 @@ function notifications_send_intervals_form() {
   // New row
   $form['submit'] = array('#type' => 'submit', '#value' => t('Update'));
   $form['reset'] = array('#type' => 'submit', '#value' => t('Reset to defaults'));
-  $form['#theme'] = 'notifications_send_intervals';
 
   return $form;
 }
