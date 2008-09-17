@@ -43,19 +43,24 @@ function notifications_menu($may_cache) {
       'callback arguments' => 'notifications_settings_form',
       'access' => user_access('administer site configuration'),
     );
-
     $items[] = array(
       'path' => 'admin/messaging/notifications/settings',
       'title' => t('Settings'),
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
     );
-
     $items[] = array(
       'path' => 'admin/messaging/notifications/intervals',
       'title' => t('Intervals'),
       'callback' => 'drupal_get_form',
       'callback arguments' => 'notifications_send_intervals_form',
+      'type' => MENU_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/messaging/notifications/events',
+      'title' => t('Events'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'notifications_admin_events_form',
       'type' => MENU_LOCAL_TASK,
     );
     // Notifications status and queue management
@@ -216,9 +221,23 @@ function notifications_event($event) {
     'type' => '', // Object/event type
     'action' => '', // Action that happened to the object
     'params' => array(), // Object parameters
-    'save' => TRUE, // Store this event, can be changed by plug-in modules
-    'queue' => TRUE, // Send to queueing, can be changed by plug-in modules
   );
+
+  // Check whether we have to save and queue this event, defaults to yes if not set
+  $info = variable_get('notifications_events', array());
+  if (isset($info[$event['type']][$event['action']]) && !$info[$event['type']][$event['action']]) {
+    // Do not store nor queue this event, can be changed by plug-in modules
+    $event += array(
+      'save' => FALSE,
+      'queue' => FALSE,
+    );
+  } else {
+    $event += array(
+      'save' => TRUE, 
+      'queue' => TRUE,
+    );   
+  }
+
   $event = (object)$event;
 
   // Notify other modules we are about to trigger some subscriptions event
