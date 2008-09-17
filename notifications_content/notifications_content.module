@@ -172,6 +172,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('New content of type [type-name] has been submitted'),
         'line' => t('[type-name] [title] by [author-name]'),
         'digest' => array('node', 'type'),
+        'description' => t('Node creation'),
       );
       // These other events are grouped for each node. The digest will look like:
       //   Story: Title of the story
@@ -183,6 +184,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('[type-name]: [title]'),
         'line' => t('The [node-type] has been updated'),
         'digest' => array('node', 'nid'), 
+        'description' => t('Node update'),
       );      
       $types[] = array(
         'type' => 'node',
@@ -190,6 +192,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('[type-name]: [title]'),
         'line' => t('New comment by [comment-author-name]: [comment-title]'), 
         'digest' => array('node', 'nid'),
+        'description' => t('Node comment'),
       );
       return $types;
 

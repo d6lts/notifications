@@ -78,6 +78,14 @@ function notifications_menu() {
     'access arguments' => array('administer site configuration'),
     'file' => 'notifications.admin.inc',
   );
+  $items['admin/messaging/notifications/events'] = array(
+    'title' =>'Events',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_admin_events_form'),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+  );
   // Subscribe links. For this items access will be checked later in the page
   $items['notifications/subscribe/%user'] = array(
     'type' => MENU_CALLBACK,
@@ -212,9 +220,23 @@ function notifications_event($event) {
     'type' => '', // Object/event type
     'action' => '', // Action that happened to the object
     'params' => array(), // Object parameters
-    'save' => TRUE, // Store this event, can be changed by plug-in modules
-    'queue' => TRUE, // Send to queueing, can be changed by plug-in modules
   );
+  
+  // Check whether we have to save and queue this event, defaults to yes if not set
+  $info = variable_get('notifications_events', array());
+  if (isset($info[$event['type']][$event['action']]) && !$info[$event['type']][$event['action']]) {
+    // Do not store nor queue this event, can be changed by plug-in modules
+    $event += array(
+      'save' => FALSE,
+      'queue' => FALSE,
+    );
+  } else {
+    $event += array(
+      'save' => TRUE, 
+      'queue' => TRUE,
+    );   
+  }
+
   $event = (object)$event;
 
   // Notify other modules we are about to trigger some subscriptions event
@@ -802,6 +824,7 @@ function notifications_token_list($type = 'all') {
  */
 function notifications_event_types($type = NULL, $action = NULL) {
   static $info;
+
   if (!$info) {
     $types = notifications_module_information('event types');
     foreach ($types as $type_info) {

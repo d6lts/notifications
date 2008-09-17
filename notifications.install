@@ -84,6 +84,9 @@ function notifications_install() {
  */
 function notifications_uninstall() {
   drupal_uninstall_schema('notifications');
+  foreach (array('events', 'send_intervals', 'sender', 'sendself', 'send_inmediate') as $name) {
+    variable_del("notifications_$name");
+  }
 }
 
 /**

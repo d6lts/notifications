@@ -183,7 +183,40 @@ function theme_notifications_send_intervals($element) {
   return $output;
 }
 
-/* ******************************************************* */
+/**
+ * Event configuration administration
+ * 
+ * Will allow to define which events trigger a notification and which ones not
+ */
+function notifications_admin_events_form() {
+  // Compile array from plug-ins and settings
+  $events = notifications_event_types();
+  $current = variable_get('notifications_events', array());
+
+  if ($events) {
+    $form['notifications_events'] = array(
+      '#title' => t('Enabled events'),
+      '#type' => 'fieldset',
+      '#tree' => TRUE,
+      '#description' => t('Check the events for which notifications should be triggered.'),
+    );
+    foreach ($events as $object => $object_info) {
+      foreach ($object_info as $action => $action_info) {
+        $form['notifications_events'][$object][$action] = array(
+          '#type' => 'checkbox',
+          '#title' => !empty($action_info['description']) ? $action_info['description'] : "$object:$action",
+          '#default_value' => isset($current[$object][$action]) ? $current[$object][$action] : 1,
+        );
+      }
+    }
+    return system_settings_form($form);
+  } else {
+    $form['warning'] = array('#value' => t('You need to enable some plug-ins to provide notifications events.'));
+    return $form;
+  }  
+}
+
+/* ********************************************t*********** */
 /*  user screens: display, edit functions */
 /* ******************************************************* */
 
