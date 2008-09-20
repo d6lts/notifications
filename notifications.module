@@ -593,8 +593,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
     $where[] = (is_numeric($value) && strstr($field, 's.')) ? $name .' = %d' : "$name = '%s'";
   }
 
-  $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) .
-  $sql .= ' WHERE '. implode(' AND ', $where);
+  $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) . ' WHERE '. implode(' AND ', $where);
   
   if ($pager) {
     $sql .= ' ORDER BY s.sid';

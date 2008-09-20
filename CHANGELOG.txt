@@ -1,18 +1,9 @@
 // $Id$
 
-TO DO
-------
-* More digesting options. Digests per subscription type and digests per thread. So we’ll have to rethink the process to make it more extendable.
-* Full configurable digest lines/messages through the message parts UI.
-* Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
-* Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
-* Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
-* Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
-- Improve documentation and help texts
-  - Information about when messages are digested and when not
-
-5.x-1.0-rc1 to ...
+5.x-1.0-rc1 to 5.x-1.0-rc2
 ------------------------------
+- Fixed notices and code readability, by Zen, #310598
+- Fixed concatenationsyntax error, by Zen, #310594
 - Implemented: configurable events to trigger or not notification, #255402
 - Moved developer documentation to online handbook, http://drupal.org/node/253102
 - Spin off notifications_mail2web to it's own package, http://drupal.org/project/mail2web

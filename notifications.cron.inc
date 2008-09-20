@@ -173,7 +173,8 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       $limit[$name] = $value;
       break;
     case 'count':
-      $current[$name] += $value ? $value : 1;
+      $value =  $value ? $value : 1;
+      isset($current[$name]) ? ($current[$name] += $value) : $current[$name] = $value;
       break;
     case 'option':
       if (isset($value)) {

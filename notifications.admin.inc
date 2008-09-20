@@ -266,13 +266,8 @@ function notifications_page_user_overview($account) {
       );
     }
   }
-  if ($rows) {
-    $output .= theme('table', $header, $rows);
-  }
-  else {
-    $output .= t('No existing or allowed subscriptions');
-  }
-  return $output;
+
+  return $rows ? theme('table', $header, $rows) : t('No existing or allowed subscriptions');
 }
 
 /** Administration pages **/
