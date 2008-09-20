@@ -4,10 +4,24 @@
  * Class for testing notifications module.
  * Tests basic API functions
  */
-class Notifications_API_Tests extends DrupalTestCase {
+class NotificationsBasicTests extends DrupalWebTestCase {
   
-  function get_info() {
-    return array('name' => 'Notifications API', 'group' => 'Notifications', 'desc' => 'Notifications API functions' );
+  function getInfo() {
+    return array(
+      'name' => 'Notifications Basics',
+      'group' => 'Notifications', 
+      'description' => 'Notifications API functions and administration pages');
+  }
+  
+  function setUp() {
+    parent::setUp('notifications');
+
+    // Log in with administrator permissions
+    $user = $this->drupalCreateUser(array('administer notifications', 'maintain own subscriptions', 'administer site configuration'));
+    $this->drupalLogin($user);
+    
+    // Next, perform any required steps for the test methods within this test grouping.
+    // variable_set('some_variable');
   }
 
   /**
@@ -16,10 +30,10 @@ class Notifications_API_Tests extends DrupalTestCase {
   function testNotificationsBasicAPI() {
     $test_type = 'test';
     $test_event_type = 'test event';
-    // Login with a user who has Notifications admin rights
-    //$user = $this->drupalCreateUserRolePerm(array('administer notifications'));
-    //$this->drupalLoginUser($user);    
-    $user = user_load(array('uid' => 1));
+    
+    // Any user will do for exercising the API
+    $user = $this->drupalCreateUser();
+    
     $s1 = new Stdclass();
     $s1->uid = $user->uid;
     $s1->type = $test_type;
@@ -61,5 +75,30 @@ class Notifications_API_Tests extends DrupalTestCase {
     notifications_delete_subscriptions(array('type' => $test_type));
     $subs = notifications_get_subscriptions(array('type' => $test_type));
     $this->assertEqual(count($subs), 0, 'The subscriptions have been deleted');
+  }
+
+  /**
+   * Log in as administrator and test page loading
+   */
+  function testNotificationsBasicPages() {
+    //$user = user_load(array('uid' => 1));
+    //$this->drupalLogin($user);
+    $this->drupalGet('admin/messaging/notifications');
+    $this->assertText('General settings', 'General settings page showing up');
+    $this->drupalGet('admin/messaging/notifications/events');
+    $this->assertText('events', 'Enabled events page showing up');
+    $this->drupalGet('admin/messaging/notifications/intervals');
+    $this->assertText('Send intervals', 'Intervals page showing up');    
+  }
+
+  /**
+   * Implementation of tearDown().
+   */
+  function tearDown() {
+    // Perform any clean-up tasks.
+    //variable_del('some_variable');
+
+    // The last thing a tearDown() method should always do is call its parent tearDown() method.
+    parent::tearDown();
   }
 }

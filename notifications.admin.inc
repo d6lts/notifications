@@ -268,13 +268,8 @@ function notifications_page_user_overview($account) {
       );
     }
   }
-  if ($rows) {
-    $output .= theme('table', $header, $rows);
-  }
-  else {
-    $output .= t('No existing or allowed subscriptions');
-  }
-  return $output;
+
+  return $rows ? theme('table', $header, $rows) : t('No existing or allowed subscriptions');
 }
 
 /** Administration pages **/
@@ -385,6 +380,10 @@ function notifications_admin_queue_process($param) {
 function notifications_page_subscribe($account, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
   global $user;
 
+  // Check signature if present
+  $params = array('subscribe', $account->uid, $type, $fields, $values);
+  $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));
+  if (!empty($_GET['signature'])) drupal_set_message(_notifications_signature($params, !empty($_GET['confirm'])));
   // Build subscriptions object
   $subscription = (object)array(
     'uid' => $account->uid,
@@ -396,7 +395,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   );      
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Display subscription information
-    if (empty($_GET['confirm'])) {
+    if (!empty($_GET['confirm']) && $signed) {
       // Subscribe, no confirmation
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
@@ -490,13 +489,16 @@ function notifications_field_args($fields, $values) {
 function notifications_page_unsubscribe($sid) {
   global $user;
   
+  // Check signature if present
+  $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature(array('unsubscribe', $sid), !empty($_GET['confirm']));
+  
   if (is_numeric($sid) && ($subscription = notifications_load_subscription($sid)) ) {
     if (user_access('administer notifications') ||
       ($user->uid && $user->uid == $subscription->uid) ||
-      (!empty($_GET['signature']) && ($_GET['signature'] == _notifications_signature(array('unsubscribe', $sid))))
+      $signed
     ) {
-      // Display confirmation page or not
-      if (empty($_GET['confirm'])) {
+      // Skip confirmation page when requested and the signature is ok
+      if (!empty($_GET['confirm']) && $signed) {
         notifications_delete_subscription($sid);
         drupal_set_message(t('Your subscription has been removed.'));
         drupal_goto();

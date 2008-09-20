@@ -593,8 +593,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
     $where[] = is_numeric($value) ? $name .' = %d' : "$name = '%s'";
   }
   
-  $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) .
-  $sql .= ' WHERE '. implode(' AND ', $where);
+  $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) . ' WHERE '. implode(' AND ', $where);
   
   if ($pager) {
     $sql .= ' ORDER BY s.sid';
@@ -852,7 +851,16 @@ function notifications_cron() {
 }
 
 /**
- * Return url for subscriptions
+ * Return link array for subscriptions
+ * 
+ * @param $type
+ *   Link type: 'subscribe' | 'unsubscribe'
+ * @param $params
+ *   Aditional parameters for the subscription, may be
+ *   - uid, the user for which the link is generated
+ *   - confirm, whether to show confirmation page or not
+ *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
+ *   - Other subscription parameters: type, fields...
  */
 function notifications_get_link($type, $params) {
   global $user;
@@ -882,15 +890,17 @@ function notifications_get_link($type, $params) {
   }
   // Build query string using named parameters
   $query = $params['query'];
-
   if ($params['destination']) {
     $query['destination'] = $params['destination'];
   }
-  if ($params['confirm']) {
+  // To skip the confirmation form, the link must be signed
+  // Note tat the query string will be 'confirm=1' to skip confirmation form
+  if (!$params['confirm']) {
     $query['confirm'] = 1;
+    $params['signed'] = 1;
   }
   if ($params['signed']) {
-    $query['signature'] =  _notifications_signature($elements);
+    $query['signature'] =  _notifications_signature($elements, !$params['confirm']);
   }
   // Build final link parameters
   $options['query'] = $query;
@@ -987,9 +997,14 @@ function _notifications_send_methods($account = NULL) {
 
 /**
  * Signature for url parameters
+ * 
+ * @param $params
+ *   Subscription parameters
+ * @param $skip_confirm
+ *   TRUE to skip confirmation form
  */
-function _notifications_signature($params) {
-  return md5('notifications:'. drupal_get_private_key() .':'. implode(':', $params));
+function _notifications_signature($params, $skip_confirm = FALSE) {
+  return md5('notifications:'. drupal_get_private_key() .':'. ($skip_confirm ? 1 : 0) . ':' . implode(':', $params));
 }
 
 /**

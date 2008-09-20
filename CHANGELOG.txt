@@ -15,6 +15,12 @@ TO DO
 
 6.x-1.0-beta2 to 6.x-1.0-beta3
 ------------------------------
+- Updated tests to latest simpletest (6.x-2.3) and added some new ones.
+- Code clean up: Removed notifications_pull_pending(), obsoleted
+- Fixed Hook form alter in autosubscribe has wrong parameters, by darren.ferguson, #309174
+- Fixed notices and code readability, by Zen, #310598
+- Fixed concatenationsyntax error, by Zen, #310594
+
 - Implemented: configurable events to trigger or not notification, #255402
 - Added some variable removal to uninstall hook, more may be needed.
 - Fixed formatting issues with intervals table, #295656

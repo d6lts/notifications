@@ -37,11 +37,12 @@ function notifications_autosubscribe($type, $event_type, $field, $value) {
  *
  * Adds autosubscribe checkbox to user edit form.
  */
-function notifications_autosubscribe_form_alter($form_id, &$form) {
+function notifications_autosubscribe_form_alter(&$form, $form_state, $form_id) {
   switch ($form_id) {
     case 'user_edit':
-      if (isset($form['notifications'])) {
-        $form['notifications']['notifications_auto'] = array(
+    case 'user_profile_form':
+      if (isset($form['messaging'])) {
+        $form['messaging']['notifications_auto'] = array(
           '#type'          => 'checkbox',
           '#title'         => t('Autosubscribe'),
           '#default_value' => notifications_user_setting('auto', $form['_account']['#value']),

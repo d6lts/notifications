@@ -7,17 +7,29 @@
  * Notes:
  *  - An exception (PHP warning) is thrown when content module (cck) is enabled, nothing to worry about.
  */
-class Notifications_Content_Tests extends DrupalTestCase {
+class NotificationsContentTests extends DrupalWebTestCase {
   
-  function get_info() {
-    return array('name' => 'Notifications Content', 'group' => 'Notifications', 'desc' => 'Content Notifications API functions' );
+  function getInfo() {
+    return array(
+      'name' => 'Notifications Content',
+      'group' => 'Notifications',
+      'description' => 'Content Notifications API functions' );
+  }
+  
+  function setUp() {
+    parent::setUp('messaging', 'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui');
+    // Set some defaults
+    // Default send interval will be: Inmediately
+    variable_set('notifications_default_send_interval', 0);
+    variable_set('notifications_default_send_method', 'debug');
   }
 
   /**
    * Play with creating, retrieving, deleting a pair subscriptions
    */
   function testNotificationsContent() {
-    // Create a new content-type for creating the feed node
+    // Create a new content-type for subscribing to
+    /*
     $info = new Stdclass();
     $info->type = $this->randomName();
     $info->name = 'Notifications '. str_replace('_', ' ', $this->randomName());
@@ -30,18 +42,18 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $info->min_word_count = 0;
     $info->custom = TRUE;
     node_type_save($info);
-
-    // Author for testing, will be admin
-    $author = user_load(array('uid' => 1));
-        
-    // Fake node for testing
-    $node = new Stdclass();
-    $node->title = 'Notifications '. $this->randomName();
-    $node->body = 'This is a test node for content subscriptions.';
-    $node->type = $info->type;
-    $node->uid = $author->uid;
-    $node->status = 1;
-    node_save($node);
+    */
+    $ctype = $this->drupalCreateContentType();
+    
+    // Author and node for testing, will be admin
+    $author = $this->drupalCreateUser();
+    $node = $this->drupalCreateNode(array(
+      'title' => 'Notifications '. $this->randomName(),
+      'body' => 'This is a test node for content subscriptions.',
+      'type' => $ctype->type,
+      'uid' => $author->uid,
+      'status' => 1,    
+    ));
     
     $subs_thread = new Stdclass();
     $subs_thread->type = 'thread';
@@ -57,33 +69,66 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $user = drupal_anonymous_user();
     $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), FALSE, 'Subscription not allowed for anonymous user');
     
-    // Try permissions with a different user
-    $user = $this->drupalCreateUserRolePerm(array('access content', 'maintain own subscriptions', 'subscribe to content', 'subscribe to content type', 'subscribe to author'));
+    // Create an authorized user and try permissions 
+    $user = $this->drupalCreateUser(array('access content', 'maintain own subscriptions', 'subscribe to content', 'subscribe to content type', 'subscribe to author'));
     $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), TRUE, 'Subscription is allowed for user with the right permissions');
-  
+    $this->drupalLogin($user);
+ 
+    // Check content type page before and after enabling this content type
+    $allowed = notifications_content_types();
+    $this->assertEqual(isset($allowed[$ctype->type]), TRUE, 'Subscriptions are allowed for the new content type');
+    
+    $allowed[$ctype->type] = 0;
+    variable_set('notifications_content_types', $allowed);
+    $this->drupalGet('user/'. $user->uid .'/notifications/nodetype');
+    $this->assertNoText($ctype->name, 'User account subscriptions doesn\'t show content type.');
+   
+    $allowed[$ctype->type] = $ctype->type;
+    variable_set('notifications_content_types', $allowed);
+    $this->drupalGet('user/'. $user->uid .'/notifications/nodetype');
+    $this->assertText($ctype->name, 'User account subscriptions shows content type.');    
+    
     // Create a real thread subscription for a user
-    $this->drupalLoginUser($user);
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => TRUE, 'absolute' =>TRUE));
-    $this->drupalGet(url($link['href'], $link['options']));
-    $this->assertText(t('Confirm your subscription'), 'Thread subscription: Subscriptions confirmation page is shown');
-    $this->assertWantedRaw(t('Thread: %title', array('%title' => check_plain($node->title))), 'Confirmation page parameters are ok');
-    $this->clickSubmit(t('Subscribe'));
-    $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid)));
+    $this->drupalGet($link['href'], $link['options']);
+    $this->assertText('Confirm your subscription', 'Thread subscription: Subscriptions confirmation page is shown');
+    $this->assertRaw(t('Thread: %title', array('%title' => check_plain($node->title))), 'Confirmation page parameters are ok');
+    $this->drupalPost($link['href'], array(), 'Subscribe');
+    $this->assertText('Your subscription was activated', 'Confirmation message is displayed');
+    
+    // Retrieve the subscription from the database
+    $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node);
+    $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');
+    $subscription = array_shift($subs);
+    
+    // Try unsubscribe & subscribe again with signed links
+    $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'confirm' => FALSE));
+    $this->drupalGet($link['href'], $link['options']);
+    $this->assertText(t('Your subscription has been removed.'), 'Thread subscription successfully removed with signed link');
+    
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => FALSE));
+    $this->drupalGet($link['href'], $link['options']);
+    $this->assertText(t('Your subscription was activated.'), 'Created thread subscription with signed link');
+
+    // Retrieve the subscription from the database
+    $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node, TRUE);
+    $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');
+    $subscription = array_shift($subs);
     
     // Create content type subscription
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type), 'confirm' => TRUE, 'absolute' =>TRUE));
-    $this->drupalGet(url($link['href'], $link['options']));
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type)));
+    $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Confirm your subscription'), 'Content type: Subscriptions confirmation page is shown');
-    $this->assertWantedRaw(t('Content type: %type', array('%type' => $info->name)), 'Confirmation page parameters are ok');
-    $this->clickSubmit(t('Subscribe'));
+    $this->assertRaw(t('Content type: %type', array('%type' => $ctype->name)), 'Confirmation page parameters are ok');
+    $this->drupalPost($link['href'], array(), 'Subscribe');
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
-    // Create author subscription for admin
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid), 'confirm' => TRUE, 'absolute' =>TRUE));
-    $this->drupalGet(url($link['href'], $link['options']));
+    // Create subscription for content posted by author
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid)));
+    $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Confirm your subscription'), 'Author: Subscriptions confirmation page is shown');
-    $this->assertWantedRaw(t('Author: %name', array('%name' => $author->name)), 'Confirmation page parameters are ok');
-    $this->clickSubmit(t('Subscribe'));
+    $this->assertRaw(t('Author: %name', array('%name' => $author->name)), 'Confirmation page parameters are ok');
+    $this->drupalPost($link['href'], array(), 'Subscribe');
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
     // Check subscriptions actually being created
@@ -91,28 +136,24 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $this->assertEqual(count($subs), 3, 'The 3 subscriptions have actually been created');
 
     // Check user account pages
-    $this->drupalGet(url('user/'. $user->uid. '/notifications', array('absolute' => TRUE)));
+    $this->drupalGet('user/'. $user->uid. '/notifications');
     $this->assertText(t('Thread'), 'User account overview shows threads.');
     $this->assertText(t('Content type'), 'User account overview shows content type.');
     $this->assertText(t('Author'), 'User account overview shows author.');
     
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/thread', array('absolute' => TRUE)));
+    $this->drupalGet('user/'. $user->uid .'/notifications/thread');
     $this->assertText($node->title, 'User account subscriptions shows threads.');
     
-    // Check content type page before and after enabling this content type
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype', array('absolute' => TRUE)));
-    $this->assertNoText($info->name, 'User account subscriptions doesn\'t show content type.');
-    $allowed = notifications_content_types('type');
-    $allowed[$info->type] = $info->type;
-    $this->drupalVariableSet('notifications_content_types', $allowed);
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype', array('absolute' => TRUE)));
-    $this->assertText($info->name, 'User account subscriptions shows content type.');
-    
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/author', array('absolute' => TRUE)));
+    $this->drupalGet('user/'. $user->uid .'/notifications/author');
     $this->assertText($author->name, 'User account subscriptions shows author.');
 
     // Make sure we have some queueing before going on
-    $this->drupalVariableSet('notifications_send_immediate', 0);
+    variable_set('notifications_send_immediate', 0);
+    variable_set('notifications_sendself', 1);
+    
+    // Enable for update events, disble for comments
+    $events['node']['update'] = 1;
+    variable_set('notifications_events', $events);
     
     // Trigger a node update event
     $node = node_load($node->nid, NULL, TRUE);   
@@ -121,14 +162,28 @@ class Notifications_Content_Tests extends DrupalTestCase {
         
     // Check queued notifications. We should have three queued notifs at the end
     $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
-    $this->assertEqual($count, 3, 'We have the right number of rows in queue.');
-    
+    $this->assertEqual($count, 3, 'We have the right number of rows in queue: '.$count);
+
+    // Disable notifications for updates and try again
+    $events['node']['update'] = 0;
+    variable_set('notifications_events', $events);
+
+    // Trigger a node update event
+    $node = node_load($node->nid, NULL, TRUE);   
+    $node->body .= 'Updated.';
+    node_save($node);
+ 
+    // Check queued notifications. We should have three queued notifs at the end
+    $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
+    $this->assertEqual($count, 3, 'Disabling notifications for node updates worked, we have the right number of rows in queue: '. $count);
+        
     // Get messages from queue. After de-duping there should be only one.
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
     $send_method = notifications_user_setting('send_method', $user);
     $send_interval = notifications_user_setting('send_interval', $user);
-    $queued = notifications_process_pull($send_method, array($user->uid));
-    $this->assertEqual(count($queued), 1, 'Messages for this event have been queued.');
+    // Update this part of the test, pull function is obsolete
+    //$queued = notifications_process_pull($send_method, array($user->uid));
+    //$this->assertEqual(count($queued), 1, 'Messages for this event have been queued.');
 
     // Simulate real queue processing and check queue has been cleaned.
     $max_sqid = notifications_process_prepare();
@@ -143,7 +198,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
     notifications_delete_subscriptions(array('uid' => $user->uid));
     // Remove temporary node and content-type
     node_delete($node->nid);
-    node_type_delete($info->type);
+    node_type_delete($ctype->type);
 
   }
 }

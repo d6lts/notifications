@@ -53,51 +53,6 @@ function notifications_process_run($cron = TRUE) {
 }
 
 /**
- * Support of pull messaging
- * 
- * @see messaging_pull_pending()
- * 
- * @return
- *  Array of pending messages
- */
-function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE) {
-  $messages = array();
-  $maxsqid = 0;
-  // Just fetches row in creation order de-duping same events on the step
-  $sql = "SELECT uid, eid, module, MIN(sid) AS sid, MAX(sqid) AS sqid FROM {notifications_queue} ";
-  $sql .= "WHERE send_method = '%s' AND uid IN (%s) GROUP BY uid, eid, module ORDER BY sqid";
-  $str_uids = implode(',', $users);
-  if ($limit) {
-    $result = db_query_range($sql, $method, $str_uids, 0, $limit);
-  }
-  else {
-    $result = db_query($sql, $method, $str_uids);
-  }
-  
-  // Fetch and prepare messages
-  while ($queue = db_fetch_object($result)) {
-    $maxsqid = $queue->squid;
-    $account = notifications_callback($queue->module, 'load_user', $queue->uid);
-    $event = notifications_load_event($queue->eid);
-    // Access control for event objects
-    if (notifications_callback($queue->module, 'user_allowed', 'event', $account, $event)) {
-      $subscriptions = array($queue->sid);
-      $message = notifications_callback($queue->module, 'process_message', $account, $event, $subscriptions, $method);
-      $message['uid'] = $queue->uid;
-      $message['from'] = $event->uid;
-      $messages[] = $message;
-    }
-  }
-  // Delete returned rows
-  if ($messages && $delete) {
-    db_query("DELETE FROM {notifications_queue} WHERE sqid < %d AND send_method = '%s' AND uid IN (%s)", $maxsqid, $method, $str_uids);
-  }
-
-  // Return collected messages;
-  return $messages;
-}
-
-/**
  * Prepare subscriptions queue
  * 
  * This is intended to avoid race conditions where new rows are added while the process is running
@@ -175,7 +130,8 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       $limit[$name] = $value;
       break;
     case 'count':
-      $current[$name] += $value ? $value : 1;
+      $value =  $value ? $value : 1;
+      isset($current[$name]) ? ($current[$name] += $value) : $current[$name] = $value;
       break;
     case 'option':
       if (isset($value)) {
