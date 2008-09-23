@@ -903,7 +903,7 @@ function notifications_get_link($type, $params) {
 function notifications_user_allowed($type, $account, $object = NULL) {
 
   // Invoke notifications hook and check for a FALSE return value
-  
+
   $permissions = notifications_module_information('access', $type, $account, $object);
 
   if ($permissions) {

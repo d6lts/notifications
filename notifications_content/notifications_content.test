@@ -70,13 +70,31 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $this->clickSubmit(t('Subscribe'));
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
     
-    // Create content type subscription
+    // Create content type subscription, also check permissions
+    $allowed = variable_get('notifications_content_types', array());
+    $allowed[$info->type] = 0;
+    $this->drupalVariableSet('notifications_content_types', $allowed);
     $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type), 'confirm' => TRUE));
+    // First we should get an error message, content type not allowed
+    $this->drupalGet(url($link['href'], $link['query'], NULL, TRUE));
+    $this->assertText(t('Subscription type or parameters not allowed'), 'Error message for not allowed content type');
+    
+    // Check content type page before and after enabling this content type
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
+    $this->assertNoText($info->name, 'User account subscriptions doesn\'t show content type.');
+    
+    // Now we allow it and should get a confirmation page
+    $allowed[$info->type] = 1;
+    $this->drupalVariableSet('notifications_content_types', $allowed);
     $this->drupalGet(url($link['href'], $link['query'], NULL, TRUE));
     $this->assertText(t('Confirm your subscription'), 'Content type: Subscriptions confirmation page is shown');
     $this->assertWantedRaw(t('Content type: %type', array('%type' => $info->name)), 'Confirmation page parameters are ok');
     $this->clickSubmit(t('Subscribe'));
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
+
+    // User account page should now display it
+    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
+    $this->assertText($info->name, 'User account subscriptions shows content type.');
 
     // Create author subscription for admin
     $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid), 'confirm' => TRUE));
@@ -98,15 +116,6 @@ class Notifications_Content_Tests extends DrupalTestCase {
     
     $this->drupalGet(url('user/'. $user->uid .'/notifications/thread'));
     $this->assertText($node->title, 'User account subscriptions shows threads.');
-    
-    // Check content type page before and after enabling this content type
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
-    $this->assertNoText($info->name, 'User account subscriptions doesn\'t show content type.');
-    $allowed = notifications_content_types('type');
-    $allowed[$info->type] = $info->type;
-    $this->drupalVariableSet('notifications_content_types', $allowed);
-    $this->drupalGet(url('user/'. $user->uid .'/notifications/nodetype'));
-    $this->assertText($info->name, 'User account subscriptions shows content type.');
     
     $this->drupalGet(url('user/'. $user->uid .'/notifications/author'));
     $this->assertText($author->name, 'User account subscriptions shows author.');

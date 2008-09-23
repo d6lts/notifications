@@ -4,6 +4,8 @@
 ------------------------------
 - Added german translation, by rastatt, #311403
 - Dropped the option to skip confirmation form
+- Fixed: Subscriptions allowed for disallowed content types, #295646
+- Fixed some unit tests
 
 5.x-1.0-rc1 to 5.x-1.0-rc2
 ------------------------------
