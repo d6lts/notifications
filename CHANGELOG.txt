@@ -1,5 +1,10 @@
 // $Id$
 
+5.x-1.0-rc2 to 5.x-1.0 (First stable release!)
+------------------------------
+- Added german translation, by rastatt, #311403
+- Dropped the option to skip confirmation form
+
 5.x-1.0-rc1 to 5.x-1.0-rc2
 ------------------------------
 - Fixed notices and code readability, by Zen, #310598

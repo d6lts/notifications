@@ -391,17 +391,9 @@ function notifications_page_subscribe($uid, $type, $fields, $values, $send_inter
         'event_type' => notifications_subscription_types($type, 'event_type'),
       );      
       if (notifications_user_allowed('subscription', $account, $subscription)) {
-        // Display subscription information
-        if (empty($_GET['confirm'])) {
-          // Subscribe, no confirmation
-          notifications_save_subscription($subscription);
-          drupal_goto();
-        }
-        else {
-          // Ask for confirmation
-          drupal_set_title(t('Confirm your subscription'));
-          return drupal_get_form('notifications_form_confirm', $subscription);
-        }
+        // Display subscription information and confirmation form
+        drupal_set_title(t('Confirm your subscription'));
+        return drupal_get_form('notifications_form_confirm', $subscription);
       }
       else {
         drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
@@ -492,10 +484,9 @@ function notifications_page_unsubscribe($sid) {
       ($user->uid && $user->uid == $subscription->uid) ||
       (!empty($_GET['signature']) && ($_GET['signature'] == _notifications_signature(array('unsubscribe', $sid))))
     ) {
-      notifications_delete_subscription($sid);
-      drupal_set_message(t('Your subscription has been removed.'));
-      drupal_goto();
-      return;
+      // Force confirmation form for unsubscribe
+      drupal_set_title(t('Unsubscribe'));
+      return drupal_get_form('notifications_form_unsubscribe_confirm', $subscription);
     }
   }
   drupal_access_denied();
@@ -608,4 +599,43 @@ function notifications_user_form_submit($form_id, $form_values) {
       notifications_delete_subscription($current[$index]->sid);
     }
   }
+}
+
+/**
+ * Form for unsubscription confirmation
+ */
+function notifications_form_unsubscribe_confirm($subscription) {
+
+  // Pass on subscription values
+  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
+
+  // The names will be added here
+  notifications_module_invoke('names', $subscription);
+
+  $form['info'] = array(
+    '#type' => 'item',
+    '#title' => t('!type subscription to', array('!type' => $subscription->type_name)),
+    '#value' => theme('item_list', $subscription->names),
+  );
+
+  $form['confirm'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
+  $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
+  return $form;
+}
+
+/**
+ * Process form submission
+ */
+function notifications_form_unsubscribe_confirm_submit($form_id, $form_values) {
+  $subscription = $form_values['subscription'];
+  switch ($form_values['op']) {
+    case t('Unsubscribe'):
+      notifications_delete_subscription($subscription->sid);
+      drupal_set_message(t('Your subscription has been removed.'));
+      break;
+    case t('Cancel'):
+      // Do nothing, not worth showing a message, just get back
+      break;
+  }
+  return 'user/'. $subscription->uid .'/notifications';   
 }

@@ -849,13 +849,12 @@ function notifications_cron() {
 }
 
 /**
- * Return url for subscriptions
+ * Return url for subscriptions. Confirmation form is not optional.
  */
 function notifications_get_link($type, $params) {
   global $user;
   $params += array(
     'uid' => $user->uid,
-    'confirm' => TRUE,
     'signed' => FALSE,
     'destination' => $_GET['q'],
   );
@@ -880,9 +879,6 @@ function notifications_get_link($type, $params) {
   $query = array();
   if ($params['destination']) {
     $query[] = 'destination='. $params['destination'];
-  }
-  if ($params['confirm']) {
-    $query[] = 'confirm=1';
   }
   if ($params['signed']) {
     $query[] = 'signature='. _notifications_signature($elements);
