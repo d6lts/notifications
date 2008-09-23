@@ -212,13 +212,19 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         }
       // For node subscriptions we check that user can view the node
       }
-      elseif ($type == 'subscription' && !empty($object->fields['nid'])) {
-        if ($node = node_load($object->fields['nid'])) {
-          $access =  notifications_content_node_allow($account, $node);
+      elseif ($type == 'subscription') {
+        $access = TRUE;
+        if (!empty($object->fields['nid'])) {
+          if ($node = node_load($object->fields['nid'])) {
+            $access =  notifications_content_node_allow($account, $node);
+          }
+          else {
+            $access = FALSE;
+          }
         }
-        else {
-          $access = FALSE;
-        }
+        if (!empty($object->fields['type'])) {
+          $access = $access && array_key_exists($object->fields['type'], notifications_content_types());
+        } 
       }
       return array($access);      
       break;

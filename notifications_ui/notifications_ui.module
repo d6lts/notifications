@@ -283,13 +283,20 @@ function notifications_ui_user_node($account, $node) {
       $subscriptions += $more;
     }
   }      
+  // Do some matching and populate subscriptions when they exist
   foreach ($allowed_options as $index => $option) {
     foreach ($subscriptions as $sub) {
       if ($sub->type == $option['type'] && !array_diff_key($option['fields'], $sub->fields)) {
         $allowed_options[$index]['subscription'] = $sub;
       }        
     }
-  }  
+  }
+  // Finally check permissions for all of them
+  foreach ($allowed_options as $index => $option) {
+    if (!notifications_user_allowed('subscription', $account, (object)$option)) {
+      unset ($allowed_options[$index]);
+    }
+  }
   return $allowed_options;
 }
 

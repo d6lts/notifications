@@ -512,7 +512,7 @@ function notifications_page_unsubscribe($sid) {
 }
 
 /**
- * Form for subscription confirmation
+ * Form for unsubscription confirmation
  */
 function notifications_form_unsubscribe_confirm($form_state, $subscription) {
 
@@ -546,6 +546,5 @@ function notifications_form_unsubscribe_confirm_submit($form, &$form_state) {
     case t('Cancel'):
       // Do nothing, not worth showing a message, just get back
       break;
-  }
-  return 'user/'. $subscription->uid .'/notifications';   
+  } 
 }
