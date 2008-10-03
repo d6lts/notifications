@@ -57,7 +57,7 @@ function notifications_content_access($account, $perm) {
   global $user;
   return
     ($account->uid && $account->uid == $user->uid && user_access($perm)) ||
-    (user_access('administer notificatins') && user_access($perm, $account));
+    (user_access('administer notifications') && user_access($perm, $account));
 }
 
 /**

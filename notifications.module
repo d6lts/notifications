@@ -540,7 +540,7 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
       $args[] = $value;
     }
   }
-  // Query notificatinons that meet these conditions and build an array
+  // Query notifications that meet these conditions and build an array
   $result = db_query('SELECT n.sid FROM {notifications} n '. implode(' ', $join) .' WHERE '. implode(' AND ', $where), $args);
   $delete = array();
   while ($n = db_fetch_object($result)) {
