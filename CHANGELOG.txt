@@ -15,6 +15,9 @@ TO DO
 
 6.x-1.0-beta3 to
 ------------------------------
+- Set module weight for notifications_content, by Zen, #316353
+- Fixed blocking issue with notifications queue, by Scott Reynolds, #318248
+
 - Added german translation, by rastatt, #311403
 - Fixed: Subscriptions allowed for disallowed content types, #295646
 

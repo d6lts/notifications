@@ -68,8 +68,8 @@ function notifications_process_prepare($module = 'notifications') {
   db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid NOT IN (SELECT eid FROM {notifications_queue})", $expiretime);
   $squid = db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
   if ($squid) {
-    // Delete non existent or blocked users
-    db_query("DELETE FROM {notifications_queue} WHERE module = '%s' AND uid NOT IN (SELECT uid FROM {users} WHERE status = 1)", $module);
+    // Delete notifications for blocked users
+    db_query("DELETE FROM {notifications_queue} WHERE module = '%s' AND uid IN (SELECT uid FROM {users} WHERE status <> 1)", $module);
   }
   // @ TODO We may use this step to fill in some data or doing some other optimizations
   return $squid;
