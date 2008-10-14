@@ -106,18 +106,14 @@ function notifications_process_pull($method, $users, $limit = 0, $delete = FALSE
  *   Max $sqid that will be processed this cron
  */
 function notifications_process_prepare($module = 'notifications') {
-  // Another funny race condition may occur when the event is saved but the subs queue not yet populated  
-  $expiretime = time() - 60;
-  // Clean up event table.
-  // @ TODO Consider a different timing for this cleanup
-  db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid NOT IN (SELECT eid FROM {notifications_queue})", $expiretime);
-  $squid = db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
-  if ($squid) {
-    // Delete non existent or blocked users
-    db_query("DELETE FROM {notifications_queue} WHERE module = '%s' AND uid NOT IN (SELECT uid FROM {users} WHERE status = 1)", $module);
-  }
-  // @ TODO We may use this step to fill in some data or doing some other optimizations
-  return $squid;
+  // Clean up event table. As events are created sequentially, we use this fact to speed up the query
+  // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
+  $expiretime = time() - 60;  
+  db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid < (SELECT MIN(eid) FROM {notifications_queue})", $expiretime);
+  
+  // This will get the latest notification in queue so we don't mess with new ones being created during cron run
+  // It will also prevent clashes with the inmediate sending feature
+  return db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
 }
 
 /**
