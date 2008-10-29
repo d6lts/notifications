@@ -1,10 +1,14 @@
 // $Id$
 
+5.x-1.0 to ..............
+------------------------------
+- Added Dutch translation by Mr. Pi, #323350
+- Fixed wrong token, by truelove-nl, #319945
+
 5.x-1.0-rc2 to 5.x-1.0 (First stable release!)
 ------------------------------
 - Added constants for subscription status
 - Fixed some slow queries, scalability issues, by Scott Reynolds, #318810 and #318248
-
 - Added german translation, by rastatt, #311403
 - Dropped the option to skip confirmation form
 - Fixed: Subscriptions allowed for disallowed content types, #295646
