@@ -22,4 +22,5 @@ function notifications_content_uninstall() {
  */
 function notifications_content_update_6000() {
   notifications_content_install();
+  return array();
 }

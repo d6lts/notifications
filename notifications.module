@@ -19,6 +19,14 @@
  *
  */
 
+// Define some values for subscription status
+// Blocked subscriptions, for blocked users
+define('NOTIFICATIONS_SUBSCRIPTION_BLOCKED', 0);
+// Enabled ones, will produce notifications
+define('NOTIFICATIONS_SUBSCRIPTION_ACTIVE', 1);
+// Temporarily disabled ones, maybe user on holidays
+define('NOTIFICATIONS_SUBSCRIPTION_INACTIVE', 2);
+
 /**
  * Implementation of hook_menu().
  */
@@ -156,6 +164,18 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
     case 'delete';
       // Delete related data on tables
       notifications_delete_subscriptions(array('uid' => $user->uid));
+      break;
+    case 'update':
+      if (isset($edit['status'])) {
+        if ($edit['status'] == 0) { // user is being blocked now
+          // Delete pending notifications and block existing active subscriptions
+          db_query('DELETE FROM {notifications_queue} WHERE uid = %d', $user->uid);
+          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
+        } else { 
+          // User may be being unblocked, unblock subscriptions if any
+          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_ACTIVE, NOTIFICATIONS_SUBSCRIPTION_BLOCKED, $user->uid);
+        }
+      }
       break;
   }
 }

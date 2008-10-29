@@ -182,7 +182,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'type' => 'node',
         'action' => 'update',
         'name' => t('[type-name]: [title]'),
-        'line' => t('The [node-type] has been updated'),
+        'line' => t('The [type-name] has been updated'),
         'digest' => array('node', 'nid'), 
         'description' => t('Node update'),
       );      
