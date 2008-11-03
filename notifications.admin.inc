@@ -182,6 +182,31 @@ function theme_notifications_send_intervals($element) {
 }
 
 /**
+ * Subscription types administration
+ */
+function notifications_admin_subscriptions_form() {
+  $variable = 'notifications_subscription_types';
+  $form[$variable] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Subscription types'),
+    '#description' => t('Enable the subscription types you want to have available.'),
+    '#tree' => TRUE
+  );
+  foreach (notifications_subscription_types() as $type => $info) {
+    $form[$variable][$type] = array(
+      '#title' => $info['title'],
+      '#type' => 'fieldset',
+    );
+    $form[$variable][$type]['enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Enabled'),
+      '#default_value' => isset($info['enabled']) ? $info['enabled'] : 1,
+    );
+  }
+  return system_settings_form($form);
+}
+
+/**
  * Event configuration administration
  * 
  * Will allow to define which events trigger a notification and which ones not

@@ -18,7 +18,7 @@ function notifications_content_menu($may_cache) {
   if ($may_cache) {
     $items[] = array(
       'path' => 'admin/messaging/notifications/content',
-      'title' => t('Content Subscriptions'),
+      'title' => t('Content types'),
       'type' => MENU_LOCAL_TASK,
       'callback' => 'drupal_get_form',
       'callback arguments' => array('notifications_content_settings_form'),
@@ -133,14 +133,36 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'fields' => array('author'),
       );
       return $types;
+    case 'subscription fields':
+      // Information about available fields for subscriptions
+      $fields['nid'] = array(
+        'name' => t('Node'),
+        'field' => 'nid',
+        'type' => 'int',
+      );
+      $fields['author'] = array(
+        'name' => t('Author'),
+        'field' => 'author',
+        'type' => 'int',
+      );
+      $fields['type'] = array(
+        'name' => t('Node type'),
+        'field' => 'author',
+        'type' => 'string',
+        'options callback' => 'node_get_types',
+        'options arguments' => array('names'),
+      );
+      return $fields; 
     case 'query':
-      // $arg2 is $event array.
+      // This returns query elements for queue or user queries:
+      // - If $arg0 is 'event', $arg1 is event type and $arg2 is $event object.
+      // - If $arg0 is 'user', $arg1 is object type ('node') and $arg2 is object ($node)
       if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
           $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         $query[]['fields'] = array(
-            'nid' => $node->nid,
-            'type' => $node->type,
-            'author' => $node->uid,
+          'nid' => $node->nid,
+          'type' => $node->type,
+          'author' => $node->uid,
         );
 
         return $query;
@@ -720,11 +742,3 @@ function notifications_content_comment_allow($account, $comment) {
   return $access[$account->uid][$comment->cid];
 }
 
-/**
- * Implementation of hook_simpletest().
- */
-function notifications_content_simpletest() {
-  $dir = drupal_get_path('module', 'notifications_content');
-  $tests = file_scan_directory($dir, '\.test');
-  return array_keys($tests);
-}

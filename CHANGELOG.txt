@@ -2,6 +2,7 @@
 
 5.x-1.1 to ......
 ------------------------------
+- Performance improvements for taxonomy subscriptions.
 - Improved query builder to support fields with array values.
 - Simpletest update, moved tests around, did some clean up.
 
