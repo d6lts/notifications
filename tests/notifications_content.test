@@ -17,6 +17,11 @@ class Notifications_Content_Tests extends DrupalTestCase {
    * Play with creating, retrieving, deleting a pair subscriptions
    */
   function testNotificationsContent() {
+    // Enable messaging debug mode so messages are not actually sent and create user for testing
+    // Enable debug mode so messages are not actually sent and create user for testing
+    $this->drupalModuleEnable('messaging_debug');
+    $this->drupalVariableSet('messaging_debug', 0);    
+    $this->drupalModuleEnable('notifications_content');    
     // Create a new content-type for creating the feed node
     $info = new Stdclass();
     $info->type = $this->randomName();
@@ -133,7 +138,7 @@ class Notifications_Content_Tests extends DrupalTestCase {
     $send_method = notifications_user_setting('send_method', $user);
     $send_interval = notifications_user_setting('send_interval', $user);    
     $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d AND send_method = '%s' AND send_interval = %d", $user->uid, $send_method, $send_interval));
-    $this->assertEqual($count, 3, 'We have the right number of rows in queue.');
+    $this->assertEqual($count, 3, 'We have the right number of rows in queue:'.$count);
     
     // Get messages from queue. After de-duping there should be only one.
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   

@@ -1,5 +1,10 @@
 // $Id$
 
+5.x-1.1 to ......
+------------------------------
+- Improved query builder to support fields with array values.
+- Simpletest update, moved tests around, did some clean up.
+
 5.x-1.0 to 5.x-1.1
 ------------------------------
 - Added Dutch translation by Mr. Pi, #323350

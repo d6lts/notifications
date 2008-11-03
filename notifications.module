@@ -57,6 +57,15 @@ function notifications_menu($may_cache) {
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
     );
+    /*
+    $items[] = array(
+      'path' => 'admin/messaging/notifications/subscriptions',
+      'title' => t('Subscription types'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'notifications_admin_subscriptions_form',
+      'type' => MENU_LOCAL_TASK,
+    );
+    */
     $items[] = array(
       'path' => 'admin/messaging/notifications/intervals',
       'title' => t('Intervals'),
@@ -346,9 +355,17 @@ function notifications_query_build($params, $base = array()) {
   foreach ($params as $name => $elements) {
       if ($name == 'fields') {
         foreach ($elements as $field => $value ) {
-          $query['where'][] = "f.field = '%s' AND f.value = '%s'";
-          $query['args'][] = $field;
-          $query['args'][] = $value;
+          // Handle array values with IN conditions
+          if (is_array($value)) {
+            $placeholders =  array_fill(0, count($value), "'%s'");
+            $query['where'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
+            $query['args'][] = $field;
+            $query['args'] = array_merge($query['args'], $value);
+          } else {
+            $query['where'][] = "f.field = '%s' AND f.value = '%s'";
+            $query['args'][] = $field;
+            $query['args'][] = $value;
+          }
         }
       }
       elseif (is_array($elements)) {
@@ -636,15 +653,23 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
  *   String, the subscriptions type OPTIONAL
  * @param $field
  *   String, a specific field to retrieve info from OPTIONAL
- *
+ * @param $default
+ *   Default value when querying a specific field
+ * 
  * @return
  *   Information for a given field and type
  *   or information for a given field for all types
  */
-function notifications_subscription_types($type = NULL, $field = NULL) {
+function notifications_subscription_types($type = NULL, $field = NULL, $default = NULL) {
   static $types;
   if (!isset($types)) {
     $types = notifications_module_information('subscription types');
+    // Variable overrides
+    if ($settings = variable_get('notifications_subscription_types', NULL)) {
+      foreach ($settings as $key => $value) {
+        $types[$key] = array_merge($types[$key], $value);
+      }
+    }
     notifications_alter('subscription_types', $types);
   }
   
@@ -654,7 +679,7 @@ function notifications_subscription_types($type = NULL, $field = NULL) {
   elseif ($field) {
     $return = array();
     foreach ($types as $id => $info) {
-      $return[$id] = $info[$field];
+      $return[$id] = isset($info[$field]) ? $info[$field] : $default;
     }
     return $return;
   }
@@ -1006,15 +1031,6 @@ function _notifications_subscription_defaults($account = NULL) {
     'module' => 'notifications',
     'status' => 1,
   ); 
-}
-
-/**
- * Implementation of hook_simpletest()
- */
-function notifications_simpletest() {
-  $dir = drupal_get_path('module', 'notifications') . DIRECTORY_SEPARATOR .'tests';
-  $tests = file_scan_directory($dir, '\.test');
-  return array_keys($tests);
 }
 
 /**
