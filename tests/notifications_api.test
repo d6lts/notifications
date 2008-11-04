@@ -56,10 +56,35 @@ class Notifications_API_Tests extends DrupalTestCase {
     $this->assertEqual(count($subs), 2, 'Retrieved subscriptions by type and general field');
     $subs = notifications_get_subscriptions(array('type' => $test_type), array('field1' => $s1->fields['field1'], 'field2' => $s1->fields['field2']), FALSE);
     $this->assertEqual(count($subs), 1, 'Retrieved subscriptions by type and general field');
-       
+    
     // Delete the subscriptions and check
     notifications_delete_subscriptions(array('type' => $test_type));
     $subs = notifications_get_subscriptions(array('type' => $test_type));
     $this->assertEqual(count($subs), 0, 'The subscriptions have been deleted');
+    
+    // Test query builder, first basic query, then add some fields
+    $query = notifications_query_build(array('select' => 'SELECT field1', 'join' => 'JOIN table1'));
+    $target = array('select' => array('SELECT field1'), 'join' => array('JOIN table1'), 'where' => array(), 'args' => array());
+    $this->assertEqual($query, $target, 'Build basic query with SELECT and JOIN.');
+    
+    $fields = array(
+      'f1' => 1,
+      'f2' => 'value2',
+    );
+    $query = notifications_query_build(array('fields' => $fields), $query);
+    $target['where'] = array("f.field = '%s' AND f.value = '%s'", "f.field = '%s' AND f.value = '%s'");
+    $target['args'] = array('f1', 1, 'f2', 'value2');
+    $this->assertEqual($query, $target, 'Build basic query with simple fields.');
+
+    $fields = array(
+      'f3' => array(1,2),
+      'f4' => array('value3', 'value4'),
+    );
+    $query = notifications_query_build(array('fields' => $fields), $query);
+    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
+    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
+    $target['args'] = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
+    $this->assertEqual($query, $target, 'Build basic query with array fields.');
+ 
   }
 }

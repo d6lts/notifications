@@ -173,17 +173,6 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
       if ((user_access('maintain own subscriptions') || user_access("admin users subscriptions")  )&& $category == 'account') {
         // Add settings into Messaging group
         $form = messaging_user($type, $edit, $user, $category);
-
-     
-        /*
-        $form['notifications']['notifications_teaser'] = array(
-          '#type'          => 'checkbox',
-          '#title'         => t('Include teaser'),
-          '#default_value' => isset($edit['notifications_teaser']) ? $edit['notifications_teaser'] : variable_get('notifications_teaser', 0),
-          '#description'   => t('Checking this box adds an excerpt of the post to the subscription email.'),
-        );
-        */
-        //return $form;
       }
       break;
   }
@@ -193,7 +182,7 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
  * Implementation of hook_form_alter()
  * - Override title for messaging settings
  */
-function notifications_form_alter($form_id, &$form) {//dsm($form);
+function notifications_form_alter($form_id, &$form) {
   if ($form_id == 'user_edit' && $form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) 
   {
     $form['messaging']['#title'] = t('Messaging and Notifications settings');
@@ -300,7 +289,7 @@ function notifications_queue($event) {
     foreach ($query_args as $query_params) {
       $query = notifications_query_build($query_params, $query);
     }
-    
+
     // We throw in all the conditions and check the number of matching conditions
     // that must be equal to the subscription conditions number
     $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) '.
@@ -315,7 +304,9 @@ function notifications_queue($event) {
     }
     // Some group by fields are not really needed but added for pgsql compatibility
     $sql .=  'GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions HAVING s.conditions = count(f.sid)';
+
     db_query($sql, $query['args']);
+
   }
 
   // Modules can do cleanup operations or modify the queue
@@ -353,27 +344,27 @@ function notifications_exit() {
 function notifications_query_build($params, $base = array()) {
   $query = $base + array('select' => array(), 'join' => array(), 'where' => array(), 'args' => array());
   foreach ($params as $name => $elements) {
-      if ($name == 'fields') {
-        foreach ($elements as $field => $value ) {
-          // Handle array values with IN conditions
-          if (is_array($value)) {
-            $placeholders =  array_fill(0, count($value), "'%s'");
-            $query['where'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
-            $query['args'][] = $field;
-            $query['args'] = array_merge($query['args'], $value);
-          } else {
-            $query['where'][] = "f.field = '%s' AND f.value = '%s'";
-            $query['args'][] = $field;
-            $query['args'][] = $value;
-          }
+    if ($name == 'fields') {
+      foreach ($elements as $field => $value ) {
+        // Handle array values with IN conditions
+        if (is_array($value)) {
+          $placeholders =  array_fill(0, count($value), "'%s'");
+          $query['where'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
+          $query['args'][] = $field;
+          $query['args'] = array_merge($query['args'], $value);
+        } else {
+          $query['where'][] = "f.field = '%s' AND f.value = '%s'";
+          $query['args'][] = $field;
+          $query['args'][] = $value;
         }
       }
-      elseif (is_array($elements)) {
-        $query[$name] = array_merge($query[$name], $elements);
-      }
-      else {
-        $query[$name][] = $elements;
-      }
+    }
+    elseif (is_array($elements)) {
+      $query[$name] = array_merge($query[$name], $elements);
+    }
+    else {
+      $query[$name][] = $elements;
+    }
   }
   return $query;
 }
@@ -667,7 +658,10 @@ function notifications_subscription_types($type = NULL, $field = NULL, $default 
     // Variable overrides
     if ($settings = variable_get('notifications_subscription_types', NULL)) {
       foreach ($settings as $key => $value) {
-        $types[$key] = array_merge($types[$key], $value);
+        // Check, because there may be settings for types that have been disabled later
+        if (isset($types[$key]) && is_array($value)) {
+          $types[$key] = array_merge($types[$key], $value);
+        }
       }
     }
     notifications_alter('subscription_types', $types);
@@ -752,10 +746,12 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       $info['notifications-event'] = array(
         'module' => 'notifications',
         'name' => t('Notifications event'),
+        'description' => t('Fallback for all Notifications events.'),
       );
       $info['notifications-digest'] = array(
         'module' => 'notifications',
         'name' => t('Notifications digest'),
+        'description' => t('Common parts for Notifications digests.'),
       );
       return $info;
     case 'message keys':      
@@ -773,7 +769,6 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
           return array(
             'subject' => t('Subject for digested notifications'),
             'header' =>  t('Header for digested notifications'),
-            'main' => t('Line for digested events'),
             'footer' => t('Footer for digested notifications'),
           );
       }
@@ -889,7 +884,7 @@ function notifications_event_types($type = NULL, $action = NULL) {
  * Implementation of hook_cron()
  */
 function notifications_cron() {
-  include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+  require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   notifications_process_run();
 }
 
@@ -988,6 +983,22 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
         }
         return array($access);
       }
+      break;
+    case 'digest methods':
+      // Return array of digesting engines
+      $info['short'] = array(
+        'type' => 'short',
+        'name' => t('Short'),
+        'description' => t('Produces one line per event, grouped by object'),
+        'digest callback' => 'notifications_process_digest_short',
+      );
+      $info['long'] = array(
+        'type' => 'long',
+        'name' => t('Long'),
+        'description' => t('Adds full information for each event'),
+        'digest callback' => 'notifications_process_digest_long',
+      );
+      return $info;
   }
 }
 
@@ -1005,6 +1016,35 @@ function _notifications_send_intervals() {
       604800 => t('Weekly'),      
     )
   );
+}
+
+/**
+ * Information about digesting method for a send interval.
+ * 
+ * @return array()
+ *   Ditest information for that interval, or all the information if no interval
+ */
+function notifications_digest_method($send_interval = NULL) {
+  static $digest_methods, $intervals;
+  
+  if (!isset($digest_methods)) {
+    // Method information
+    foreach (notifications_module_information('digest methods') as $method) {
+      $digest_methods[$method['type']] = $method;
+    }
+    // Mapping interval -> method
+    $intervals = variable_get('notifications_digest_methods', array());
+  }
+  if (is_null($send_interval)) {
+    return $digest_methods;
+  }
+  elseif (!empty($intervals[$send_interval]) && isset($digest_methods[$intervals[$send_interval]])) {
+    return $digest_methods[$intervals[$send_interval]];
+  }
+  else {
+    // Default, that will be 'short' if interval > 0, none otherwise
+    return ($send_interval > 0) ? $digest_methods['short'] : NULL;
+  }
 }
 
 /**

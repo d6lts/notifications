@@ -2,7 +2,10 @@
 
 5.x-1.1 to ......
 ------------------------------
-- Performance improvements for taxonomy subscriptions.
+- Digesting options per interval and support for digesting plug-ins.
+- New digest format, 'Long', to print out the whole event.
+- Reworked message templating and digesting, added tests.
+- Performance improvements for taxonomy subscriptions (and groups).
 - Improved query builder to support fields with array values.
 - Simpletest update, moved tests around, did some clean up.
 

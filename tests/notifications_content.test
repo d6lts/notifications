@@ -21,7 +21,9 @@ class Notifications_Content_Tests extends DrupalTestCase {
     // Enable debug mode so messages are not actually sent and create user for testing
     $this->drupalModuleEnable('messaging_debug');
     $this->drupalVariableSet('messaging_debug', 0);    
-    $this->drupalModuleEnable('notifications_content');    
+    $this->drupalModuleEnable('notifications_content');
+    $this->drupalVariableSet('notifications_default_send_interval', 0);
+
     // Create a new content-type for creating the feed node
     $info = new Stdclass();
     $info->type = $this->randomName();

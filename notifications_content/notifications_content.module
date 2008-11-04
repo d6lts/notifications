@@ -9,6 +9,27 @@
 define('NOTIFICATIONS_CONTENT_PAGER', 20);
 
 /**
+ * Implementation of hook_help()
+ */
+function notifications_content_help($section) {
+  if (arg(0) == 'admin' && arg(1) == 'messaging' && arg(2) == 'template' && arg(3) == 'edit' && ($group = arg(4))) {
+    switch ($group) {
+      case 'notifications-digest-node-nid':
+      case 'notifications-digest-node-type':
+        $help = '<p>' . t('This is the format for each digest group. A message may consist on one or many of these groups:') . '</p>';
+        $help .= '<small><pre>';
+        $help .= '' .t('Group subject') . "\n";
+        $help .= '- ' . t('Digest line.'). "\n";
+        $help .= '- ' . t('Digest line.'). "\n";
+        $help .= '-  ...'. "\n";
+        $help .= t('Group footer') . "\n";
+        $help .= '</pre></small>';
+        return $help;     
+    }    
+  }
+}
+
+/**
  * Implementation of hook_menu_()
  */
 function notifications_content_menu($may_cache) {
@@ -260,30 +281,51 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
     case 'message groups':
+      // These are the main entries for the template configuration page
+      // Each message group will have a number of elements to be put together
       $help = t('The header and footer will be taken from Notification events');
       // Generic notifications event
       $info['notifications-event-node'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node events'),
+        'description' => t('Defaults for all notifications related to node events.'),
         'help' => $help,
       );
       $info['notifications-event-node-insert'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node creation'),
+        'description' => t('Notifications produced when a new node is created.'),
         'help' => $help,
       );
       $info['notifications-event-node-update'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node updates'),
+        'description' => t('Notifications produced when a node is updated.'),
         'help' => $help,
       );
       $info['notifications-event-node-comment'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node comments'),
+        'description' => t('Notifications produced when a comment is posted to a node.'),
         'help' => $help,
+      );
+      // Extra help for group digests
+
+      $info['notifications-digest-node-nid'] = array(
+        'module' => 'notifications-content',
+        'name' => t('Groups digests per node'),
+        'description' => t('Group of events digested for each node.'),
+      );
+      $info['notifications-digest-node-type'] = array(
+        'module' => 'notifications-content',
+        'name' => t('Groups digests per node type'),
+        'description' => t('Group of events digested for each node type.'),
       );
       return $info;
     case 'message keys':      
+      // For each message group, there will be a number of elements, each one being part of the
+      // final message. They'll usually have at least subject and content parts.
+      // Some other elements (header and subject) will be taken from default Notifications templates
       $type = $arg1;
       switch ($type) {
         case 'notifications-event-node':
@@ -292,16 +334,20 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
         case 'notifications-event-node-comment':
           // Some parts will be re-used from 'notifications-event' group
           // So we specify only subject and main message
-          return array(
-            'subject' => t('Subject'),
-            'main' => t('Content'),
-          );
-        break;
+          $parts['subject'] = t('Subject');
+          $parts['main'] = t('Content');
+          $parts['digest'] = t('Digest line');
+          return $parts;
+        case 'notifications-digest-node-nid':
+        case 'notifications-digest-node-type':
+          $parts['title'] = t('Group title');
+          $parts['footer'] = t('Group footer');
+          return $parts;
       }
       break;
     case 'messages':
       $type = $arg1;
-      // Event notifications
+      // Default texts for node notifications templates
       switch ($type) {
         case 'notifications-event-node':
         case 'notifications-event-node-update':          
@@ -311,6 +357,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
               '[node-teaser]',
               t('Read more [node-url]'),
             ),
+            'digest' => t('The [type-name] has been updated'),
           );
         case 'notifications-event-node-insert':
           return array(
@@ -319,6 +366,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
               '[node-teaser]',
               t('Read more [node-url]'),            
             ),
+            'digest' => t('[type-name] [title] by [author-name]'),
           );             
         case 'notifications-event-node-comment': 
           return array(
@@ -328,18 +376,37 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
               '[comment-body]',
               t('Read more [comment-url]'),
             ),
-          );       
+            'digest' => t('New comment by [comment-author-name]: [comment-title]'),
+          );
+        case 'notifications-digest-node-nid':
+          return array(
+            'title' => t('Updates for [type-name]: [title]'),
+            'footer' => t('Read more [node-url]'),
+          );
+        case 'notifications-digest-node-type':
+          return array(
+            'title' => t('New content of type [type-name] has been submitted'),
+            'footer' => '<none>',
+          );
       }
       break;
     case 'tokens':
       $type = explode('-', $arg1);
       $tokens = array();
       // These are the token groups that will be used for this module's messages
-      if ($type[0] == 'notifications' && $type[1] == 'event') {
-        if ($type[2] == 'node') {
+      if ($type[0] == 'notifications' && $type[2] == 'node') {
+        if ($type[1] == 'event') {
           $tokens[] = 'node';
           if ($type[3] == 'comment') {
             $tokens[] = 'comment';
+          }
+        }
+        elseif ($type[1] == 'digest')  {
+          if ($type[3] == 'nid') {
+            $tokens[] = 'node';
+          }
+          elseif ($type[3] == 'type') {
+            $tokens[] = 'node-type';
           }
         }
       }
@@ -671,6 +738,10 @@ function notifications_content_token_list($type = 'all') {
   if ($type == 'comment' || $type == 'all') {  
     $tokens['comment']['comment-url'] = t('The comment view url.');
     $tokens['comment']['comment-reply-url'] = t('The comment reply url.');
+  }
+  // Special case for node type
+  if ($type == 'node-type' || $type == 'all') {
+    $tokens['node-type']['type-name']      = t('Node type (user-friendly version)');
   }
   return $tokens;
 }
