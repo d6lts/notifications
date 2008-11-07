@@ -142,6 +142,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         }
       }
       break;
+
     case 'subscription types':
       $types['thread'] = array(
         'event_type' => 'node',
@@ -165,6 +166,28 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'fields' => array('author'),
       );
       return $types;
+
+    case 'subscription fields':
+      // Information about available fields for subscriptions
+      $fields['nid'] = array(
+        'name' => t('Node'),
+        'field' => 'nid',
+        'type' => 'int',
+      );
+      $fields['author'] = array(
+        'name' => t('Author'),
+        'field' => 'author',
+        'type' => 'int',
+      );
+      $fields['type'] = array(
+        'name' => t('Node type'),
+        'field' => 'author',
+        'type' => 'string',
+        'options callback' => 'node_get_types',
+        'options arguments' => array('names'),
+      );
+      return $fields;
+
     case 'query':
       // $arg2 is $event array.
       if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||

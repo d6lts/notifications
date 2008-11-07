@@ -343,19 +343,27 @@ function notifications_exit() {
 function notifications_query_build($params, $base = array()) {
   $query = $base + array('select' => array(), 'join' => array(), 'where' => array(), 'args' => array());
   foreach ($params as $name => $elements) {
-      if ($name == 'fields') {
-        foreach ($elements as $field => $value ) {
+    if ($name == 'fields') {
+      foreach ($elements as $field => $value ) {
+        // Handle array values with IN conditions
+        if (is_array($value)) {
+          $placeholders =  array_fill(0, count($value), "'%s'");
+          $query['where'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
+          $query['args'][] = $field;
+          $query['args'] = array_merge($query['args'], $value);
+        } else {
           $query['where'][] = "f.field = '%s' AND f.value = '%s'";
           $query['args'][] = $field;
           $query['args'][] = $value;
         }
       }
-      elseif (is_array($elements)) {
-        $query[$name] = array_merge($query[$name], $elements);
-      }
-      else {
-        $query[$name][] = $elements;
-      }
+    }
+    elseif (is_array($elements)) {
+      $query[$name] = array_merge($query[$name], $elements);
+    }
+    else {
+      $query[$name][] = $elements;
+    }
   }
   return $query;
 }

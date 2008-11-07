@@ -17,8 +17,8 @@ class NotificationsBasicTests extends DrupalWebTestCase {
     parent::setUp('notifications');
 
     // Log in with administrator permissions
-    $user = $this->drupalCreateUser(array('administer notifications', 'maintain own subscriptions', 'administer site configuration'));
-    $this->drupalLogin($user);
+    //$user = $this->drupalCreateUser(array('administer notifications', 'maintain own subscriptions', 'administer site configuration'));
+    //$this->drupalLogin($user);
     
     // Next, perform any required steps for the test methods within this test grouping.
     // variable_set('some_variable');
@@ -30,6 +30,8 @@ class NotificationsBasicTests extends DrupalWebTestCase {
   function testNotificationsBasicAPI() {
     $test_type = 'test';
     $test_event_type = 'test event';
+
+
     
     // Any user will do for exercising the API
     $user = $this->drupalCreateUser();
@@ -81,14 +83,45 @@ class NotificationsBasicTests extends DrupalWebTestCase {
    * Log in as administrator and test page loading
    */
   function testNotificationsBasicPages() {
-    //$user = user_load(array('uid' => 1));
-    //$this->drupalLogin($user);
+    // Log in with administrator permissions
+    $user = $this->drupalCreateUser(array('administer notifications', 'maintain own subscriptions', 'administer site configuration'));
+    $this->drupalLogin($user);
+
     $this->drupalGet('admin/messaging/notifications');
     $this->assertText('General settings', 'General settings page showing up');
     $this->drupalGet('admin/messaging/notifications/events');
     $this->assertText('events', 'Enabled events page showing up');
     $this->drupalGet('admin/messaging/notifications/intervals');
     $this->assertText('Send intervals', 'Intervals page showing up');    
+  }
+
+  /**
+   * Test query builder
+   */
+  function testNotificationsQueryBuilder() {
+    // Test query builder, first basic query, then add some fields
+    $query = notifications_query_build(array('select' => 'SELECT field1', 'join' => 'JOIN table1'));
+    $target = array('select' => array('SELECT field1'), 'join' => array('JOIN table1'), 'where' => array(), 'args' => array());
+    $this->assertEqual($query, $target, 'Build basic query with SELECT and JOIN.');
+    
+    $fields = array(
+      'f1' => 1,
+      'f2' => 'value2',
+    );
+    $query = notifications_query_build(array('fields' => $fields), $query);
+    $target['where'] = array("f.field = '%s' AND f.value = '%s'", "f.field = '%s' AND f.value = '%s'");
+    $target['args'] = array('f1', 1, 'f2', 'value2');
+    $this->assertEqual($query, $target, 'Build basic query with simple fields.');
+
+    $fields = array(
+      'f3' => array(1,2),
+      'f4' => array('value3', 'value4'),
+    );
+    $query = notifications_query_build(array('fields' => $fields), $query);
+    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
+    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
+    $target['args'] = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
+    $this->assertEqual($query, $target, 'Build basic query with array fields.');    
   }
 
   /**
