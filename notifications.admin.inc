@@ -168,6 +168,7 @@ function notifications_send_intervals_form() {
 function notifications_send_intervals_form_submit($form_id, $form_values) {
   if ($form_values['op'] == t('Reset to defaults')) {
     variable_del('notifications_send_intervals');
+    variable_del('notifications_digest_methods');
   }
   else {
     $intervals = array();

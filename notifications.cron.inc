@@ -421,7 +421,7 @@ function notifications_process_digest_short($account, $events, $subscriptions, $
   $text = notifications_text_replace($text, array('user' => $account, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
-  $body = theme('notifications_digest_body', $text, $list);
+  $body = theme('notifications_digest_short_body', $text, $list);
     
   // Build the final digested message, and return in an array
   $message = array(
@@ -465,7 +465,7 @@ function notifications_process_digest_long($account, $events, $subscriptions, $s
   $text = notifications_text_replace($text, array('user' => $account, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
-  $body = theme('notifications_digest_body_long', $text['header'], $body, $text['footer']);
+  $body = theme('notifications_digest_long_body', $text['header'], $body, $text['footer']);
   
   // Build the final digested message, and return in an array
   $message = array(
@@ -717,13 +717,13 @@ function notifications_log($info = NULL, $type = 'info') {
  * @return
  *   Structured array with 'header', 'footer', and multiple text lines
  */
-function theme_notifications_digest_body($text, $list) {
+function theme_notifications_digest_short_body($text, $list) {
   $body['header'] = $text['header'];
   foreach ($list as $type => $objects) {
     foreach ($objects as $oid => $data) {      
       $body['content'][] = $data['group']['title'];
       foreach ($data['line'] as $line) {
-        $body['content'][] = theme('notifications_digest_line', $line, $data['group']);
+        $body['content'][] = theme('notifications_digest_short_line', $line, $data['group']);
       }
       $body['content'][] = $data['group']['footer'];
     }
@@ -735,7 +735,7 @@ function theme_notifications_digest_body($text, $list) {
 /**
  * Single line of text
  */
-function theme_notifications_digest_line($line, $group) {
+function theme_notifications_digest_short_line($line, $group) {
   return '- ' . $line;
 }
 
@@ -744,7 +744,7 @@ function theme_notifications_digest_line($line, $group) {
  * 
  * Actually we do nothing here, but it will be themeable.
  */
-function theme_notifications_digest_body_long($header, $content, $footer) {
+function theme_notifications_digest_long_body($header, $content, $footer) {
   return array('header' => $header, 'content' => $content, 'footer' => $footer);
 }
 

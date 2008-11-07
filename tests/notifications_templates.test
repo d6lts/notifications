@@ -122,7 +122,7 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     );
     $target = array(
       'subject' => 'digest subject ' . $test_line,
-      'body' => theme('notifications_digest_body', $body_common, $lines),
+      'body' => theme('notifications_digest_short_body', $body_common, $lines),
     );
        
     $digest = notifications_process_send(NULL, $event_list, array(), 'test', 1);
@@ -139,7 +139,7 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     );
     $target = array(
       'subject' => 'digest subject [type-name] [title] Test Site',
-      'body' => theme('notifications_digest_body_long', $body_common['header'], $body, $body_common['footer']),
+      'body' => theme('notifications_digest_long_body', $body_common['header'], $body, $body_common['footer']),
     );
 
     $digest = notifications_process_send(NULL, $event_list, array(), 'test', 2);
