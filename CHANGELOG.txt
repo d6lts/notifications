@@ -10,14 +10,16 @@ TO DO
 * Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
 - Support for message localization for multiple languages
 
-- Improve documentation and help texts
-  - Information about when messages are digested and when not
 
-6.x-1.0-beta3 to
+6.x-1.0-beta4 to ............
+-----------------------------
+- Allow aditional parameters for notifications_lite, by Frando, #304220
+- Disable notifications on content events, by Darren Fergusson, #331061
+
+6.x-1.0-beta3 to 6.x-1.0-beta4
 ------------------------------
 - Fixed wrong token, by truelove-nl, #319945
 - Fixed some slow queries, scalability issues, by Scott Reynolds, #318810 and #318248
-
 - Set module weight for notifications_content, by Zen, #316353
 - Fixed blocking issue with notifications queue, by Scott Reynolds, #318248
 - Added german translation, by rastatt, #311403

@@ -64,7 +64,38 @@ function notifications_content_access($account, $perm) {
  * Implementation of hook_perm()
  */
 function notifications_content_perm() {
-  return array('subscribe to content', 'subscribe to content type', 'subscribe to author');
+  return array('subscribe to content', 'subscribe to content type', 'subscribe to author', 'skip notifications');
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function notifications_content_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'comment_form') {
+    $form['notifications_content_disable'] = array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Disable Notifications'),
+      '#description'   => t('Check this box if you wish to disable notifications for this comment.'),
+      '#default_value' => 0,
+      '#access' => user_access('skip notifications'),
+    );    
+  }
+  elseif (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
+    $form['notifications_content'] = array(
+      '#type'        => 'fieldset',
+      '#title'       => t('Notifications'),
+      '#collapsible' => TRUE,
+      '#collapsed'   => TRUE,
+      '#weight'      => 1,
+      '#access' => user_access('skip notifications'),
+    );
+    $form['notifications_content']['notifications_content_disable'] = array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Disable Notifications'),
+      '#description'   => t('Check this box if you wish to disable notifications for this content update.'),
+      '#default_value' => 0,
+    );
+  }
 }
 
 /**
@@ -352,6 +383,7 @@ function _notifications_content_node_options($account, $node) {
  */
 function notifications_content_nodeapi(&$node, $op, $arg = 0) {
   global $user;
+
   switch ($op) {
     case 'update':
       if ($node->status == '0') { // unpublished
@@ -365,16 +397,18 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
       // else, fall through
 
     case 'insert':
-      $event = array(
-        'module' => 'node',
-        'uid' => $node->uid,
-        'oid' => $node->nid,
-        'type' => 'node',
-        'action' => $op,
-        'node' => $node,
-        'params' => array('nid' => $node->nid),      
-      );
-      notifications_event($event);
+      if (empty($node->notifications_content_disable)) {
+        $event = array(
+          'module' => 'node',
+          'uid' => $node->uid,
+          'oid' => $node->nid,
+          'type' => 'node',
+          'action' => $op,
+          'node' => $node,
+          'params' => array('nid' => $node->nid),      
+        );
+        notifications_event($event);
+      }
       break;
     case 'delete':
       // Remove all subscriptions for this node
@@ -389,7 +423,8 @@ function notifications_content_comment($comment, $op) {
   global $user;
     // $comment can be an object or an array.
   $comment = (array)$comment;
-  if (!isset($comment['nomail']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'update' || ($op == 'publish' && !user_access('administer comments')))) {
+  
+  if (empty($comment['notifications_content_disable']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'update' || ($op == 'publish' && !user_access('administer comments')))) {
     $event = array(
       'module' => 'node',
       'uid' => $comment['uid'],
