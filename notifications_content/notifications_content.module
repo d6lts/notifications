@@ -363,6 +363,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
           return array(
             'subject' => t('Subject'),
             'main' => t('Content'),
+            'digest' => t('Digest line'),
           );
         case 'notifications-digest-node-nid':
         case 'notifications-digest-node-type':
