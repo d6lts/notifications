@@ -13,10 +13,12 @@ TO DO
 
 6.x-1.0-beta4 to ............
 -----------------------------
+- Digesting options per interval and support for digesting plug-ins.
+- New digest format, 'Long', to print out the whole event.
+- Reworked message templating and digesting, added tests.
 - Performance improvements for taxonomy subscriptions (and groups).
 - Improved query builder to support fields with array values.
-- Added field information in hook_notifications() for contentg and tags
-
+- Added field information in hook_notifications() for contentg and tags.
 - Allow aditional parameters for notifications_lite, by Frando, #304220
 - Disable notifications on content events, by Darren Fergusson, #331061
 

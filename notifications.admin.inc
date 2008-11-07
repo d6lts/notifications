@@ -85,6 +85,19 @@ function notifications_settings_form() {
  * Send intervals administration
  */
 function notifications_send_intervals_form() {
+  // Collect information about digesting methods and print out some help
+  $form['digest'] = array(
+    '#title' => t('Digest formats'),
+    '#type' => 'fieldset',
+    '#description' => t('These are the digest formats available for each interval.')
+  );
+  $digest_methods[''] = t('None');
+  foreach (notifications_digest_method() as $type => $method) {
+    $digest_methods[$type] = $method['name'];
+    $rows[] = array($method['name'], $method['description']);    
+  }
+  $form['digest']['info'] = array('#value' => theme('table', array(), $rows));
+  
   // Build options
   $units = array(
     60 => t('Minutes'),
@@ -134,6 +147,13 @@ function notifications_send_intervals_form() {
       '#type' => 'textfield',
       '#default_value' => $name,
     );
+    $digest = notifications_digest_method($time);
+    $form['intervals'][$index]['digest'] = array(
+      '#type' => 'select',
+      '#disabled' => ($number < 0),
+      '#default_value' => $digest ? $digest['type'] : '',
+      '#options' => $digest_methods,
+    );
     $index++;
   }
   // New row
@@ -150,17 +170,22 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
   $form_values = $form_state['values'];
   if ($form_values['op'] == t('Reset to defaults')) {
     variable_del('notifications_send_intervals');
+    variable_del('notifications_digest_methods');
   }
   else {
     $intervals = array();
+    $digest = array();
     foreach ($form_values['intervals'] as $index => $values) {
       if (is_numeric($values['time']) && $values['name']) {
         $unit = $values['unit'] ? (int)$values['unit'] : 1;
-        $intervals[(int)$values['time'] * $unit] = $values['name'];
+        $time = (int)$values['time'] * $unit;
+        $intervals[$time] = $values['name'];
+        $digest[$time] = $values['digest'];
       }
     }
     ksort($intervals);
     variable_set('notifications_send_intervals', $intervals);
+    variable_set('notifications_digest_methods', $digest);
   }
   drupal_set_message(t('The time intervals for your subscriptions have been updated'));
 }
@@ -170,12 +195,13 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
  */
 function theme_notifications_send_intervals($element) {
   $output = '';
-  $header = array(array('data' => t('Time'), 'colspan' => 2), t('Display name'));
+  $header = array(array('data' => t('Time'), 'colspan' => 2), t('Display name'), t('Digest'));
   foreach (element_children($element) as $key) {
     $rows[] = array(
       drupal_render($element[$key]['time']),
       drupal_render($element[$key]['unit']),
       drupal_render($element[$key]['name']),
+      drupal_render($element[$key]['digest']),
     );  
   }
   $output .= theme('table', $header, $rows);
