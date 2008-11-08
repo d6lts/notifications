@@ -26,8 +26,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Drupal Notifications V6\n"
 "POT-Creation-Date: 2008-09-21 17:14+0200\n"
-"PO-Revision-Date: 2008-11-03 11:44+0100\n"
-"Last-Translator: Alexander Haß\n"
+"PO-Revision-Date: 2008-09-21 17:50+0100\n"
+"Last-Translator: Frank Tartler <frank.tartler@googlemail.com>\n"
 "Language-Team: Frank Tartler <frank.tartler@googlemail.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -352,7 +352,7 @@ msgstr "Dieses Abonnement kann abbestellt werden unter [unsubscribe-url]"
 
 #: notifications.module:754
 msgid "[site-name] subscription update for [user]"
-msgstr "[site-name] Aktualisierung des Abonnements für [user]"
+msgstr "[site-name] Abonnements-Aktualisierung für [user]"
 
 #: notifications.module:755
 msgid ""
