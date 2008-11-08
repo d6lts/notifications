@@ -11,8 +11,9 @@ TO DO
 - Support for message localization for multiple languages
 
 
-6.x-1.0-beta4 to ............
+6.x-1.0-beta4 to 6.x-1.0-rc1
 -----------------------------
+- Added support for updating sending methods from messaging.
 - Digesting options per interval and support for digesting plug-ins.
 - New digest format, 'Long', to print out the whole event.
 - Reworked message templating and digesting, added tests.

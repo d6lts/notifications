@@ -831,7 +831,13 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
         }
       }
       return $tokens;
-
+    case 'method update':
+      // A messaging method has been disabled ($arg1) and replaced by the new one ($arg2)
+      // Update subscriptions
+      db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
+      // Purge notifications queue, we may lost some notifications but it's the safest option.
+      db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $arg1);
+      break;
   }
 }
 
