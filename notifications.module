@@ -40,23 +40,33 @@ function notifications_menu() {
     'file' => 'system.admin.inc',
     'file path' => drupal_get_path('module', 'system'),
   );
-  $items['admin/messaging/notifications-status'] = array(
-    'title' => 'Notifications Status',
+  $items['admin/messaging/subscriptions'] = array(
+    'title' => 'Subscriptions',
     'description' => 'Manage users notifications.',
     'page callback' => 'notifications_admin_status_page',
     'access arguments' => array('administer notifications'),
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/messaging/notifications-status/overview'] = array(
+  $items['admin/messaging/subscriptions/overview'] = array(
     'title' => 'Overview',
     'description' => 'Subscriptions overview.',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/messaging/notifications-status/queue'] = array(
+  $items['admin/messaging/subscriptions/admin'] = array(
+    'title' => 'Administer',
+    'description' => 'Administer subscriptions.',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -10,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_admin_subscriptions'),
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/messaging/subscriptions/queue'] = array(
     'title' => 'Queue',
-    'description' => 'Subscriptions queue.',
+    'description' => 'Notifications queue.',
     'page callback' => 'notifications_admin_queue',
     'type' => MENU_LOCAL_TASK,
     'access arguments' => array('administer notifications'),
@@ -101,7 +111,7 @@ function notifications_menu() {
     'page arguments' => array(2),
     'access callback' => 'notifications_access_subscribe',
     'access arguments' => array(2),
-    'file' => 'notifications.admin.inc',
+    'file' => 'notifications.pages.inc',
   );
   // Unsubscribe links This page will need to work with anonymous users
   $items['notifications/unsubscribe/%'] = array(
@@ -109,7 +119,17 @@ function notifications_menu() {
     'page callback' => 'notifications_page_unsubscribe',
     'page arguments' => array(2),
     'access callback' => TRUE,
-    'file' => 'notifications.admin.inc',
+    'file' => 'notifications.pages.inc',
+  );
+  // Edit subscription
+  $items['notifications/subscription/%notifications_subscription'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Subscription',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_subscription_form', 2),
+    'access callback' => 'notifications_subscription_access',
+    'access arguments' => array('edit', 2),
+    'file' => 'notifications.pages.inc',
   );
   $items['user/%user/notifications'] = array(
     'type' => MENU_LOCAL_TASK,
@@ -118,7 +138,7 @@ function notifications_menu() {
     'page arguments' => array(1),
     'access callback' => 'notifications_access_user',
     'access arguments' => array(1),
-    'file' => 'notifications.admin.inc',
+    'file' => 'notifications.pages.inc',
   );
   $items['user/%user/notifications/overview'] = array(
     'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -146,6 +166,32 @@ function notifications_access_user($account) {
 function notifications_access_subscribe($account) {
   global $user;
   return $account && $account->uid && (user_access('administer notifications') || $user->uid == $account->uid);
+}
+
+/**
+ * Menu loading, subscription
+ */
+function notifications_subscription_load($sid) {
+  return notifications_load_subscription($sid);
+}
+
+/**
+ * Menu access callback
+ */
+function notifications_subscription_access($op, $subscription, $account = NULL) {
+  global $user;
+  
+  $account = $account ? $account : $user;
+  
+  if (user_access('administer notifications', $account)) return TRUE;
+  
+  switch($op) {
+    case 'edit':
+    case 'unsubscribe':
+      return ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
+  }
+
+  return FALSE;
 }
 
 /**
@@ -651,6 +697,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
  */
 function notifications_subscription_types($type = NULL, $field = NULL) {
   static $types;
+  
   if (!isset($types)) {
     $types = notifications_module_information('subscription types');
     notifications_alter('subscription_types', $types);
@@ -1102,6 +1149,17 @@ function _notifications_subscription_defaults($account = NULL) {
 }
 
 /**
+ * Status list
+ */
+function _notifications_subscription_status() {
+  return array(
+    NOTIFICATIONS_SUBSCRIPTION_BLOCKED => t('blocked'),
+    NOTIFICATIONS_SUBSCRIPTION_ACTIVE => t('active'),
+    NOTIFICATIONS_SUBSCRIPTION_INACTIVE => t('inactive'),
+ );
+}
+
+/**
  * Callback for module dependent data
  * 
  * Some data stored in the notifications system is meant to be processed by other modules and
@@ -1303,6 +1361,14 @@ function notifications_theme() {
     'notifications_digest_long_body' => array(
       'arguments' => array('header' => NULL, 'content' => NULL, 'footer' => NULL),
       'file' => 'notifications.cron.inc',
+    ),
+    'notifications_admin_subscriptions' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'notifications.admin.inc',
+    ),
+    'notifications_subscriptions_filter_form' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'notifications.admin.inc',
     ),
   );
 }

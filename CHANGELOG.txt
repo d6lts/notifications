@@ -10,6 +10,10 @@ TO DO
 * Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
 - Support for message localization for multiple languages
 
+6.x-1.0-rc1 to
+-----------------------------
+- Implemented full adiministration pages for subscriptions
+- Moved some stuff to notifications.pages.inc
 
 6.x-1.0-beta4 to 6.x-1.0-rc1
 -----------------------------
