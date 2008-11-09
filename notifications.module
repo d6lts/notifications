@@ -58,7 +58,6 @@ function notifications_menu() {
     'title' => 'Administer',
     'description' => 'Administer subscriptions.',
     'type' => MENU_LOCAL_TASK,
-    'weight' => -10,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_admin_subscriptions'),
     'access arguments' => array('administer notifications'),
@@ -1370,7 +1369,70 @@ function notifications_theme() {
       'arguments' => array('form' => NULL),
       'file' => 'notifications.admin.inc',
     ),
+    'notifications_table_form' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'notifications.admin.inc',
+    ),
   );
+}
+
+/**
+ * Short hand for info logs
+ */
+function notifications_log($message = NULL, $variables = NULL) {
+  return _notifications_log('info', $message, $variables); dsm($message);
+}
+
+/**
+ * Quick logging for debugging and manual queue processing
+ */
+function _notifications_log($type, $message = NULL, $variables = NULL, $severity = WATCHDOG_NOTICE) {
+  static $logs;
+  
+  if ($message) {
+    $logs[] = array($type, $message, $variables, $severity);
+  }
+  else {
+    return $logs ? array_map('_notifications_log_format', $logs) : '';
+  }
+}
+
+/**
+ * Format notifications log
+ */
+function _notifications_log_format($log) {
+  list($type, $string, $args, $severity) = $log;
+ 
+  if ($args) {
+    // Transform arguments before inserting them.
+    $append = array();
+    foreach ($args as $key => $value) {      
+      if (is_array($value) || is_object($value)) {
+        $value = print_r($value, TRUE);
+      }
+      switch ($key[0]) {
+        case '@':
+          // Escaped only.
+          $args[$key] = check_plain($value);
+          break;
+        case '%':
+          $args[$key] = theme('placeholder', $value);
+          break;
+        case '!':
+          // Pass-through.
+          $args[$key] = $value;
+          break;
+        default:
+          // Append to string a key value pair, different from watchdog format
+          $append[] = ' <strong>' . $key . '</strong>= ' . check_plain($value);
+          break;
+      }
+    }
+    $string = strtr($string, $args);
+    $append ? $string .= ' ' . implode(', ', $append) : NULL;
+  }
+
+  return '<strong> '.$type . '</strong>: ' . $string;
 }
 
 // For PHP4 compatibility

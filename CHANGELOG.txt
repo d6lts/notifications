@@ -12,6 +12,8 @@ TO DO
 
 6.x-1.0-rc1 to
 -----------------------------
+- Performance improvements, do not run process if no rows in queue
+- Improved queue status and administration pages.
 - Implemented full adiministration pages for subscriptions
 - Moved some stuff to notifications.pages.inc
 

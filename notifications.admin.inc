@@ -146,6 +146,7 @@ function notifications_send_intervals_form() {
     $form['intervals'][$index]['name'] = array(
       '#type' => 'textfield',
       '#default_value' => $name,
+      '#size' => 40,
     );
     $digest = notifications_digest_method($time);
     $form['intervals'][$index]['digest'] = array(
@@ -333,56 +334,105 @@ function notifications_admin_queue_summary() {
  * @ TO DO Add confirmation before queue reset
  */
 function notifications_admin_queue($op = 'status', $param = NULL) {
-  $base = 'admin/messaging/subscriptions/queue';
   $output = '';
-  switch ($op) {
-    case 'run':
-      $out = notifications_admin_queue_process($param);
-      if ($out) {
-        $output .= theme('box', t('Output'), $out);
-      }
-      break;
-    case 'reset':
-      db_query("DELETE FROM {notifications_queue}");
-      db_query("DELETE FROM {notifications_event}");
-      drupal_set_message(t('The queue has been reset.'));
-      drupal_goto($base);
-      break;
-    default:
-  }
-  // Add operations
-  $list[] = l(t('Run queue process'), "$base/run");
-  $list[] = l(t('Process immediate sending'), "$base/run/immediate");
-  $list[] = l(t('Reset queue. Delete all notifications.'), "$base/reset");
-
-  $output .= theme('box', t('Operations'), theme('item_list', $list));
-  // Summary
+  $output .= drupal_get_form('notifications_admin_queue_operations');
   $output .= notifications_admin_queue_summary();
+
+  // Display logs from last process
+  if (!empty($_SESSION['notifications_logs'])) {
+    $output .= theme('box', t('Process log'), theme('item_list', $_SESSION['notifications_logs']));
+    unset($_SESSION['notifications_logs']);
+  }
   return $output;
 }
 
 /**
- * Admin manual queue processing
+ * Form for queue operations
  */
-function notifications_admin_queue_process($param) {
-  include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-  // Set some running parameters
-  switch  ($param) {
-    case 'immediate':
-      notifications_process_rows(array('cron' => 1, 'send_interval' => 0));
-      break;
-    case 'debug':
-      notifications_process('option', 'debug', TRUE);
-      notifications_process('option', 'output', TRUE);
-      notifications_process_run(FALSE);
-      break;
-    default:
-      notifications_process_run(FALSE);
+function notifications_admin_queue_operations() {
+  $form['operations'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Operations'),
+    '#theme' => 'notifications_table_form',
+    '#table_fields' => array('description', 'button'),
+  );
+  foreach (notifications_queue_operations() as $op => $data) {
+    $form['operations']['description'][$op] = array(
+      '#value' => $data['description'],
+    );
+    $form['operations']['button'][$op] = array(
+      '#type' => 'submit',
+      '#value' => $data['label'],
+    );
   }
-  // Go for it, not cron run
+  return $form; 
+}
 
-  if ($logs = notifications_log()) {
-    return theme('item_list', $logs);
+/**
+ * Operations form submit, translate op into callback
+ */
+function notifications_admin_queue_operations_submit($form, $form_state) {
+  include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+
+  foreach (notifications_queue_operations() as $op => $data) {
+    if ($form_state['values']['op'] == $data['label']) {
+      $callback = $data['callback'];
+      $args = !empty($data['callback arguments']) ? $data['callback arguments'] : array();
+      call_user_func_array($callback, $args);
+      break;
+    }  
+  }
+  // Store logs to render on next page redirect
+  $_SESSION['notifications_logs'] = notifications_log();
+}
+
+/**
+ * List of queue operations
+ */
+function notifications_queue_operations() {
+  $operations = array(
+    'run' => array(
+      'label' => t('Run process'),
+      'description' => t('Run normal queue processing, same as cron run.'),
+      'callback' => 'notifications_process_run',
+      'callback arguments' => array(FALSE),
+    ),
+    'inmediate' => array(
+      'label' => t('Process inmediate'),
+      'description' => t('Process only rows marked for inmediate sending.'),
+      'callback' => 'notifications_process_rows',
+      'callback arguments' => array(array('cron' => 1, 'send_interval' => 0)),
+    ),
+    'reset' => array(
+      'label' => t('Reset queue'),
+      'description' => t('Delete all notifications in queue.'),
+      'callback' => 'notifications_admin_queue_process',
+      'callback arguments' => array('reset queue'),
+    ),
+    'test' => array(
+      'label' => t('Run test'),
+      'description' => t('Test run queue processing, without updating nor sending messages.'),
+      'callback' => 'notifications_admin_queue_process',
+      'callback arguments' => array('test run'),
+    ),
+  );
+  return $operations;
+}
+
+/**
+ * Queue operations callback
+ */
+function notifications_admin_queue_process($op) {
+  switch ($op) {
+    case 'reset queue':
+      db_query("DELETE FROM {notifications_queue}");
+      db_query("DELETE FROM {notifications_event}");
+      drupal_set_message(t('The queue has been reset.'));
+      break;
+    case 'test run':
+      notifications_process('option', 'test', TRUE);
+      notifications_process_run(FALSE);
+      break;
   }
 }
 
@@ -787,6 +837,33 @@ function theme_notifications_subscriptions_filter_form($form) {
   $output .= '<div id="notifications-admin-filter">';
   $output .= drupal_render($form['filters']);
   $output .= '</div>';
+  $output .= drupal_render($form);
+  return $output;
+}
+
+/**
+ * Generic table formatting for forms
+ */
+function theme_notifications_table_form($form) {
+  $output = '';
+  
+  // Get table information from special form properties
+  $index = !empty($form['#table_index']) ? $form['#table_index'] : $form['#table_fields'][0];
+  $header = !empty($form['#table_header']) ? $form['#table_header'] : array();
+ 
+  foreach (element_children($form[$index]) as $key) {
+    $row = array();
+    foreach ($form['#table_fields'] as $field) {
+      $row[] = drupal_render($form[$field][$key]);
+    }
+    $rows[] = $row;
+  }
+
+  if ($rows) {
+    $output .= theme('table', $header, $rows);
+  } else {
+    $output .= '<p>' . t('No elements') . '</p>';
+  }
   $output .= drupal_render($form);
   return $output;
 }
