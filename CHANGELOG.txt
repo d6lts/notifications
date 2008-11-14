@@ -3,14 +3,12 @@
 TO DO
 ------
 * Use actions and triggers instead of old notifications' events, see http://drupal.org/node/260100
-* More digesting options. Digests per subscription type will be needed for Mothersclick, while we’ll be needing for other sites digests per thread. So we’ll have to rethink the process to make it more extendable.
 * Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
-* Study the possibility to use a two level token replacement specially for the digest messages so they can be more flexible. I.e. build tokens with other tokens for the digest item list. An alternate may be to add some themeable functions here.
-- Support for message localization for multiple languages
+* Support for notifications in multiple languages, depending on user language
 
-6.x-1.0-rc1 to
+6.x-1.0-rc1 to 6.x-1.0
 -----------------------------
 - Performance improvements, do not run process if no rows in queue
 - Improved queue status and administration pages.
