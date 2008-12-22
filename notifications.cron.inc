@@ -456,7 +456,7 @@ function notifications_text_replace($text, $objects) {
 function notifications_message_send($account, &$message, $send_method) {
   $message['type'] = 'notifications';
   notifications_process('count', 'message');
-  $message['sent'] = messaging_message_send_user($account, $message, $send_method);
+  messaging_message_send_user($account, $message, $send_method);
 }
 
 /**

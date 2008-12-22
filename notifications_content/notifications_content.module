@@ -430,7 +430,9 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
             $tokens[] = 'node';
           }
           elseif ($type[3] == 'type') {
-            $tokens[] = 'node-type';
+            // Special format for isolated tokens: array('token type', 'token id'). 
+            // In this case, as messages are digested by node type the only common element will be node-type
+            $tokens[] = array('node', 'type-name');
           }
         }
       }

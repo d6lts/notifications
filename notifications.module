@@ -350,6 +350,7 @@ function notifications_queue($event) {
     }
     // Some group by fields are not really needed but added for pgsql compatibility
     $sql .=  'GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions HAVING s.conditions = count(f.sid)';
+
     db_query($sql, $query['args']);
   }
 
@@ -494,7 +495,7 @@ function notifications_save_subscription(&$subscription) {
   global $user;
   $subscription = (object)$subscription;
   $subscription->conditions = count($subscription->fields);
-  $account = $subscription->uid ? user_load(array('uid' => $subscription->uid)) : $user;
+  $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
   // Default values for fields: send_interval, send_method, etc...
   foreach (_notifications_subscription_defaults($account) as $field => $value) {
     if (!isset($subscription->$field)) {
@@ -805,6 +806,12 @@ function notifications_module_invoke($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
  */
 function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
+    case 'message types':
+      $info['notifications'] = array(
+        'name' => t('Notifications'),
+        'description' => t('Messages coming from user subscriptions and system events')
+      );
+      return $info;
     case 'message groups':
       // Generic notifications event
       $info['notifications-event'] = array(
