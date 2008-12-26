@@ -10,7 +10,9 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
-- Added logging option and capabilities
+- Fixed two notifications for the same comment, by rcourtna, #340082
+- Fixed issues with subscriptions admin forms, #331928
+- Added logging option and capabilities using new query builder
 - Fixed multiple missing module parameter in queue processing
 - Fixed typo 'inmediate' -> 'immediate', by rcourtna, #340316
 - Fixed issues with new messages as objects instead of arrays.

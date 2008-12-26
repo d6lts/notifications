@@ -509,7 +509,7 @@ function notifications_content_comment($comment, $op) {
     // $comment can be an object or an array.
   $comment = (array)$comment;
   
-  if (empty($comment['notifications_content_disable']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'update' || ($op == 'publish' && !user_access('administer comments')))) {
+  if (empty($comment['notifications_content_disable']) && $comment['status'] == 0 && ($op == 'update' || $op == 'publish')) {
     $event = array(
       'module' => 'node',
       'uid' => $comment['uid'],

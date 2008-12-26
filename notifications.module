@@ -42,7 +42,7 @@ function notifications_menu() {
   );
   $items['admin/messaging/subscriptions'] = array(
     'title' => 'Subscriptions',
-    'description' => 'Manage users notifications.',
+    'description' => 'Manage existing subscriptions and queue.',
     'page callback' => 'notifications_admin_status_page',
     'access arguments' => array('administer notifications'),
     'file' => 'notifications.admin.inc',

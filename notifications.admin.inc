@@ -525,6 +525,7 @@ function notifications_subscriptions_filter_form_submit($form, &$form_state) {
       break;
   }
 }
+
 /**
  * Administer subscriptions
  */
@@ -555,8 +556,8 @@ function notifications_admin_subscriptions_form() {
   $form['options']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Update'),
-    '#validate' => array('notifications_admin_subscriptions_validate'),
-    '#submit' => array('notifications_admin_subscriptions_submit'),
+    '#validate' => array('notifications_admin_subscriptions_form_validate'),
+    '#submit' => array('notifications_admin_subscriptions_form_submit'),
   );
 
   $destination = drupal_get_destination();
@@ -590,18 +591,19 @@ function notifications_admin_subscriptions_form() {
  * Check if any items have been selected to perform the chosen
  * 'Update option' on.
  */
-function notifications_admin_subscriptions_validate($form, &$form_state) {
+function notifications_admin_subscriptions_form_validate($form, &$form_state) {
   $items = array_filter($form_state['values']['subscriptions']);
   if (count($items) == 0) {
     form_set_error('', t('No items selected.'));
   }
 }
 
-function notifications_admin_subscriptions_submit($form, $form_state) {
+function notifications_admin_subscriptions_form_submit($form, $form_state) {
   $operations = notifications_subscriptions_operations();
   $operation = $operations[$form_state['values']['operation']];
   // Filter out unchecked subscriptions
   $items = array_filter($form_state['values']['subscriptions']);
+  
   if ($function = $operation['callback']) {
     // Add in callback arguments if present.
     if (isset($operation['callback arguments'])) {
@@ -728,7 +730,7 @@ function notifications_subscriptions_operations() {
       'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE)),
     ),
     'deactivate' => array(
-      'label' => t('Desactivate'),
+      'label' => t('Deactivate'),
       'callback' => 'notifications_subscriptions_mass_update',
       'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_INACTIVE)),
     ),
