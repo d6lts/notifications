@@ -5,24 +5,24 @@
  * Admin settings
  */
 function notifications_settings_form() {
-  $form['sub_settings'] = array(
+  $form['general'] = array(
       '#type' => 'fieldset',
       '#title' => t('General settings'),
       '#weight' => -10,
   );
-  $form['sub_settings']['notifications_sendself'] = array(
+  $form['general']['notifications_sendself'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Notify poster of own posts'),
     '#default_value' => variable_get('notifications_sendself', 0),
     '#description'   => t("Notifies a node poster about their own posts.  Useful principally during testing.  Default is OFF."),
   );
-  $form['sub_settings']['notifications_send_immediate'] = array(
+  $form['general']['notifications_send_immediate'] = array(
     '#title' => t('Immediate sending'),
     '#type' => 'checkbox',
     '#default_value' => variable_get('notifications_send_immediate', 0),
-    '#description' => t('Notifications are usually queued to be sent on cron process later. Checking this option will cause inmediate notifications to be sent right away, instead of being queued. This will produce more timely notifications for sites with a small number of users. Not recommended for sites with a large number of users.'),
+    '#description' => t('Notifications are usually queued to be sent on cron process later. Checking this option will cause immediate notifications to be sent right away, instead of being queued. This will produce more timely notifications for sites with a small number of users. Not recommended for sites with a large number of users.'),
   );
-  $form['sub_settings']['notifications_sender'] = array(
+  $form['general']['notifications_sender'] = array(
     '#title' => t('Notifications Sender'),
     '#type' => 'radios',
     '#options' => array(
@@ -32,6 +32,15 @@ function notifications_settings_form() {
     ),
     '#default_value' => variable_get('notifications_sender', 0),
     '#description' => t('Use the site information as the sender for notification messages or use account data from the user causing the event. WARNING: Selecting the last option (Full user data) may undisclose private information to subscribers like the user e-mail address.'),
+  );
+  // Logging settings  
+  $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
+  $form['general']['notifications_log'] = array(
+    '#title' => t('Logging'),
+    '#type' => 'select',
+    '#options' => $period,
+    '#default_value' => variable_get('notifications_log', 0),
+    '#description' => t('If enabled all notifications will be logged and kept for the specified time after they\'re processed.'),
   );
   // Default options
   $form['defaults'] = array(
@@ -397,9 +406,9 @@ function notifications_queue_operations() {
       'callback' => 'notifications_process_run',
       'callback arguments' => array(FALSE),
     ),
-    'inmediate' => array(
-      'label' => t('Process inmediate'),
-      'description' => t('Process only rows marked for inmediate sending.'),
+    'immediate' => array(
+      'label' => t('Process immediate'),
+      'description' => t('Process only rows marked for immediate sending.'),
       'callback' => 'notifications_process_rows',
       'callback arguments' => array(array('cron' => 1, 'send_interval' => 0)),
     ),

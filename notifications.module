@@ -327,7 +327,7 @@ function notifications_event($event) {
  *   Event array.
  */
 function notifications_queue($event) {
-  global $notifications_send_inmediate;
+  global $notifications_send_immediate;
   
   // Build query fields for this event type. If no arguments retrieved, skip this step
   if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
@@ -359,22 +359,22 @@ function notifications_queue($event) {
   
   // If immediate sending enabled, store eid for sending on page exit.
   if (variable_get('notifications_send_immediate', 0)) {
-    $notifications_send_inmediate[] = $event->eid;
+    $notifications_send_immediate[] = $event->eid;
   }
 }
 
 /**
  * Implementation of hook_exit()
  * 
- * This is where the inmediate sending is done if enabled, so we are sure all other modules
+ * This is where the immediate sending is done if enabled, so we are sure all other modules
  * have finished node processing when node update.
  */
 function notifications_exit() {
-  global $notifications_send_inmediate;
+  global $notifications_send_immediate;
   
-  if (!empty($notifications_send_inmediate)) {
+  if (!empty($notifications_send_immediate)) {
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-    foreach ($notifications_send_inmediate as $eid) {
+    foreach ($notifications_send_immediate as $eid) {
       notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
     }    
   }

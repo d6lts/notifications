@@ -122,7 +122,7 @@ function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         } 
       }
       break;
-    // By queueing the event here we gain access to some features, like inmediate sending
+    // By queueing the event here we gain access to some features, like immediate sending
     case 'event queued': // $event is arg0
       $event = &$arg0;
       if ($event->type == 'lite') {

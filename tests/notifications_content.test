@@ -19,7 +19,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
   function setUp() {
     parent::setUp('messaging', 'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui');
     // Set some defaults
-    // Default send interval will be: Inmediately
+    // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
     variable_set('notifications_default_send_method', 'debug');
   }

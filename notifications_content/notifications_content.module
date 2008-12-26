@@ -474,7 +474,7 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
       if ($node->status == '0') { // unpublished
         break; // don't notify
       }
-      // If inmediate sending is active, need to reset the node cache so we don't send old versions of the node
+      // If immediate sending is active, need to reset the node cache so we don't send old versions of the node
       if (variable_get('notifications_send_immediate', 0)) {
         node_load(0, NULL, TRUE);
       }

@@ -66,14 +66,18 @@ function notifications_process_run($cron = TRUE) {
  *   Max $sqid that will be processed this cron
  */
 function notifications_process_prepare($module = 'notifications') {
+  // Clean up expired logs from queue if logging enabled
+  if ($keep = variable_get('notifications_log', 0)) {
+    db_query("DELETE {notifications_queue} WHERE cron = 0 AND sent < %d AND module = '%s'", time() - $keep, $module);
+  }
   // Clean up event table. As events are created sequentially, we use this fact to speed up the query
   // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
   $expiretime = time() - 60;  
   db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid < (SELECT MIN(eid) FROM {notifications_queue})", $expiretime);
   
   // This will get the latest notification in queue so we don't mess with new ones being created during cron run
-  // It will also prevent clashes with the inmediate sending feature
-  return db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
+  // It will also prevent clashes with the immediate sending feature
+  return db_result(db_query("SELECT max(sqid) FROM {notifications_queue} WHERE module = '%s'", $module));
 }
 
 /**
@@ -221,7 +225,7 @@ function notifications_process_rows($conditions) {
  * @param $max_sqid
  *   Max queue id to process
  * @param $module
- *   Module's rows to process. There may be other types of rows sitting on the table
+ *   Module to process rows for. There may be other types of rows sitting on the table
  * @return Number of rows processed
  * 
  * @ TODO Review time conditions
@@ -241,7 +245,7 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
   $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
   $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d AND q.module = '%s'";
   $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
-   // Note: the group by su.sent seems to be needed by pgsql
+  // Note: the group by su.sent seems to be needed by pgsql
   $sql .= " GROUP BY q.uid, q.send_method, su.sent ORDER BY su.sent";
   $result = db_query_range($sql, $send_interval, $max_sqid, $module, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
@@ -278,7 +282,7 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
       }
     }
     if ($processed && !$test) {
-       notifications_queue_delete(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
+       notifications_queue_done(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
     }
   }
   // If doing a test run, return 0 so we don't go through this again
@@ -286,7 +290,7 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
 }
 
 /**
- * Update user last time sent
+ * Update user last time sent for each sending method / interval
  */
 function notifications_update_sent($uid, $method, $interval, $time) {
   db_query("UPDATE {notifications_sent} SET sent = %d WHERE uid = %d AND send_interval = '%d' AND send_method = '%s'", $time, $uid, $interval, $method);
@@ -294,6 +298,7 @@ function notifications_update_sent($uid, $method, $interval, $time) {
     db_query("INSERT INTO {notifications_sent}(uid, send_interval, send_method, sent) VALUES(%d, '%d', '%s', %d)", $uid, $interval, $method, $time);
   }
 }
+
 /**
  * Message delivery.
  * 
@@ -490,6 +495,36 @@ function notifications_load_event($id) {
     $cache[$id] = $event;
   }
   return $cache[$id];
+}
+
+/**
+ * Mark queue rows as done
+ * 
+ * Either log, if logging enabled, or delete
+ */
+function notifications_queue_done($params) {
+  if (variable_get('notifications_log', 0)) {
+    notifications_queue_update($params, array('cron' => 0, 'sent' => time()));
+  } else {
+    notifications_queue_delete($params);
+  }
+}
+
+/**
+ * Update queue rows with defined values
+ * 
+ * @arg $params
+ *   Parameters to select the queue rows for updating. Array of field => value pairs
+ * @arg $update
+ *   Fields values to update. Array of field => value pairs
+ */
+function notifications_queue_update($params, $updates) {
+  
+  $values =  _messaging_query_conditions('notifications_queue', $params);
+  $where = notifications_queue_query($params);
+  $args = array_merge($values['args'], $where['args']);
+
+  return db_query('UPDATE {notifications_queue} SET ' . implode(', ', $values['conditions']) . ' WHERE ' . implode(' AND ', $where['where']), $args);
 }
 
 /**

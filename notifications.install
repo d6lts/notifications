@@ -84,7 +84,7 @@ function notifications_install() {
  */
 function notifications_uninstall() {
   drupal_uninstall_schema('notifications');
-  foreach (array('events', 'send_intervals', 'sender', 'sendself', 'send_inmediate') as $name) {
+  foreach (array('events', 'send_intervals', 'sender', 'sendself', 'send_immediate') as $name) {
     variable_del("notifications_$name");
   }
 }
@@ -182,4 +182,15 @@ function notifications_update_6() {
     }
   }
   return $ret;
+}
+
+/**
+ * Multiple fixes
+ */
+function notifications_update_6001() {
+  $ret = array();
+  // Fixed typo with variable name
+  variable_set('notifications_send_immediate', variable_get('notifications_send_inmediate', 0));
+  variable_del('notifications_send_inmediate');
+  return $ret;  
 }
