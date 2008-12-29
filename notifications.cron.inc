@@ -189,7 +189,7 @@ function notifications_process_rows($conditions) {
         notifications_update_sent($account->uid, $send_method, $send_interval, time());
       }
       if ($processed) {
-        notifications_queue_delete(array('sqids' => $processed));        
+        notifications_queue_done(array('sqid' => $processed));        
       }
       $subscriptions = $events = $processed = array();
       if ($queue) {
@@ -520,7 +520,7 @@ function notifications_queue_done($params) {
  */
 function notifications_queue_update($params, $updates) {
   
-  $values =  _messaging_query_conditions('notifications_queue', $params);
+  $values =  _messaging_query_conditions('notifications_queue', $updates);
   $where = notifications_queue_query($params);
   $args = array_merge($values['args'], $where['args']);
 
@@ -553,22 +553,17 @@ function notifications_queue_delete($params) {
 function notifications_queue_query($params) {
   $where = $args = array();
   
-  foreach ($params as $field => $value) {
-    switch ($field) {
-      case 'max_sqid':
-        $where[] = "sqid <= %d";
-        $args[] = $value;
-        break;
-      case 'sqids':
-        $where[] = "sqid IN (%s)";
-        $args[] = implode(',', array_map('db_escape_string', $value));
-        break;      
-      default:
-        $where[] = "$field = '%s'";
-        $args[] = $value;
-        break;
-    }
-  }  
+  // Special condition max_sqid
+  if (isset($params['max_sqid'])) {
+    $where[] = "sqid <= %d";
+    $args[] = $params['max_sqid'];
+    unset ($params['max_sqid']);
+  }
+  // User generic query builder for the rest of fields
+  $values =  _messaging_query_conditions('notifications_queue', $params);  
+  $where = array_merge($where, $values['conditions']);
+  $args = array_merge($args, $values['args']);
+ 
   return array('where' => $where, 'args' => $args);
 }
 

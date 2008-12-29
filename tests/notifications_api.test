@@ -15,13 +15,7 @@ class NotificationsBasicTests extends DrupalWebTestCase {
   
   function setUp() {
     parent::setUp('notifications');
-
-    // Log in with administrator permissions
-    //$user = $this->drupalCreateUser(array('administer notifications', 'maintain own subscriptions', 'administer site configuration'));
-    //$this->drupalLogin($user);
-    
-    // Next, perform any required steps for the test methods within this test grouping.
-    // variable_set('some_variable');
+    require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   }
 
   /**
@@ -127,9 +121,34 @@ class NotificationsBasicTests extends DrupalWebTestCase {
     $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
     $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
     $target['args'] = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
-    $this->assertEqual($query, $target, 'Build basic query with array fields.');    
+    $this->assertEqual($query, $target, 'Build basic query with array fields.');
+    
+    // Test update/done/delete queries with two fake rows
+    foreach (array(1,2) as $i) {
+      db_query("INSERT INTO {notifications_queue}(eid, sid, uid, type, send_interval, send_method, sent, cron) VALUES(%d, %d, %d, 'test', 0 , 'test', 0, 1)", $i, $i, $i);
+    }
+    // We should have two rows, try a few things with them
+    $this->assertEqual($this->countQueued(), 2, 'We have two rows in queue' );
+    variable_set('notifications_log', 1);
+    notifications_queue_done(array('type' => 'test'));
+    $this->assertEqual($this->countQueued(array('cron' => 0)), 2, 'Both rows have been marked as done' );
+    variable_del('notifications_log');
+    notifications_queue_done(array('type' => 'test'));
+    $this->assertEqual($this->countQueued(array('cron' => 0)), 0, 'Both rows have been deleted' );
   }
 
+  /**
+   * Helper function. Simple row counting with conditions, uses query builder
+   */
+  function countQueued($params = NULL) {
+    if ($params) {
+      $query = notifications_queue_query($params);
+      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE ' . implode(' AND ', $query['where']), $query['args']));
+    } else {
+      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue}'));
+    }
+  }
+  
   /**
    * Implementation of tearDown().
    */
