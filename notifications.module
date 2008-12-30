@@ -321,41 +321,65 @@ function notifications_event($event) {
 }
 
 /**
- * Queue events for notifications
+ * Queue events for notifications adding query conditions from plug-ins
+ * 
+ * This is an example of the resulting query
+ *
+ * INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions)
+ * SELECT DISTINCT s.uid, s.sid, s.module, 34, s.send_interval, s.send_method, s.cron, 1230578161, s.conditions FROM notifications s 
+ * INNER JOIN notifications_fields f ON s.sid = f.sid 
+ * WHERE s.status = 1 AND s.event_type = 'node' AND s.send_interval >= 0 
+ * AND ((f.field = 'nid' AND f.value = '2') OR (f.field = 'type' AND f.value = 'story') OR (f.field = 'author' AND f.value = '1'))
+ * GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions 
+ * HAVING s.conditions = count(f.sid)
  *
  * @param $event
  *   Event array.
  */
 function notifications_queue($event) {
   global $notifications_send_immediate;
-  
-  // Build query fields for this event type. If no arguments retrieved, skip this step
+  $query = array();
+  // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
+  // If no arguments retrieved, skip this step
   if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
-    $query['args'] = array($event->eid, $event->created, $event->type);
+    $query['insert'] = array('uid', 'sid', 'module', 'eid', 'send_interval', 'send_method', 'cron', 'created', 'conditions');
+    $query['into'] = '{notifications_queue}';
+    $query['distinct'] = TRUE;
+    $query['select'] = array('s.uid', 's.sid', 's.module', '%d', 's.send_interval', 's.send_method', 's.cron', '%d', 's.conditions');
+    $query['from'] = array('{notifications} s');
+    $query['select args'] = array($event->eid, $event->created);
+    $query['join'] = array('INNER JOIN {notifications_fields} f ON s.sid = f.sid');
+    $query['where'] = array('s.status = 1', "s.event_type = '%s'", 's.send_interval >= 0');
+    $query['where args'] = array($event->type);
+    // Add one more condition if we don't send notifications on own posts
+    if (!variable_get('notifications_sendself', 0) && !empty($event->uid)) {
+      $query['where'][] = 's.uid <> %d';
+      $query['where args'][] = $event->uid;
+    }    
+    // Some group by fields are not really needed but added for pgsql compatibility
+    $query['group'] = array('s.uid', 's.sid', 's.module', 's.send_interval', 's.send_method', 's.cron', 's.conditions');
+    
+    // We throw in all the conditions and check the number of matching conditions
+    // that must be equal to the subscription conditions number    
+    $query['having'] = array('s.conditions = count(f.sid)');
+
+    // We add parameters for each module separately
     foreach ($query_args as $query_params) {
       $query = notifications_query_build($query_params, $query);
     }
     
-    // We throw in all the conditions and check the number of matching conditions
-    // that must be equal to the subscription conditions number
-    $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) '.
-      'SELECT DISTINCT s.uid, s.sid, s.module, %d, s.send_interval, s.send_method, s.cron, %d, s.conditions '.
-      'FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid '.
-      implode(' ', $query['join']);
-    $sql .=  " WHERE s.status = 1 AND s.event_type = '%s' AND s.send_interval >= 0 AND ((". implode(') OR (', $query['where']) .')) ';
-    // Add one more condition if we don't send notifications on own posts
-    if (!variable_get('notifications_sendself', 0)) {
-      $sql .= 'AND s.uid != %d ';
-      $query['args'][] = $event->uid;
+    // Give a chance to other modules to alter the query or empty it so we don't throw it
+    drupal_alter('notifications_query', $query);
+    
+    // Finally we build the SELECT part of the query and glue it to the INSERT
+    if ($query) {
+      list($sql, $args) = notifications_query_sql($query);
+      db_query($sql, $args);
     }
-    // Some group by fields are not really needed but added for pgsql compatibility
-    $sql .=  'GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions HAVING s.conditions = count(f.sid)';
-
-    db_query($sql, $query['args']);
   }
 
   // Modules can do cleanup operations or modify the queue
-  notifications_module_invoke('event queued', $event);
+  notifications_module_invoke('event queued', $event, $query);
   
   // If immediate sending enabled, store eid for sending on page exit.
   if (variable_get('notifications_send_immediate', 0)) {
@@ -385,22 +409,29 @@ function notifications_exit() {
  * 
  * @param $params
  *   Array of query conditions
+ * @param $query
+ *   Base query to build upon
  */
-function notifications_query_build($params, $base = array()) {
-  $query = $base + array('select' => array(), 'join' => array(), 'where' => array(), 'args' => array());
+function notifications_query_build($params, $query = array()) {
+  $query += array(
+    'select' => array(), 'select args' => array(), 
+    'from' => array(), 'join' => array(), 
+    'where' => array(), 'where args' => array(),
+    'fields' => array(), 'fields args' => array()
+  );
   foreach ($params as $name => $elements) {
     if ($name == 'fields') {
       foreach ($elements as $field => $value ) {
         // Handle array values with IN conditions
         if (is_array($value)) {
           $placeholders =  array_fill(0, count($value), "'%s'");
-          $query['where'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
-          $query['args'][] = $field;
-          $query['args'] = array_merge($query['args'], $value);
+          $query['fields'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
+          $query['fields args'][] = $field;
+          $query['fields args'] = array_merge($query['fields args'], $value);
         } else {
-          $query['where'][] = "f.field = '%s' AND f.value = '%s'";
-          $query['args'][] = $field;
-          $query['args'][] = $value;
+          $query['fields'][] = "f.field = '%s' AND f.value = '%s'";
+          $query['fields args'][] = $field;
+          $query['fields args'][] = $value;
         }
       }
     }
@@ -411,9 +442,71 @@ function notifications_query_build($params, $base = array()) {
       $query[$name][] = $elements;
     }
   }
+ 
   return $query;
 }
 
+/**
+ * Build the SQL statement from query elements
+ * 
+ * It will build INSERT + SELECT or SELECT queries from its elements
+ * 
+ * @return array()
+ *   list($sql, $args);
+ */
+function notifications_query_sql($query) {
+  $sql = '';
+  if (!empty($query['insert'])) {
+    $sql .= 'INSERT INTO ' . $query['into'] . '(' . implode(', ', $query['insert']) . ') ';
+  }
+  $sql .= !empty($query['distinct']) ? 'SELECT DISTINCT ' : 'SELECT ';
+  $sql .=  implode(', ', $query['select']);
+  $sql .= ' FROM ' . implode(', ', $query['from']);
+  if (!empty($query['join'])) {
+    $sql .= ' ' . implode(' ', $query['join']);
+  }  
+  
+  // Where conditions come from 'where' and 'fields' elements
+  // Field conditions are OR'd and added into the other conditions
+  $where = !empty($query['where']) ? $query['where'] : array();
+  if (!empty($query['fields'])) {
+    $where[] = '('. implode(') OR (', $query['fields']) .')';
+  }  
+  if ($where) {
+    $sql .= ' WHERE (' . implode(') AND (', $where) . ')';  
+  }  
+  if (!empty($query['group'])) {
+    $sql .= ' GROUP BY ' . implode(', ', $query['group']);
+  }
+  if (!empty($query['having'])) {
+    $sql .= ' HAVING ' . implode(' AND ', $query['having']);
+  }
+  // Merge all args
+  $args = array();
+  foreach (array('select', 'join', 'where', 'fields', 'having') as $key) {
+    if (!empty($query[$key . ' args'])) {
+      $args = array_merge($args, $query[$key . ' args']);
+    }
+  }
+  
+  return array($sql, $args);
+}
+
+/**
+ * Helper function for the query builder
+ */
+/*
+function _notifications_query_sql($type, $query) {
+  if (!empty($query[$type])) {
+    switch ($type) {
+      case 'select':
+        return implode()
+    }
+  } else {
+    return '';
+  }
+}
+*/
 /**
  * Stores new events
  * 
@@ -452,23 +545,19 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
     $query_args = notifications_module_information('query', 'user', $event_type, $object);
     // Base query
     $query = array(
-      'args' => array($uid, $event_type),
+      'select' => array('s.*', 'f.*'),
+      'from' => array('{notifications} s'),
+      'join' => array('INNER JOIN {notifications_fields} f ON s.sid = f.sid'),
+      'where' => array('s.uid = %d', "s.event_type = '%s'"),
+      'where args' => array($uid, $event_type),
     );
     foreach ($query_args as $query_params) {
       $query = notifications_query_build($query_params, $query);
     }
     
     // Build the query merging all the parts
-    $sql = 'SELECT s.*, f.* FROM {notifications} s INNER JOIN {notifications_fields} f ON s.sid = f.sid ';
-    if (!empty($query['join'])) {
-      $sql .= implode(' ', $query['join']);
-    } 
-    $sql .=  " WHERE s.uid = %d AND event_type = '%s' ";
-    if (!empty($query['where'])) {
-      $sql .= " AND ((". implode(') OR (', $query['where']) .'))';
-    }
-    
-    $result = db_query($sql, $query['args']);
+    list($sql, $args) = notifications_query_sql($query);    
+    $result = db_query($sql, $args);
 
     while ($sub = db_fetch_object($result)) {
       if (!isset($subscriptions[$uid][$event_type][$oid][$sub->sid])) {

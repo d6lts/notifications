@@ -68,7 +68,7 @@ function notifications_process_run($cron = TRUE) {
 function notifications_process_prepare($module = 'notifications') {
   // Clean up expired logs from queue if logging enabled
   if ($keep = variable_get('notifications_log', 0)) {
-    db_query("DELETE {notifications_queue} WHERE cron = 0 AND sent < %d AND module = '%s'", time() - $keep, $module);
+    db_query("DELETE FROM {notifications_queue} WHERE cron = 0 AND sent < %d AND module = '%s'", time() - $keep, $module);
   }
   // Clean up event table. As events are created sequentially, we use this fact to speed up the query
   // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  

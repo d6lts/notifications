@@ -100,28 +100,33 @@ class NotificationsBasicTests extends DrupalWebTestCase {
    */
   function testNotificationsQueryBuilder() {
     // Test query builder, first basic query, then add some fields
-    $query = notifications_query_build(array('select' => 'SELECT field1', 'join' => 'JOIN table1'));
-    $target = array('select' => array('SELECT field1'), 'join' => array('JOIN table1'), 'where' => array(), 'args' => array());
-    $this->assertEqual($query, $target, 'Build basic query with SELECT and JOIN.');
+    $query = notifications_query_build(array('select' => 'field1', 'from' => 'table1', 'join' => 'JOIN table2'));
+    list($sql, $args) = notifications_query_sql($query);
+    $this->assertEqual($sql, 'SELECT field1 FROM table1 JOIN table2', 'Build basic query with SELECT and JOIN.');
     
     $fields = array(
       'f1' => 1,
       'f2' => 'value2',
     );
     $query = notifications_query_build(array('fields' => $fields), $query);
-    $target['where'] = array("f.field = '%s' AND f.value = '%s'", "f.field = '%s' AND f.value = '%s'");
-    $target['args'] = array('f1', 1, 'f2', 'value2');
-    $this->assertEqual($query, $target, 'Build basic query with simple fields.');
-
+    list($sql, $args) = notifications_query_sql($query);
+    $fields_sql = "(f.field = '%s' AND f.value = '%s') OR (f.field = '%s' AND f.value = '%s')";
+    $target = "SELECT field1 FROM table1 JOIN table2 WHERE ($fields_sql)";
+    $this->assertEqual($sql, $target, 'Build basic query with simple fields.' .$sql);
+    $this->assertEqual($args, array('f1', 1, 'f2', 'value2'), 'Arguments for basic query with simple fields.');
+    
     $fields = array(
-      'f3' => array(1,2),
+      'f3' => array(1, 2),  
       'f4' => array('value3', 'value4'),
     );
     $query = notifications_query_build(array('fields' => $fields), $query);
-    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
-    $target['where'][] = "f.field = '%s' AND f.value IN ('%s', '%s')";
-    $target['args'] = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
-    $this->assertEqual($query, $target, 'Build basic query with array fields.');
+    list($sql, $args) = notifications_query_sql($query);
+    $fields_sql .= " OR (f.field = '%s' AND f.value IN ('%s', '%s'))";
+    $fields_sql .= " OR (f.field = '%s' AND f.value IN ('%s', '%s'))";
+    $target = "SELECT field1 FROM table1 JOIN table2 WHERE ($fields_sql)";
+    $target_args = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
+    $this->assertEqual($sql, $target, 'Build basic query with array fields, conditions match.');
+    $this->assertEqual($args, $target_args, 'Build basic query with array fields, arguments match.');
     
     // Test update/done/delete queries with two fake rows
     foreach (array(1,2) as $i) {

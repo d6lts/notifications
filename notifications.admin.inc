@@ -61,6 +61,7 @@ function notifications_settings_form() {
     '#title' => t('Limits for queue processing'),
     '#tree' => TRUE,
     '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+    '#collapsible' => TRUE, '#collapsed' => TRUE,
   );
   $form['notifications_process_limit']['row'] = array(
     '#title' => t('Number of rows'),
