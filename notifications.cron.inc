@@ -385,7 +385,7 @@ function notifications_process_message($account, $event, $subscriptions, $send_m
   }
   $objects = array('user' => $account, 'event' => $event, 'subscription' => $subscription);
   $objects = array_merge($objects, $event->objects);
-  $text = notifications_text_replace($text, $objects);
+  $text = messaging_text_replace($text, $objects);
 
   // Get subject out of text and build the message array
   $subject = $text['subject'];
@@ -444,15 +444,6 @@ function notifications_message_part($type, $key, $method, $param = NULL) {
     array_pop($keyparts);
   }
   return $output;
-}
-
-/**
- * Text replacement with tokens
- */
-function notifications_text_replace($text, $objects) {
-  // Add some token types
-  $objects['global'] = NULL;  
-  return token_replace_multiple($text, $objects);
 }
 
 /**
@@ -609,13 +600,13 @@ function notifications_process_digest_short($account, $events, $subscriptions, $
         'footer' => notifications_digest_group($digest, 'footer', $send_method),
       );
       // The objects passed here for tokens will be the ones from the first event only
-      $list[$digest_type][$digest_value]['group'] = notifications_text_replace($group, $objects);
+      $list[$digest_type][$digest_value]['group'] = messaging_text_replace($group, $objects);
       notifications_log('Digesting object', array('type' => $digest_type, 'value' => $digest_value));
     }
     // Check duplicate notifications for the same event so we do some deduping
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
       $line = notifications_digest_line($event, $send_method, $objects);
-      $list[$digest_type][$digest_value]['line'][$event->eid] = notifications_text_replace($line, $event->objects);
+      $list[$digest_type][$digest_value]['line'][$event->eid] = messaging_text_replace($line, $event->objects);
     }
   }
   // Create message. Do all this in one replacement, then strip out the subject
@@ -624,7 +615,7 @@ function notifications_process_digest_short($account, $events, $subscriptions, $
   $text['footer'] = notifications_message_part('digest', 'footer', $send_method);
 
   // We dont pass a subscription object here, won't be too much use anyway
-  $text = notifications_text_replace($text, array('user' => $account, 'subscription' => NULL));
+  $text = messaging_text_replace($text, array('user' => $account, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
   $body = theme('notifications_digest_short_body', $text, $list);
@@ -660,7 +651,7 @@ function notifications_process_digest_long($account, $events, $subscriptions, $s
     $sid = is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('user' => $account, 'subscription' => $subscription);
-    $body[] = notifications_text_replace($part, $objects);
+    $body[] = messaging_text_replace($part, $objects);
   }
   
   // Create message. Do all this in one replacement, then strip out the subject
@@ -669,7 +660,7 @@ function notifications_process_digest_long($account, $events, $subscriptions, $s
   $text['footer'] = notifications_message_part('digest', 'footer', $send_method);
 
   // We dont pass a subscription object here, won't be too much use anyway
-  $text = notifications_text_replace($text, array('user' => $account, 'subscription' => NULL));
+  $text = messaging_text_replace($text, array('user' => $account, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
   $body = theme('notifications_digest_long_body', $text['header'], $body, $text['footer']);

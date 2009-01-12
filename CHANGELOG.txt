@@ -11,6 +11,8 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
+- Replaced notifications_text_replace() by messaging_text_replace()
+- Global tokens now added in by messaging module
 - Improved query builder, added sql generator, added some tests.
 - Added Italian translation, by Drein, #338513
 - Fixed two notifications for the same comment, by rcourtna, #340082

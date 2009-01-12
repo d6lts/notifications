@@ -76,7 +76,7 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
     $part = notifications_message_part('type', 'key', 'test');
     $this->assertEqual($part, 'type key [type-name] [title] [site-name]', 'Retrieved testing message part: ' . $part);
-    $text = notifications_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
+    $text = messaging_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
     $this->assertEqual($text, "$node1->title $node1->type Test Site", 'Text replacement for node object');
     
     // Now lets get into the scary part, events and event digesting

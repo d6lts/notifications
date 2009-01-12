@@ -417,7 +417,8 @@ function notifications_query_build($params, $query = array()) {
     'select' => array(), 'select args' => array(), 
     'from' => array(), 'join' => array(), 
     'where' => array(), 'where args' => array(),
-    'fields' => array(), 'fields args' => array()
+    'fields' => array(), 'fields args' => array(),
+    'group' => array(), 'having' => array(), 'order' => array(),
   );
   foreach ($params as $name => $elements) {
     if ($name == 'fields') {
@@ -967,7 +968,7 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       $tokens = array();
       // These are the token groups that will be used for this module's messages
       if ($type[0] == 'notifications') {
-        $tokens = array('global', 'subscription', 'user');
+        $tokens = array('subscription', 'user');
         if ($type[1] == 'event') {
           $tokens[] = 'event';
         }
