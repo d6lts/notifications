@@ -11,6 +11,9 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
+- Fixed: Per module queue processing not working, by Scott Reynolds, #362766
+- Hide "Disable Notifications" checkbox for when notifications are disabled, by yhahn, #359507
+- Fixed: missing defaults for digest messages in notifications content, by Scott Reynolds, #362242
 - Replaced notifications_text_replace() by messaging_text_replace()
 - Global tokens now added in by messaging module
 - Improved query builder, added sql generator, added some tests.

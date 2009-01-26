@@ -93,29 +93,37 @@ function notifications_content_help($path, $arg) {
  */
 function notifications_content_form_alter(&$form, &$form_state, $form_id) {
   if ($form_id == 'comment_form') {
-    $form['notifications_content_disable'] = array(
-      '#type'          => 'checkbox',
-      '#title'         => t('Disable Notifications'),
-      '#description'   => t('Check this box if you wish to disable notifications for this comment.'),
-      '#default_value' => 0,
-      '#access' => user_access('skip notifications'),
-    );    
+    // Load the node which is possibly cached to get the node type
+    $node = node_load($form['nid']['#value']);
+    $types = notifications_content_types();
+    if (!empty($types[$node->type])) {    
+      $form['notifications_content_disable'] = array(
+        '#type'          => 'checkbox',
+        '#title'         => t('Disable Notifications'),
+        '#description'   => t('Check this box if you wish to disable notifications for this comment.'),
+        '#default_value' => 0,
+        '#access' => user_access('skip notifications'),
+      ); 
+    }   
   }
   elseif (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
-    $form['notifications_content'] = array(
-      '#type'        => 'fieldset',
-      '#title'       => t('Notifications'),
-      '#collapsible' => TRUE,
-      '#collapsed'   => TRUE,
-      '#weight'      => 1,
-      '#access' => user_access('skip notifications'),
-    );
-    $form['notifications_content']['notifications_content_disable'] = array(
-      '#type'          => 'checkbox',
-      '#title'         => t('Disable Notifications'),
-      '#description'   => t('Check this box if you wish to disable notifications for this content update.'),
-      '#default_value' => 0,
-    );
+    $types = notifications_content_types();
+    if (!empty($types[$form['type']['#value']])) {
+      $form['notifications_content'] = array(
+        '#type'        => 'fieldset',
+        '#title'       => t('Notifications'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+        '#weight'      => 1,
+        '#access' => user_access('skip notifications'),
+      );
+      $form['notifications_content']['notifications_content_disable'] = array(
+        '#type'          => 'checkbox',
+        '#title'         => t('Disable Notifications'),
+        '#description'   => t('Check this box if you wish to disable notifications for this content update.'),
+        '#default_value' => 0,
+      );
+    }
   }
 }
 
@@ -384,6 +392,10 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
               '[node-teaser]',
               t('Read more [node-url]'),
             ),
+            'digest' => array(
+              '[title]',
+              'Read more [node-url]',
+            ),
           );
         case 'notifications-event-node-insert':
           return array(
@@ -391,6 +403,10 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
             'main' => array(
               '[node-teaser]',
               t('Read more [node-url]'),            
+            ),
+            'digest' => array(
+              '[title]',
+              'Read more [node-url]',
             ),
           );             
         case 'notifications-event-node-comment': 
@@ -400,6 +416,10 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
               t('Comment by [comment-author-name]: [comment-title]'),
               '[comment-body]',
               t('Read more [comment-url]'),
+            ),
+            'digest' => array(
+              t('New Comment on [title] by [comment-author-name] titled [comment-title]'),
+              t('Read more [comment-url'),
             ),
           );
         case 'notifications-digest-node-nid':

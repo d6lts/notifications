@@ -224,13 +224,12 @@ function notifications_process_rows($conditions) {
  *   Send interval to process
  * @param $max_sqid
  *   Max queue id to process
- * @param $module
- *   Module to process rows for. There may be other types of rows sitting on the table
  * @return Number of rows processed
  * 
  * @ TODO Review time conditions
+ * @ TODO Per module queue processing
  */
-function notifications_process_queue($send_interval, $max_sqid, $module = 'notifications') {
+function notifications_process_queue($send_interval, $max_sqid) {
   notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max squid' => $max_sqid));
   $test = notifications_process('option', 'test');
   
@@ -243,11 +242,11 @@ function notifications_process_queue($send_interval, $max_sqid, $module = 'notif
   // Note: If we get the users with more messages pending first this may save some time
   $sql = "SELECT q.uid, q.send_method, count(*) AS count FROM {notifications_queue} q ";
   $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
-  $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d AND q.module = '%s'";
+  $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
   $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
   // Note: the group by su.sent seems to be needed by pgsql
   $sql .= " GROUP BY q.uid, q.send_method, su.sent ORDER BY su.sent";
-  $result = db_query_range($sql, $send_interval, $max_sqid, $module, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
+  $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
   $sqid = 0;
   // @ TODO Add time conditions
