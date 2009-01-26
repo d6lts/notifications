@@ -826,6 +826,8 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
  */
 function notifications_content_node_allow($account, $node) {
   static $access;
+  
+  if (!$node) return FALSE;
 
   if (!isset($access[$account->uid][$node->nid])) {
     $access[$account->uid][$node->nid] = node_access('view', $node, $account);

@@ -176,7 +176,11 @@ class NotificationsContentTests extends DrupalWebTestCase {
     // Check queued notifications. We should have three queued notifs at the end
     $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($count, 3, 'Disabling notifications for node updates worked, we have the right number of rows in queue: '. $count);
-        
+    
+    // Check queued events, these should be cleaned at the end
+    $count = db_result(db_query("SELECT count(*) FROM {notifications_event}"));   
+    $this->assertEqual($count, 1, 'The right number of events are stored:' . $count);
+    
     // Get messages from queue. After de-duping there should be only one.
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
     $send_method = notifications_user_setting('send_method', $user);
@@ -193,6 +197,10 @@ class NotificationsContentTests extends DrupalWebTestCase {
     notifications_process_queue($send_interval, $max_sqid, 'notificationstesting');
     $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($count, 0, 'All rows in queue have been processed.');
+
+    // Check event counters
+    $count = db_result(db_query("SELECT count(*) FROM {notifications_event} WHERE counter = 0"));   
+    $this->assertEqual($count, 1, 'The event counters have been updated:' . $count);
     
     // Remove created subscriptions
     notifications_delete_subscriptions(array('uid' => $user->uid));

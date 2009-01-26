@@ -16,7 +16,8 @@ function notifications_schema() {
        'send_method' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE),
        'cron' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'tiny', 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
        'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
-       'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 1, 'disp-width' => '11')
+       'status' => array('type' => 'int', 'not null' => TRUE, 'default' => 1, 'disp-width' => '11'),
+       'destination' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
     ),
     'primary key' => array('sid'),
   );
@@ -38,7 +39,8 @@ function notifications_schema() {
        'language' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
        'uid' => array('type' => 'int', 'not null' => FALSE, 'disp-width' => '11'),
        'params' => array('type' => 'text', 'not null' => FALSE),
-       'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11')
+       'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+       'counter' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
     ),
     'primary key' => array('eid'),
   );
@@ -56,7 +58,8 @@ function notifications_schema() {
        'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
        'cron' => array('type' => 'int', 'unsigned' => TRUE, 'size' => 'tiny', 'not null' => TRUE, 'default' => 0, 'disp-width' => '3'),
        'conditions' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
-       'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE)
+       'module' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+       'destination' => array('type' => 'varchar', 'length' => '255', 'not null' => FALSE),
     ),
     'primary key' => array('sqid'),
   );
@@ -193,4 +196,17 @@ function notifications_update_6001() {
   variable_set('notifications_send_immediate', variable_get('notifications_send_inmediate', 0));
   variable_del('notifications_send_inmediate');
   return $ret;  
+}
+
+/**
+ * Add some fields
+ */
+function notifications_update_6002() {
+  $ret = array();
+  db_add_field($ret, 'notifications_event', 'counter', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'));
+  db_add_field($ret, 'notifications', 'destination', array('type' => 'varchar', 'length' => '255', 'not null' => FALSE));
+  db_add_field($ret, 'notifications_queue', 'destination', array('type' => 'varchar', 'length' => '255', 'not null' => FALSE));  
+  // Update event counter, this may take a while
+  $ret[] = update_sql("UPDATE {notifications_event} e SET counter = (SELECT COUNT(*) FROM {notifications_queue} q WHERE q.eid = e.eid)");
+  return $ret;
 }

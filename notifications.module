@@ -381,10 +381,17 @@ function notifications_queue($event) {
   // Modules can do cleanup operations or modify the queue
   notifications_module_invoke('event queued', $event, $query);
   
-  // If immediate sending enabled, store eid for sending on page exit.
-  if (variable_get('notifications_send_immediate', 0)) {
-    $notifications_send_immediate[] = $event->eid;
+  // Now update event counter with rows in notifications_queue or delete if no rows
+  if ($count = db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid))) {
+    db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $count, $event->eid);
+    // If immediate sending enabled, store eid for sending on page exit.
+    if (variable_get('notifications_send_immediate', 0)) {
+      $notifications_send_immediate[] = $event->eid;
+    }
+  } else {
+    db_query('DELETE FROM {notifications_event} WHERE eid = %d', $event->eid);
   }
+
 }
 
 /**

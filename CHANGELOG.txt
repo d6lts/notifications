@@ -11,6 +11,8 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
+- Added destination field to notifications and queue tables, to be used
+- Added event tracking to keep events table under limits, #333296
 - Fixed: Per module queue processing not working, by Scott Reynolds, #362766
 - Hide "Disable Notifications" checkbox for when notifications are disabled, by yhahn, #359507
 - Fixed: missing defaults for digest messages in notifications content, by Scott Reynolds, #362242
