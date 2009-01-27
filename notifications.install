@@ -25,7 +25,8 @@ function notifications_schema() {
     'fields' => array(
       'sid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
       'field' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE),
-      'value' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE)
+      'value' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE),
+      'intval' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
     ),
     'primary key' => array('sid', 'field'),
   );
@@ -208,5 +209,24 @@ function notifications_update_6002() {
   db_add_field($ret, 'notifications_queue', 'destination', array('type' => 'varchar', 'length' => '255', 'not null' => FALSE));  
   // Update event counter, this may take a while
   $ret[] = update_sql("UPDATE {notifications_event} e SET counter = (SELECT COUNT(*) FROM {notifications_queue} q WHERE q.eid = e.eid)");
+  return $ret;
+}
+
+/**
+ * Add integer value to fields table
+ */
+function notifications_update_6003() {
+  $ret = array();
+  db_add_field($ret, 'notifications_fields', 'intval', array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'));
+  // Populate intval, this should depend on db type. Is there any way that works for all?
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("UPDATE {notifications_fields} SET intval = CAST(value AS UNSIGNED)");
+      break;
+    case 'pgsql':
+      $ret[] = update_sql("UPDATE {notifications_fields} SET intval = CAST(value AS INTEGER)");
+      break;
+  }
   return $ret;
 }

@@ -422,7 +422,7 @@ function notifications_exit() {
 function notifications_query_build($params, $query = array()) {
   $query += array(
     'select' => array(), 'select args' => array(), 
-    'from' => array(), 'join' => array(), 
+    'from' => array(), 'join' => array(), 'join args' => array(),
     'where' => array(), 'where args' => array(),
     'fields' => array(), 'fields args' => array(),
     'group' => array(), 'having' => array(), 'order' => array(),
@@ -628,7 +628,7 @@ function notifications_save_subscription(&$subscription) {
   // There may be subscriptions with no fields, some people are coding such plug-ins.
   if ($subscription->fields) {
     foreach ($subscription->fields as $name => $value) {
-      db_query("INSERT INTO {notifications_fields} (sid, field, value) VALUES(%d, '%s', '%s')", $subscription->sid, $name, $value);
+      db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
     }
   }
   notifications_module_invoke($op, $subscription);
