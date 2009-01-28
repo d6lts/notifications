@@ -13,7 +13,7 @@ function notifications_ui_help($path, $arg) {
     case 'admin/messaging/notifications/ui':
       $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
       if (module_exists('notifications_content')) {
-        $output .= '<p>'. t('To enable different subscription options for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
+        $output .= '<p>'. t('To determine how the subscription controls will be rendered for each content type (links, form, block) visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
       }
       return $output;
   }

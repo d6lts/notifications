@@ -11,6 +11,7 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
+- Added 'fields sql' parameter for queries so we can actually speed up queries.
 - Store field values as integer to speed up table joins, #364734
 - Some fixes to the query builder, 'join args' was not initialized
 - Added destination field to notifications and queue tables, to be used.

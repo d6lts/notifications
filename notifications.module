@@ -414,40 +414,43 @@ function notifications_exit() {
 /**
  * Query builder for subscriptions
  * 
+ * This adds up query elements into a big array so they can be later rendered as SQL
+ * 
+ * @see notifications_query_sql()
+ * 
  * @param $params
  *   Array of query conditions
  * @param $query
  *   Base query to build upon
  */
 function notifications_query_build($params, $query = array()) {
-  $query += array(
-    'select' => array(), 'select args' => array(), 
-    'from' => array(), 'join' => array(), 'join args' => array(),
-    'where' => array(), 'where args' => array(),
-    'fields' => array(), 'fields args' => array(),
-    'group' => array(), 'having' => array(), 'order' => array(),
-  );
   foreach ($params as $name => $elements) {
     if ($name == 'fields') {
+      // Fields elements have some special handling, they have the form: field => value
       foreach ($elements as $field => $value ) {
         // Handle array values with IN conditions
         if (is_array($value)) {
           $placeholders =  array_fill(0, count($value), "'%s'");
           $query['fields'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
           $query['fields args'][] = $field;
-          $query['fields args'] = array_merge($query['fields args'], $value);
+          $query['fields args'] = empty($query['fields args']) ? $value : array_merge($query['fields args'], $value);
         } else {
           $query['fields'][] = "f.field = '%s' AND f.value = '%s'";
           $query['fields args'][] = $field;
           $query['fields args'][] = $value;
         }
       }
-    }
-    elseif (is_array($elements)) {
-      $query[$name] = array_merge($query[$name], $elements);
-    }
-    else {
-      $query[$name][] = $elements;
+    } else {
+      if ($name == 'fields sql') {
+        // These are added as 'fields' parameters without further parsing
+        $name = 'fields';
+      }
+      if (is_array($elements)) {
+        $query[$name] = empty($query[$name]) ? $elements : array_merge($query[$name], $elements);
+      }
+      else {
+        $query[$name][] = $elements;
+      }
     }
   }
  
