@@ -11,6 +11,7 @@ TO DO
 
 6.x-1.0 to ......
 -----------------
+- Vocabularies default to disabled for tag subscriptions, #329208
 - Fixed: PHP notices, by sun, #366391
 - Fixed some more issues with per module queue processing, by Scott Reynolds, #362766
 - Added 'fields sql' parameter for queries so we can actually speed up queries.

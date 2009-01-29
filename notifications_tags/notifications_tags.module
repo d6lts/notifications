@@ -205,17 +205,16 @@ function notifications_tags_user_form($form_state, $account) {
  *   If empty the whole vocalubary object will be returned.
  */
 function notifications_tags_vocabularies($field = NULL) {
- 
-  $allvocab = taxonomy_get_vocabularies();
-
   if ($allowed = variable_get('notifications_tags_vocabularies', array())) {
+    $allvocab = taxonomy_get_vocabularies();
     $vocabularies = array();
     foreach (array_filter($allowed) as $vid) {
       $vocabularies[$vid] = $allvocab[$vid];
     } 
   }
   else {
-    $vocabularies = $allvocab;
+    // They're disallowed by default
+    $vocabularies = array();
   }
   if ($field) {
     $list = array();
