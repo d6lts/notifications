@@ -522,22 +522,21 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
 }
 
 /**
- * Implementation of hook_comment()
+ * Implementation of hook_comment().
  */
 function notifications_content_comment($comment, $op) {
-  global $user;
-    // $comment can be an object or an array.
-  $comment = (array)$comment;
+  // $comment can be an object or an array.
+  $comment = (object)$comment;
   
-  if (empty($comment['notifications_content_disable']) && $comment['status'] == 0 && ($op == 'update' || $op == 'publish')) {
+  if (($op == 'update' || $op == 'publish') && empty($comment->notifications_content_disable) && empty($comment->status)) {
     $event = array(
       'module' => 'node',
-      'uid' => $comment['uid'],
+      'uid' => $comment->uid,
       'type' => 'node',
-      'action' => 'comment', // $op,
-      'node' => node_load($comment['nid']),
-      'comment' => (object)$comment,
-      'params' => array('nid' => $comment['nid'], 'cid' => $comment['cid']),
+      'action' => 'comment',
+      'node' => node_load($comment->nid),
+      'comment' => $comment,
+      'params' => array('nid' => $comment->nid, 'cid' => $comment->cid),
     );
     notifications_event($event);
   }
@@ -614,9 +613,10 @@ function notifications_content_page_nodetype($account = NULL) {
   // List of all subscribed node types
   $subscriptions = notifications_get_subscriptions(array('type' => 'nodetype', 'uid' => $account->uid), array('type' => NULL), TRUE, 'value');
   
+  $output = '';
   $types = notifications_content_types('name');
   if (!$types) {
-    $output = t('There are no active content types.');    
+    $output .= t('There are no active content types.');    
   }
   else {
     $defaults = array('type' => 'nodetype', 'event_type' => 'node');

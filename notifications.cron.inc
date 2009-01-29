@@ -65,10 +65,10 @@ function notifications_process_run($cron = TRUE) {
  * @return
  *   Max $sqid that will be processed this cron
  */
-function notifications_process_prepare($module = 'notifications') {
+function notifications_process_prepare() {
   // Clean up expired logs from queue if logging enabled
   if ($keep = variable_get('notifications_log', 0)) {
-    db_query("DELETE FROM {notifications_queue} WHERE cron = 0 AND sent < %d AND module = '%s'", time() - $keep, $module);
+    db_query("DELETE FROM {notifications_queue} WHERE cron = 0 AND sent < %d", time() - $keep);
   }
   // Clean up event table. As events are created sequentially, we use this fact to speed up the query
   // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
@@ -78,7 +78,7 @@ function notifications_process_prepare($module = 'notifications') {
   
   // This will get the latest notification in queue so we don't mess with new ones being created during cron run
   // It will also prevent clashes with the immediate sending feature
-  return db_result(db_query("SELECT max(sqid) FROM {notifications_queue} WHERE module = '%s'", $module));
+  return db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
 }
 
 /**
@@ -143,7 +143,7 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       if (isset($value)) {
         $options[$name] = $value;
       }
-      return $options[$name];
+      return isset($options[$name]) ? $options[$name] : FALSE;
   }
   
   $current['time'] = time();
