@@ -24,8 +24,6 @@ class NotificationsBasicTests extends DrupalWebTestCase {
   function testNotificationsBasicAPI() {
     $test_type = 'test';
     $test_event_type = 'test event';
-
-
     
     // Any user will do for exercising the API
     $user = $this->drupalCreateUser();
@@ -36,26 +34,30 @@ class NotificationsBasicTests extends DrupalWebTestCase {
     $s1->event_type = $test_event_type;
     $s1->fields = array('field1' => 1, 'field2' => 2);
     $s1->destination = '';
-    $s2 = $s1;
+    $s2 = clone($s1);
 
     // Create the subscription and check assigned sid
-    notifications_save_subscription($s1);
-    $this->assertEqual(is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
+    $result = notifications_save_subscription($s1);
+    $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
     
     // Retrieve the subscription and check values
     $s = notifications_load_subscription($s1->sid, TRUE);
     $this->assertEqual($s, $s1, 'The subscription has been retrieved and values are ok');
 
     // Attempt to create a second one with the same values
-    notifications_save_subscription($s2);
-    $this->assertEqual($s1->sid, $s2->sid, 'A duplicate subscription has been detected and updated');
-    
-    // Now really create a second one
-    $s2 = clone($s1);
-    $s2->sid = 0;
+    $result = notifications_save_subscription($s2);
+    $this->assertTrue($result == SAVED_UPDATED && $s1->sid == $s2->sid, 'A duplicate subscription has been detected and updated');
+    // Now change some field, try again with a different send method
+    unset($s2->sid);
+    $s2->send_method = 'test';
+    $result = notifications_save_subscription($s2);
+    $this->assertTrue($result == SAVED_NEW && is_numeric($s2->sid) && $s2->sid > $s1->sid, 'Another subscription has been created');
+
+    // Now change values for the second one
+    unset($s2->send_method);
     $s2->fields['field2'] = 3;
-    notifications_save_subscription($s2);
-    $this->assertEqual(is_numeric($s2->sid) && $s2->sid > $s1->sid, TRUE, 'Another subscription has been created');
+    $result =notifications_save_subscription($s2);
+    $this->assertEqual($result, SAVED_UPDATED, 'Another subscription has been created');
     
     // Trying several recovery options
     $subs = notifications_get_subscriptions(array('type' => $test_type));

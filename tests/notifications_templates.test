@@ -149,8 +149,9 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
       'subject' => 'digest subject ' . $test_line,
       'body' => theme('notifications_digest_short_body', $body_common, $lines),
     );
-       
-    $digest = notifications_process_send(NULL, $event_list, array(), 'test', 1);
+    // Build fake subscriptions array
+    $subscriptions = array_fill(1, count($event_list), array());
+    $digest = notifications_process_send(NULL, $event_list, $subscriptions, 'test', 1);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for short digest.'. $this->compareTexts($message, $target));
     //$this->printObject('Digest target', $target); 
@@ -166,8 +167,8 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
       'subject' => 'digest subject [type-name] [title] Test Site',
       'body' => theme('notifications_digest_long_body', $body_common['header'], $body, $body_common['footer']),
     );
-
-    $digest = notifications_process_send(NULL, $event_list, array(), 'test', 2);
+    $subscriptions = array_fill(1, count($event_list), array());
+    $digest = notifications_process_send(NULL, $event_list, $subscriptions, 'test', 2);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
     //$this->printObject('Digest target', $target);

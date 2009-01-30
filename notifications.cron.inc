@@ -116,13 +116,13 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       // Max execution time may be zero meaning no limit, then no limits based on this
       if ($maxtime = ini_get('max_execution_time')) {
         $timelimit[] =  $cronstart + $maxtime - NOTIFICATIONS_TIME_MARGIN;
-        if ($limit['percent']) {
+        if (!empty($limit['percent'])) {
           $timelimit[] = time() + $maxtime * $limit['percent'] / 100;
           unset($limit['percent']);
         }
       }
       // This is an absolute limit, applies always if set
-      if ($limit['time']) {
+      if (!empty($limit['time'])) {
         $timelimit[] = time() + $limit['time'];
       }
       if ($timelimit) {

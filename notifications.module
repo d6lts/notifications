@@ -257,6 +257,7 @@ function notifications_form_alter(&$form, $form_state, $form_id) {
  */
 function notifications_user_setting($name, $account = NULL, $default = NULL) {
   global $user;
+
   $account = $account ? $account : $user;
   // Default send method is taken from messaging module
   if ($name == 'send_method') {
@@ -590,51 +591,62 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
  * 
  * @param $subscription
  *   Subscription object or array
+ * @return integer
+ *   Failure to write a record will return FALSE. Otherwise SAVED_NEW or SAVED_UPDATED is returned depending on the operation performed.
  */
 function notifications_save_subscription(&$subscription) {
   global $user;
+  
+  $result = FALSE;
   $subscription = (object)$subscription;
   $subscription->conditions = count($subscription->fields);
   $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
-  // Default values for fields: send_interval, send_method, etc...
+  
+  // Default values for fields: send_interval, send_method, cron, etc...
   foreach (_notifications_subscription_defaults($account) as $field => $value) {
     if (!isset($subscription->$field)) {
       $subscription->$field = $value;
     }
   }
-  // The cron parameter will be always enabled because we are not managing push/pull methods anymore at this level.
-  $subscription->cron = 1;
   
   if (!empty($subscription->sid)) {
     $op = 'update';
-    db_query("UPDATE {notifications} SET uid = %d, type = '%s', event_type = '%s', conditions = %d, send_interval = '%d', send_method = '%s', cron = %d, module = '%s', status = %d WHERE sid = %d", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status, $subscription->sid);
-    db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $subscription->sid);
+    $result = drupal_write_record('notifications', $subscription, 'sid');
   }
-  elseif ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module), $subscription->fields)) {
+  elseif ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_method' => $subscription->send_method, 'send_interval' => $subscription->send_interval), $subscription->fields)) {
     // We've found duplicates, resolve conflict updating first, deleting the rest
+    // It is possible that we had a disabled one, this updating will fix it
     $update = array_shift($duplicate);
-    $update->send_interval = $subscription->send_interval;
-    $uddate->send_method = $subscription->send_method;
+    foreach ($subscription as $key => $value) {
+      $update->$key = $value;
+    }
     $subscription = $update;
     // If there are more, delete, keep the table clean
     while (array_shift($duplicate)) {
       notifications_delete_subscription($duplicate->sid);
     }
-    return notifications_save_subscription($subscription);    
+    return notifications_save_subscription($subscription);  
   }
   else {
-    $op = 'insert';
-    
-    db_query("INSERT INTO {notifications} (uid, type, event_type, conditions, send_interval, send_method, cron, module, status) VALUES(%d, '%s', '%s', %d, %d, '%s', %d, '%s', %d)", $subscription->uid, $subscription->type, $subscription->event_type, $subscription->conditions, $subscription->send_interval, $subscription->send_method, $subscription->cron, $subscription->module, $subscription->status);
-    $subscription->sid = db_last_insert_id('notifications', 'sid');
+    $op = 'insert';    
+    $result = drupal_write_record('notifications', $subscription);
   }
-  // There may be subscriptions with no fields, some people are coding such plug-ins.
-  if ($subscription->fields) {
-    foreach ($subscription->fields as $name => $value) {
-      db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
+  
+  // If the operation has worked so far, update fields and inform other modules
+  if ($result !== FALSE) {
+    if ($op == 'update') {
+      db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $subscription->sid);
+    }    
+    // There may be subscriptions with no fields, some people are coding such plug-ins.
+    if (!empty($subscription->fields)) {
+      foreach ($subscription->fields as $name => $value) {
+        db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
+      }
     }
+    notifications_module_invoke($op, $subscription);
   }
-  notifications_module_invoke($op, $subscription);
+
+  return $result;
 }
 
 /**
@@ -1250,7 +1262,9 @@ function _notifications_subscription_defaults($account = NULL) {
     'send_interval' => notifications_user_setting('send_interval', $account, 0),
     'send_method' => notifications_user_setting('send_method', $account, ''),
     'module' => 'notifications',
-    'status' => 1,
+    'status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE,
+    'destination' => '',
+    'cron' => 1,
   ); 
 }
 
