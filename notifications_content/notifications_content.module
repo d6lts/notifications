@@ -479,7 +479,7 @@ function notifications_content_comment($comment, $op) {
   global $user;
     // $comment can be an object or an array.
   $comment = (array)$comment;
-  if (!isset($comment['nomail']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'update' || ($op == 'publish' && !user_access('administer comments')))) {
+  if (!isset($comment['nomail']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'publish')) {
     $event = array(
       'module' => 'node',
       'uid' => $comment['uid'],
