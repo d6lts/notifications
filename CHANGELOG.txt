@@ -9,7 +9,15 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
-6.x-1.0 to ......
+6.x-1.1 to .....
+-----------------
+- Fixed wrong placeholders for subscription names, #376298
+- Fixed typo in node comment template, by bas.hr, #374725
+- Added fallback information for message templates, some better help texts.
+- Fixed notifications for unpublished nodes, #369633
+- New plug-in notifications_views, by Young Hahn and David Goode, #260435
+
+6.x-1.0 to 6.x-1.1
 -----------------
 - Reworked notifications_save_subscription(): allow similar subscriptions and return status value
 - Vocabularies default to disabled for tag subscriptions, #329208

@@ -161,13 +161,13 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       if ($subs->event_type == 'node') {
         $subs->type_name = t('Content');
         if (!empty($subs->fields['type'])) {
-          $subs->names['type'] = t('Content type: %type', array('%type' => node_get_types('name', $subs->fields['type'])));
+          $subs->names['type'] = t('Content type: @type', array('@type' => node_get_types('name', $subs->fields['type'])));
         }
         if (!empty($subs->fields['author']) && ($author = user_load(array('uid' => $subs->fields['author'])))) {
-          $subs->names['author'] = t('Author: %name', array('%name' => $author->name));
+          $subs->names['author'] = t('Author: @name', array('@name' => $author->name));
         }
         if (!empty($subs->fields['nid']) && ($node = node_load($subs->fields['nid']))) {
-          $subs->names['thread'] = t('Thread: %title', array('%title' => $node->title));
+          $subs->names['thread'] = t('Thread: @title', array('@title' => $node->title));
         }
       }
       break;
@@ -320,42 +320,49 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
   switch ($op) {
     case 'message groups':
-      $help = t('The header and footer will be taken from Notification events');
+      $help = t('The <em>Header</em> and <em>Footer</em> will be taken from Notification events.');
+      $help_digest = $help . ' ' . t('The <em>Digest line</em> will be used when composing Short digests on which each event will be just a line.');
       // Generic notifications event
       $info['notifications-event-node'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node events'),
         'description' => t('Defaults for all notifications related to node events.'),
-        'help' => $help,
+        'help' => $help_digest,
+        'fallback' => 'notifications-event',
       );
       $info['notifications-event-node-insert'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node creation'),
         'description' => t('Notifications produced when a new node is created.'),
-        'help' => $help,
+        'help' => $help_digest,
+        'fallback' => 'notifications-event-node',
       );
       $info['notifications-event-node-update'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node updates'),
         'description' => t('Notifications produced when a node is updated.'),
-        'help' => $help,
+        'help' => $help_digest,
+        'fallback' => 'notifications-event-node',
       );
       $info['notifications-event-node-comment'] = array(
         'module' => 'notifications_content',
         'name' => t('Notifications for node comments'),
         'description' => t('Notifications produced when a comment is posted to a node.'),
-        'help' => $help,
+        'help' => $help_digest,
+        'fallback' => 'notifications-event-node',
       );
       // Node group digests, will have specific help text in hook_help()
       $info['notifications-digest-node-nid'] = array(
         'module' => 'notifications-content',
         'name' => t('Groups digests per node'),
         'description' => t('Group of events digested for each node.'),
+        'fallback' => 'notifications-digest',
       );
       $info['notifications-digest-node-type'] = array(
         'module' => 'notifications-content',
         'name' => t('Groups digests per node type'),
         'description' => t('Group of events digested for each node type.'),
+        'fallback' => 'notifications-digest',
       );
       return $info;
 
@@ -419,7 +426,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
             ),
             'digest' => array(
               t('New Comment on [title] by [comment-author-name] titled [comment-title]'),
-              t('Read more [comment-url'),
+              t('Read more [comment-url]'),
             ),
           );
         case 'notifications-digest-node-nid':
@@ -470,13 +477,13 @@ function _notifications_content_node_options($account, $node) {
   );
   // Content type
   $options[] = array(
-    'name' => t('Posts of type %type', array('%type' => node_get_types('name', $node->type))),
+    'name' => t('Posts of type @type', array('@type' => node_get_types('name', $node->type))),
     'type' => 'nodetype',
     'fields' => array('type' => $node->type),
   );
   // Author
   $options[] = array(
-    'name' => t('Posts by %name', array('%name' => $node->name)),
+    'name' => t('Posts by @name', array('@name' => $node->name)),
     'type' => 'author',
     'fields' => array('author' => $node->uid),
   );
@@ -490,19 +497,15 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
   global $user;
 
   switch ($op) {
+    case 'load':
+      // Store current status for later reference
+      $node->old_status = $node->status;
+      break;
+    
     case 'update':
-      if ($node->status == '0') { // unpublished
-        break; // don't notify
-      }
-      // If immediate sending is active, need to reset the node cache so we don't send old versions of the node
-      if (variable_get('notifications_send_immediate', 0)) {
-        node_load(0, NULL, TRUE);
-      }
-
-      // else, fall through
-
-    case 'insert':
-      if (empty($node->notifications_content_disable)) {
+    case 'insert':  
+      // Notifications just for published nodes
+      if ($node->status && empty($node->notifications_content_disable)) {
         $event = array(
           'module' => 'node',
           'uid' => $node->uid,
@@ -511,7 +514,22 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
           'action' => $op,
           'node' => $node,
           'params' => array('nid' => $node->nid),      
-        );
+        );        
+        if ($op == 'update') {
+          // If the node has been published the 'update' will become a 'insert' (first post)
+          if (!isset($node->old_status)) {
+            // We try to find out previous status with the cached node.
+            $oldnode = node_load($node->nid);
+            $node->old_status = $oldnode->status;
+          }
+          if (!$node->old_status) {
+            $event['action'] = 'insert';
+          }
+          // If immediate sending is active, need to reset the node cache so we don't send old versions of the node
+          if (variable_get('notifications_send_immediate', 0)) {
+            node_load(0, NULL, TRUE);
+          }
+        }
         notifications_event($event);
       }
       break;

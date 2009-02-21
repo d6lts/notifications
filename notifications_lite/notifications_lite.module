@@ -157,6 +157,8 @@ function notifications_lite_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = N
         'module' => 'notifications_lite',
         'name' => t('Simple notifications'),
         'help' => t('The subject and main body will be provided by the event itself'),
+        'description' => t('Simple notifications triggered by other modules using the Notifications Lite API module.'),
+        'fallback' => 'notifications-event',
       );
       return $info;
     case 'message keys':      

@@ -227,21 +227,24 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
 
 /**
  * Implementation of hook_form_alter()
- * - Override title for messaging settings
  */
 function notifications_form_alter(&$form, $form_state, $form_id) {
-  if ($form_id == 'user_profile_form' && $form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) 
-  {
-    $form['messaging']['#title'] = t('Messaging and Notifications settings');
-    $send_intervals = _notifications_send_intervals();
-    $form['messaging']['notifications_send_interval'] = array(
-      '#type' => 'select',
-      '#title' => t('Default send interval'),
-      '#options' => $send_intervals,
-      '#default_value' => notifications_user_setting('send_interval', $form['_account']['#value']),
-      '#disabled' => count($send_intervals) == 1,
-      '#description' => t('Default send interval for subscriptions.'),
-    );    
+  switch ($form_id) {
+    // Default send interval for user form
+    case 'user_profile_form':
+      if ($form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) 
+      {
+        $form['messaging']['#title'] = t('Messaging and Notifications settings');
+        $send_intervals = _notifications_send_intervals();
+        $form['messaging']['notifications_send_interval'] = array(
+          '#type' => 'select',
+          '#title' => t('Default send interval'),
+          '#options' => $send_intervals,
+          '#default_value' => notifications_user_setting('send_interval', $form['_account']['#value']),
+          '#disabled' => count($send_intervals) == 1,
+          '#description' => t('Default send interval for subscriptions.'),
+        );    
+      }
   }
 }
 
@@ -929,12 +932,12 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       $info['notifications-event'] = array(
         'module' => 'notifications',
         'name' => t('Notifications event'),
-        'description' => t('Fallback for all Notifications events.'),
+        'description' => t('Common parts for all Notifications messages for a single event. This is useful for defining a common header and/or footer for all these messages.'),
       );
       $info['notifications-digest'] = array(
         'module' => 'notifications',
         'name' => t('Notifications digest'),
-        'description' => t('Common parts for Notifications digests.'),
+        'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
       );
       return $info;
     case 'message keys':      
@@ -943,17 +946,17 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
         case 'notifications-event':
           // Event notifications
           return array(
-            'subject' => t('Subject for event notifications'),
-            'header' => t('Header for event notifications'),
-            'main' => t('Content for event notifications'),
-            'footer' => t('Footer for event notifications'),
+            'subject' => t('Subject'),
+            'header' => t('Header'),
+            'main' => t('Content'),
+            'footer' => t('Footer'),
           );
         case 'notifications-digest':
           return array(
-            'subject' => t('Subject for digested notifications'),
-            'header' =>  t('Header for digested notifications'),
+            'subject' => t('Subject'),
+            'header' =>  t('Header'),
             'main' => t('Line for digested events'),
-            'footer' => t('Footer for digested notifications'),
+            'footer' => t('Footer'),
           );
       }
       break;
