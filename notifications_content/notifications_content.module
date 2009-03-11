@@ -99,8 +99,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
     if (!empty($types[$node->type])) {    
       $form['notifications_content_disable'] = array(
         '#type'          => 'checkbox',
-        '#title'         => t('Disable Notifications'),
-        '#description'   => t('Check this box if you wish to disable notifications for this comment.'),
+        '#title'         => t('Do not send notifications for this comment.'),
         '#default_value' => 0,
         '#access' => user_access('skip notifications'),
       ); 
@@ -119,8 +118,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       );
       $form['notifications_content']['notifications_content_disable'] = array(
         '#type'          => 'checkbox',
-        '#title'         => t('Disable Notifications'),
-        '#description'   => t('Check this box if you wish to disable notifications for this content update.'),
+        '#title'         => t('Do not send notifications for this update.'),
         '#default_value' => 0,
       );
     }
