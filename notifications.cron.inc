@@ -295,7 +295,9 @@ function notifications_process_queue($send_interval, $max_sqid) {
     }
   }
   // Update event counter
-  notifications_event_tracker('update');
+  if (!$test) {
+    notifications_event_tracker('update');
+  }
   // If doing a test run, return 0 so we don't go through this again
   return $test ? 0 : $count;
 }

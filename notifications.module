@@ -41,7 +41,7 @@ function notifications_menu() {
     'file path' => drupal_get_path('module', 'system'),
   );
   $items['admin/messaging/subscriptions'] = array(
-    'title' => 'Subscriptions',
+    'title' => 'Manage subscriptions',
     'description' => 'Manage existing subscriptions and queue.',
     'page callback' => 'notifications_admin_status_page',
     'access arguments' => array('administer notifications'),

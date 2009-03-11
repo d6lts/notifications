@@ -599,12 +599,12 @@ function notifications_admin_subscriptions_form_validate($form, &$form_state) {
   }
 }
 
-function notifications_admin_subscriptions_form_submit($form, $form_state) {
+function notifications_admin_subscriptions_form_submit($form, &$form_state) {
   $operations = notifications_subscriptions_operations();
   $operation = $operations[$form_state['values']['operation']];
   // Filter out unchecked subscriptions
   $items = array_filter($form_state['values']['subscriptions']);
-  
+ 
   if ($function = $operation['callback']) {
     // Add in callback arguments if present.
     if (isset($operation['callback arguments'])) {
@@ -617,8 +617,8 @@ function notifications_admin_subscriptions_form_submit($form, $form_state) {
   }
   else {
     // We need to rebuild the form to go to a second step.  For example, to
-    // show the confirmation form for the deletion of nodes.
-     $form_state['rebuild'] = TRUE;
+    // show the confirmation form for the deletion of subscriptions.
+    $form_state['rebuild'] = TRUE;
   }
 }
 
@@ -630,12 +630,15 @@ function notifications_multiple_delete_confirm(&$form_state, $items) {
   $form['items'] = array('#prefix' => '<ul>', '#suffix' => '</ul>', '#tree' => TRUE);
   // array_filter returns only elements with TRUE values
   foreach ($items as $id => $value) {
-    $title = t('Subscription %id', array('%id' => $id));
+    // Load the subscription to display a friendly name
+    $subscription = notifications_load_subscription($id);      
+    notifications_module_invoke('names', $subscription);
+    $title = t('Subscription %id of type %type for user !user', array('%type' => $subscription->type_name, '%id' => $id, '!user' => theme('username', user_load($subscription->uid))));
     $form['items'][$id] = array(
       '#type' => 'hidden',
       '#value' => $id,
       '#prefix' => '<li>',
-      '#suffix' => check_plain($title) ."</li>\n",
+      '#suffix' => $title ."</li>\n",
     );
   }
   $form['operation'] = array('#type' => 'hidden', '#value' => 'delete');

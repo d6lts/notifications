@@ -11,6 +11,8 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Fixed events where being deleted when doing a test run
+- Fixed bulk deletion for 'manage subscriptions' page
 - Fixed wrong placeholders for subscription names, #376298
 - Fixed typo in node comment template, by bas.hr, #374725
 - Added fallback information for message templates, some better help texts.
