@@ -93,6 +93,8 @@ function notifications_feed_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'digest' => array('feed', 'nid'), 
       );
       return $types;
+    case 'event objects':
+      return array('feed' => t('FeedAPI feed'));
     case 'event load':
       $event = &$arg0;
       if ($event->type == 'feed') {

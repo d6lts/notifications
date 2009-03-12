@@ -11,6 +11,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Reworded and simplified the 'Disable notifications' option
 - Fixed events where being deleted when doing a test run
 - Fixed bulk deletion for 'manage subscriptions' page
 - Fixed wrong placeholders for subscription names, #376298
