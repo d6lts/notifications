@@ -18,6 +18,12 @@ function notifications_tags_menu() {
     'page arguments' => array(1),
     'weight' => 10,
   );
+  $items['notifications_tags/autocomplete'] = array(
+    'title' => 'Autocomplete taxonomy',
+    'page callback' => 'notifications_tags_autocomplete',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -56,6 +62,9 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'name' => t('Taxonomy term'),
         'field' => 'tid',
         'type' => 'int',
+        'autocomplete path' => 'notifications_tags/autocomplete/single',
+        'name callback' => 'notifications_tags_term_name',
+        'value callback' => 'notifications_tags_term_tid',
       );
       return $fields;
     case 'query':
@@ -66,6 +75,27 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         }
       }
       break;
+  }
+}
+
+/**
+ * Fields information, translate term tid to name
+ */
+function notifications_tags_term_name($tid) {
+  if ($term = taxonomy_get_term($tid)) {
+    return check_plain($term->name);
+  }
+}
+
+/**
+ * Fields information, translate term name to tid
+ */
+function notifications_tags_term_tid($name) {
+  if ($vocabs = notifications_tags_vocabularies()) {
+    // Add vids and name to args
+    $args = array_keys($vocabs);
+    $args[] = $name;
+    return db_result(db_query_range(db_rewrite_sql("SELECT t.tid FROM {term_data} t WHERE t.vid IN (" . db_placeholders($vocabs) . ") AND LOWER(t.name) = LOWER('%s')", 't', 'tid'), $args, 0, 1));
   }
 }
 
@@ -245,4 +275,47 @@ function notifications_tags_node_get_terms($nid) {
     }
   }
   return $terms[$nid];
+}
+
+/**
+ * Helper function for term name autocompletion
+ * 
+ * It is similar to taxonomy_autocomplete but:
+ * - Just searches terms in allowed vocabularies
+ * - Has single/multiple switch in the path
+ * 
+ * @param $type
+ *   'single' or 'multiple'
+ */
+function notifications_tags_autocomplete($type, $string = '') {
+  $matches = array();
+  if ($vocabs = notifications_tags_vocabularies()) {
+    // If multiple, the user enters a comma-separated list of tags. We only autocomplete the last tag.
+    if ($type == 'multiple') {
+      $array = drupal_explode_tags($string);
+    } else {
+      $array = array($string);
+    }
+    // Fetch last tag
+    $last_string = trim(array_pop($array));
+
+    if ($last_string != '') {
+      // Add vids and name to args
+      $args = array_keys($vocabs);
+      $args[] = $last_string;
+      $result = db_query_range(db_rewrite_sql("SELECT t.tid, t.name FROM {term_data} t WHERE t.vid IN (" . db_placeholders($vocabs) . ") AND LOWER(t.name) LIKE LOWER('%%%s%%')", 't', 'tid'), $args, 0, 10);
+  
+      $prefix = count($array) ? implode(', ', $array) .', ' : '';
+  
+      while ($tag = db_fetch_object($result)) {
+        $n = $tag->name;
+        // Commas and quotes in terms are special cases, so encode 'em.
+        if (strpos($tag->name, ',') !== FALSE || strpos($tag->name, '"') !== FALSE) {
+          $n = '"'. str_replace('"', '""', $tag->name) .'"';
+        }
+        $matches[$prefix . $n] = check_plain($tag->name);
+      }
+    }
+  }
+  drupal_json($matches);
 }

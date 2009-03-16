@@ -1490,7 +1490,7 @@ function _notifications_subscription_field_element($type, $value = NULL) {
     $element['#type'] = 'select';
     $element['#options'] = $format['options'];
   }
-  elseif (!empty($format['info']['autocomplete path'])) {
+  elseif (!empty($info['autocomplete path'])) {
     $element['#type'] = 'textfield';
     $element['#autocomplete_path'] = $info['autocomplete path'];
   }

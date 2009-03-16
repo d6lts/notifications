@@ -196,6 +196,10 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 
     case 'subscription fields':
       // Information about available fields for subscriptions
+      // - name callback => will be used to convert the value into a displayable output
+      // - value callback => will be used to convert autocomplete name into field value
+      // - autocomplete path => path for autocomplete field
+      // - options callback / arguments => used to produce a drop down field
       $fields['nid'] = array(
         'name' => t('Node'),
         'field' => 'nid',
