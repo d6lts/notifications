@@ -9,7 +9,18 @@
  * - Bulk operations to assign them to users
  * - Force for new users or display on the registration form
  */
-  
+
+/**
+ * Implementation of hook_help()
+ */
+function notifications_custom_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/customsubs':
+      $output = '<p>' . t('You can create custom subscription types and make them available in the registration form or enforce them for new users. Once you have created one or more subscription types they can be assigned to one or more users on the <a href="@user-admin">User administration page</a>.', array('@user-admin' => url('admin/user/user/'))) . '</p>';
+      return $output;
+  }
+}
+
 /**
  * Implementation of hook_menu().
  */
@@ -26,7 +37,6 @@ function notifications_custom_menu() {
     //'description' => 'Create and manage custom subscriptions.',
     'type' => MENU_DEFAULT_LOCAL_TASK,
   );
-
   $items['admin/messaging/customsubs/csid/%notifications_custom'] = array(
     'title' => 'Custom',
     'description' => 'Create and manage custom subscriptions.',
@@ -289,6 +299,53 @@ function notifications_custom_build_subscription($type) {
 function notifications_custom_get_subscription($type, $uid) {
   $subs = notifications_get_subscriptions(array('uid' => $uid, 'type' => $type));
   return $subs ? array_shift($subs) : NULL;
+}
+
+/**
+ * Implementation of hook_user_operations()
+ */
+function notifications_custom_user_operations($form_state = array()) {
+  $operations = array();
+  if (user_access('administer notifications') && ($custom_list = notifications_custom_list())) {
+    foreach ($custom_list as $subs) {
+      $subs_options['custom_subscribe-' . $subs->type] = $subs->name;
+    }
+    $operations = array(
+      t('Add subscription for selected users') => array('label' => $subs_options),
+    );
+    
+    // If the form has been posted, we need to insert the proper data for adding subscriptions
+    if (!empty($form_state['submitted'])) {
+      $operation_subs = explode('-', $form_state['values']['operation']);
+      $operation = $operation_subs[0];
+      if ($operation == 'custom_subscribe') {
+        $type = $operation_subs[1];
+        $operations[$form_state['values']['operation']] = array(
+            'callback' => 'notifications_custom_user_multiple_subscribe',
+            'callback arguments' => array($type),
+        ); 
+      }
+    }
+  }
+  return $operations;
+}
+
+/**
+ * User operations callback
+ */
+function notifications_custom_user_multiple_subscribe($accounts, $type) {
+  $custom = notifications_custom_build_subscription($type);
+  $count = 0;
+  foreach ($accounts as $uid) {
+    // Skip subscribing the user if they already are subscribed.
+    if (!notifications_custom_get_subscription($type, $uid)) {
+      $subscription = clone($custom);
+      $subscription->uid = $uid;
+      notifications_save_subscription($subscription);
+      $count ++;
+    }
+  }
+  drupal_set_message(format_plural($count, 'A user has been subscribed.', '@count users have been subscribed.')); 
 }
 
 /**

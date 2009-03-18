@@ -190,18 +190,6 @@ function notifications_custom_fields_form($form_state, $subscription) {
     }
   } else {
     $fields = $subscription->fields;
-    /*
-    foreach ($fields as $fid => $data) {
-      // If it is an autocomplete field, we need to produce the autocomplete value
-      if (notifications_subscription_fields($data['type'], 'autocomplete path')) {
-        if (($callback = notifications_subscription_fields($data['type'], 'autocomplete callback'))
-          || ($callback = notifications_subscription_fields($data['type'], 'name callback'))) 
-        {
-          $fields[$fid]['value'] = call_user_func($callback, $data['value']);
-        }
-      }
-    }
-    */
   }
 
   // Build the form with current fields
