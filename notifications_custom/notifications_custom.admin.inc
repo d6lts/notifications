@@ -85,7 +85,7 @@ function notifications_custom_form($form_state, $subs) {
   );
   if (!empty($subs->fields)) {
     foreach ($subs->fields as $data) {  
-      $format = notifications_format_subscriptions_field($data['type'], $data['value']);
+      $format = notifications_format_subscription_field($data['type'], $data['value']);
       $rows[] = array($format['name'], $format['value']);
     }
     $form['subscription']['fields'] = array('#type' => 'item', '#title' => t('Fields'), '#value' => theme('table', array(), $rows));
@@ -175,13 +175,13 @@ function notifications_custom_fields_form($form_state, $subscription) {
     '#theme' => 'notifications_custom_fields',
   );
 
-  // Take the values from form state or from the subscription itself
+  // Take the values from form state (if submitted) or from the subscription itself
   if (!empty($form_state['submitted'])) {
     if (!empty($form_state['values']['fields']['type'])) {
-      //dsm($form_state['values']['fields']);
       foreach ($form_state['values']['fields']['type'] as $key => $type) {
         if (empty($form_state['values']['fields']['delete'][$key])) {
-          $fields[] = array('type' => $type, 'value' => $form_state['values']['fields']['value'][$key]);  
+          // Add field to the list and mark as formatted so we can use this value for the form
+          $fields[] = array('type' => $type, 'value' => $form_state['values']['fields']['value'][$key], 'parsed' => TRUE);  
         }
       }
     }
@@ -190,6 +190,7 @@ function notifications_custom_fields_form($form_state, $subscription) {
     }
   } else {
     $fields = $subscription->fields;
+    /*
     foreach ($fields as $fid => $data) {
       // If it is an autocomplete field, we need to produce the autocomplete value
       if (notifications_subscription_fields($data['type'], 'autocomplete path')) {
@@ -200,6 +201,7 @@ function notifications_custom_fields_form($form_state, $subscription) {
         }
       }
     }
+    */
   }
 
   // Build the form with current fields
@@ -215,7 +217,14 @@ function notifications_custom_fields_form($form_state, $subscription) {
         '#type' => 'checkbox',
         '#default_value' => 0,
       );
-      $form['fields']['value'][$fid] = _notifications_subscription_field_element($data['type'], $data['value']);
+      // Generate the field and pass the value only if not parsed yet
+      if (empty($data['parsed'])) {
+        $form['fields']['value'][$fid] = notifications_subscription_form_field($data['type'], $data['value']);
+      }
+      else {
+        $form['fields']['value'][$fid] = notifications_subscription_form_field($data['type']);
+        $form['fields']['value'][$fid]['#default_value'] = $data['value'];
+      }
     }
   } else {
     $form['fields']['#description'] = t('You have to define at least one field for this subscription.');
@@ -241,9 +250,49 @@ function notifications_custom_fields_form($form_state, $subscription) {
  * Submit callback for adding new fields
  */
 function notifications_custom_fields_form_add_field(&$form, &$form_state) {
-  //dsm($form_state['values']);
   $form_state['values']['newfield'] = $form_state['values']['fields']['name']['new'];
   $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Validate field values
+ */
+function notifications_custom_fields_form_validate($form, &$form_state) {
+  $field_values = array();
+  $fields = $form_state['values']['fields'];
+  if (!empty($fields['type'])) {
+    foreach ($fields['type'] as $fid => $type) {
+      $value = NULL;
+      // Remove if checked for deletion
+      if (!empty($fields['delete'][$fid])) {
+        unset($form_state['values']['fields']['type'][$fid]);
+        continue;
+      }
+      // Add if it has a value and not marked for deletion      
+      elseif (!empty($fields['value'][$fid])) {
+        $value = $fields['value'][$fid];       
+        // We may need additional validation or field - value mappging for some fields
+        if ($callback = notifications_subscription_fields($type, 'value callback')) {
+          $value = call_user_func($callback, $value, "fields][value][$fid");
+        }
+        // If we still have a value (mapping may have failed, go and save)
+        if ($value) {
+          $field_values[] = array('type' => $type, 'value' => $value);
+        }
+      }
+      if (!$value) { // We don't have a value, error message
+        form_set_error("fields][value][$fid", t('You must set a value for this field.'));
+      }
+    }
+    // Final check, we should have some valid field/value pairs
+    if ($field_values) {
+      $form_state['field_values'] = $field_values;
+    }
+    else {
+      form_set_error(NULL, t('You must set at least one field for this subscription type.'));
+    }    
+  }
+
 }
 
 /**
@@ -251,27 +300,7 @@ function notifications_custom_fields_form_add_field(&$form, &$form_state) {
  */
 function notifications_custom_fields_form_submit($form, $form_state) {
   $subscription = $form_state['values']['subscription'];
-  $info = notifications_module_information('subscription fields');
-  // Build the fields array
-  $fields = array();
-  $form_fields = $form_state['values']['fields'];
-  if (!empty($form_fields['type'])) {
-    foreach ($form_fields['type'] as $fid => $type) {
-      // Add if it has a value and not marked for deletion      
-      if (empty($form_fields['delete'][$fid]) && !empty($form_fields['value'][$fid])) {
-        $value = $form_fields['value'][$fid];       
-        // We may need additional field - value mappging for some fields
-        if (!empty($info[$type]['value callback'])) {
-          $value = call_user_func($info[$type]['value callback'], $value);
-        }
-        // If we still have a value (mapping may have failed, go and save)
-        if ($value) {
-          $fields[] = array('type' => $type, 'value' => $value);
-        }
-      }
-    }
-  }
-  
+  $fields = $form_state['field_values'];
   db_query("UPDATE {notifications_custom} SET fields = '%s' WHERE csid = %d", serialize($fields), $subscription->csid);
   drupal_set_message(t('The fields for this subscription have been updated.'));
 }

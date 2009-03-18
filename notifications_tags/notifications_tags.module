@@ -63,7 +63,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'field' => 'tid',
         'type' => 'int',
         'autocomplete path' => 'notifications_tags/autocomplete/single',
-        'name callback' => 'notifications_tags_term_name',
+        'format callback' => 'notifications_tags_term_name',
         'value callback' => 'notifications_tags_term_tid',
       );
       return $fields;
@@ -81,21 +81,27 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
 /**
  * Fields information, translate term tid to name
  */
-function notifications_tags_term_name($tid) {
+function notifications_tags_term_name($tid, $html = FALSE) {
   if ($term = taxonomy_get_term($tid)) {
-    return check_plain($term->name);
+    return $html ? l($term->name, "taxonomy/term/$tid") : check_plain($term->name);
   }
 }
 
 /**
  * Fields information, translate term name to tid
  */
-function notifications_tags_term_tid($name) {
+function notifications_tags_term_tid($name, $field = NULL) {
   if ($vocabs = notifications_tags_vocabularies()) {
     // Add vids and name to args
     $args = array_keys($vocabs);
     $args[] = $name;
-    return db_result(db_query_range(db_rewrite_sql("SELECT t.tid FROM {term_data} t WHERE t.vid IN (" . db_placeholders($vocabs) . ") AND LOWER(t.name) = LOWER('%s')", 't', 'tid'), $args, 0, 1));
+    $tid = db_result(db_query_range(db_rewrite_sql("SELECT t.tid FROM {term_data} t WHERE t.vid IN (" . db_placeholders($vocabs) . ") AND LOWER(t.name) = LOWER('%s')", 't', 'tid'), $args, 0, 1));
+    if ($tid) {
+      return $tid;
+    }
+    elseif ($field) {
+      form_set_error($field, t('Term name not found.'));
+    }
   }
 }
 
