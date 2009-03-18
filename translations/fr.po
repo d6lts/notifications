@@ -26,7 +26,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "POT-Creation-Date: 2009-03-17 20:38-0400\n"
-"PO-Revision-Date: 2009-03-17 22:38-0400\n"
+"PO-Revision-Date: 2009-03-18 16:34-0400\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "MIME-Version: 1.0\n"
@@ -680,11 +680,11 @@ msgstr "Auteur : %name"
 
 #: notifications_content/notifications_content.module:170
 msgid "Thread: %title"
-msgstr "Fil de discussion : %title"
+msgstr "Sujet : %title"
 
 #: notifications_content/notifications_content.module:178;26
 msgid "Thread"
-msgstr "Fil de discussion"
+msgstr "Sujet"
 
 #: notifications_content/notifications_content.module:185;35
 msgid "Content type"
@@ -832,11 +832,11 @@ msgstr "Contenus par %name"
 
 #: notifications_content/notifications_content.module:593
 msgid "You are not currently subscribed to any active threads"
-msgstr "Vous n'avez présentement aucun abonnement à des fils de discussion"
+msgstr "Vous n'avez présentement aucun abonnement lié à des sujets"
 
 #: notifications_content/notifications_content.module:596
 msgid "You are currently subscribed to the following threads:"
-msgstr "Vous avez des abonnements pour les fils de discussion suivants :"
+msgstr "Vous avez des abonnements pour les sujets suivants :"
 
 #: notifications_content/notifications_content.module:619
 msgid "There are no active content types."
