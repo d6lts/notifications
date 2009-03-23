@@ -102,7 +102,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
     $node = node_load($form['nid']['#value']);
     $types = notifications_content_types(NULL);
     if (!empty($types[$node->type])) {    
-      $form['notifications_content_disable'] = array(
+      $form['notifications']['notifications_content_disable'] = array(
         '#type'          => 'checkbox',
         '#title'         => t('Do not send notifications for this comment.'),
         '#default_value' => 0,
@@ -113,18 +113,21 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
   elseif (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
     $types = notifications_content_types(NULL);
     if (!empty($types[$form['type']['#value']])) {
-      $form['notifications_content'] = array(
-        '#type'        => 'fieldset',
-        '#title'       => t('Notifications'),
-        '#collapsible' => TRUE,
-        '#collapsed'   => TRUE,
-        '#weight'      => 1,
-        '#access' => user_access('skip notifications'),
-      );
-      $form['notifications_content']['notifications_content_disable'] = array(
+      $noprevious = !isset($form['notifications']);
+      $form['notifications']['#type'] = 'fieldset';
+      $form['notifications']['#title'] = t('Notifications');
+      $form['notifications']['#collapsible'] = TRUE;
+      $form['notifications']['#weight'] = 1;
+      //don't want to hide/change access on modules that already used the notifications fieldset for something
+      if ($noprevious) {
+        $form['notifications']['#collapsed']   = TRUE;
+        $form['notifications']['#access'] = user_access('skip notifications');
+      }
+      $form['notifications']['notifications_content_disable'] = array(
         '#type'          => 'checkbox',
         '#title'         => t('Do not send notifications for this update.'),
         '#default_value' => 0,
+        '#access' => user_access('skip notifications'),
       );
     }
   }
