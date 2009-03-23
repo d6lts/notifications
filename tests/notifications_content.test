@@ -92,7 +92,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid)));
     $this->drupalGet($link['href'], $link['options']);
     $this->assertText('Confirm your subscription', 'Thread subscription: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Thread: %title', array('%title' => check_plain($node->title))), 'Confirmation page parameters are ok');
+    $this->assertRaw(t('Thread: @title', array('@title' => $node->title)), 'Confirmation page parameters are ok');
     $this->drupalPost($link['href'], array(), 'Subscribe');
     $this->assertText('Your subscription was activated', 'Confirmation message is displayed');
     
@@ -119,7 +119,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type)));
     $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Confirm your subscription'), 'Content type: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Content type: %type', array('%type' => $ctype->name)), 'Confirmation page parameters are ok');
+    $this->assertRaw(t('Content type: @type', array('@type' => $ctype->name)), 'Confirmation page parameters are ok');
     $this->drupalPost($link['href'], array(), 'Subscribe');
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
@@ -127,7 +127,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid)));
     $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Confirm your subscription'), 'Author: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Author: %name', array('%name' => $author->name)), 'Confirmation page parameters are ok');
+    $this->assertRaw(t('Author: @name', array('@name' => $author->name)), 'Confirmation page parameters are ok');
     $this->drupalPost($link['href'], array(), 'Subscribe');
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
