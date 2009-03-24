@@ -68,7 +68,11 @@ function notifications_autosubscribe_form_alter(&$form, $form_state, $form_id) {
 function notifications_autosubscribe_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL) {
   if ($op == 'event trigger') {
     $event = $arg0;
-    if ($event->type == 'node' && isset($event->node->nid) && (!isset($event->node->autosubscribe) || $event->node->autosubscribe )) {
+
+    if ($event->type == 'node'
+        && isset($event->node->nid)
+        && (!isset($event->node->autosubscribe) || $event->node->autosubscribe )
+        && $event->action !== 'update') {
       notifications_autosubscribe('thread', 'node', 'nid', $event->node->nid);
     }
   }

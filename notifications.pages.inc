@@ -46,7 +46,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   // Check signature if present
   $params = array('subscribe', $account->uid, $type, $fields, $values);
   $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));
-  if (!empty($_GET['signature'])) drupal_set_message(_notifications_signature($params, !empty($_GET['confirm'])));
+
   // Build subscriptions object
   $subscription = (object)array(
     'uid' => $account->uid,

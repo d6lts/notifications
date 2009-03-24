@@ -11,6 +11,9 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Fixed: Leftover debug message, by David Lesieur, #402306
+- Fixed: Autosubscribe on Create and Comment - but NOT on update, by a_c_m, #406072
+
 - Changed node/comment form fieldset so it works better with notifications_team, by David Goode.
 - Reworded and simplified the 'Disable notifications' option
 - Fixed events where being deleted when doing a test run
