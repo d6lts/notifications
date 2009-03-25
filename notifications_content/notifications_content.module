@@ -8,6 +8,9 @@
 // Max number of elements per page for user account tabs
 define('NOTIFICATIONS_CONTENT_PAGER', 20);
 
+// Include notifications node API
+require_once drupal_get_path('module', 'notifications') .'/notifications.node.inc';
+
 /**
  * Implementation of hook_menu_()
  */
@@ -45,12 +48,6 @@ function notifications_content_menu() {
     'page callback' => 'notifications_content_page_author',
     'pàge arguments' => array(1),
     'weight' => 10,
-  );
-  $items['notifications_content/autocomplete'] = array(
-    'title' => 'Node title autocomplete',
-    'page callback' => 'notifications_content_node_autocomplete',
-    'access arguments' => array('access content'),
-    'type' => MENU_CALLBACK
   );
   return $items;
 }
@@ -212,10 +209,10 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('Node'),
         'field' => 'nid',
         'type' => 'int',
-        'autocomplete path' => 'notifications_content/autocomplete',
-        'autocomplete callback' => 'notifications_content_node_title_nid',
-        'format callback' => 'notifications_content_node_title',
-        'value callback' => 'notifications_content_node_nid',
+        'autocomplete path' => 'notifications/autocomplete/node/title',
+        'autocomplete callback' => 'notifications_node_nid2autocomplete',
+        'format callback' => 'notifications_node_nid2title',
+        'value callback' => 'notifications_node_title2nid',
       );
       $fields['author'] = array(
         'name' => t('Author'),
@@ -349,97 +346,6 @@ function notifications_content_author_uid($name, $field = NULL) {
   elseif ($field) {
     form_set_error($field, t('User name not found.'));
   }
-}
-
-function notifications_content_node_title($nid, $html = FALSE) {
-  if ($node = node_load($nid)) {
-    return $html ? l($node->title, "node/$nid") : check_plain($node->title);
-  }
-  else {
-    return t('Not found');
-  }
-}
-
-/**
- * Generates title [nid:$nid] for the autocomplete field
- */
-function notifications_content_node_title_nid($nid) {
-  if ($node = node_load($nid)) {
-    return check_plain($node->title) . ' [nid:' . $nid .']';
-  }
-  else {
-    return t('Not found');
-  }
-}
-
-/**
- * Reverse mapping from node title to nid
- * 
- * We also handle autocomplete values (title [nid:x]) and validate the form
- */
-function notifications_content_node_nid($name, $field = NULL) {
-  if (!empty($name)) {
-    preg_match('/^(?:\s*|(.*) )?\[\s*nid\s*:\s*(\d+)\s*\]$/', $name, $matches);
-    if (!empty($matches)) {
-      // Explicit [nid:n].
-      list(, $title, $nid) = $matches;
-      if (!empty($title) && ($node = node_load($nid)) && $title != $node->title) {
-        if ($field) {
-          form_set_error($field, t('Node title mismatch. Please check your selection.'));
-        }
-        $nid = NULL;
-      }
-    }
-    else {
-      // No explicit nid.
-      $reference = _notifications_content_node_references($name, 'equals', 1);
-      if (!empty($reference)) {
-        $nid = key($reference);
-      }
-      elseif ($field) {
-        form_error($field, t('Found no valid post with that title: %title', array('%title' => $name)));
-      }
-    }
-  }
-  return !empty($nid) ? $nid : NULL;  
-}
-
-/**
- * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing users
- */
-function notifications_content_node_autocomplete($string = '') {
-  $matches = array();
-
-  foreach (_notifications_content_node_references($string) as $id => $row) {
-    // Add a class wrapper for a few required CSS overrides.
-    $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
-  }
-  drupal_json($matches);
-}
-
-/**
- * Find node title matches.
- * 
- * Some code from CCK's nodereference.module
- */
-function _notifications_content_node_references($string, $match = 'contains', $limit = 10) {
-  $match_operators = array(
-    'contains' => "LIKE '%%%s%%'",
-    'equals' => "= '%s'",
-    'starts_with' => "LIKE '%s%%'",
-  );
-  $where = 'n.title '. (isset($match_operators[$match]) ? $match_operators[$match] : $match_operators['contains']);
-  $args[] = $string;
-  $sql = db_rewrite_sql("SELECT n.nid, n.title, n.type AS node_type FROM {node} n WHERE $where ORDER BY n.title, n.type");
-  $result = db_query_range($sql, $args, 0, $limit) ;
-  $references = array();
-  while ($node = db_fetch_object($result)) {
-    $references[$node->nid] = array(
-      'title' => check_plain($node->title),
-      'rendered' => check_plain($node->title),
-    );
-  }
-  return $references; 
 }
 
 /**

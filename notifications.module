@@ -145,6 +145,22 @@ function notifications_menu() {
     'weight' => -10,
   );  
   
+  // Some autocomplete callbacks
+  $items['notifications/autocomplete/node/title'] = array(
+    'title' => 'Node title autocomplete',
+    'page callback' => 'notifications_node_autocomplete_title',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+    'file' => 'notifications.node.inc',
+  );
+  // Some autocomplete callbacks
+  $items['notifications/autocomplete/node/type'] = array(
+    'title' => 'Node title autocomplete',
+    'page callback' => 'notifications_node_autocomplete_type',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+    'file' => 'notifications.node.inc',
+  );
   return $items;
 }
 
@@ -1327,7 +1343,7 @@ function _notifications_subscription_status() {
    }
    return call_user_func_array($callback, $args);
  }
- 
+
  /**
  * This dispatch function hands off structured Drupal arrays to type-specific
  * _notifications_*_alter implementations. Modelled after Drupal 6 drupal_alter()

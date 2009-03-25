@@ -1,7 +1,7 @@
 <?php
 // $Id$
 /**
- * Subscriptions module. Queue processing.
+ * Notifications module. Queue processing.
  * 
  * Callbacks for queue processing. They may be implemented by other modules
  *    _load_user()
