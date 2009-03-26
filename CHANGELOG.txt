@@ -12,7 +12,7 @@ TO DO
 6.x-1.1 to .....
 -----------------
 - Created node library for functions to be reused by multiple plug-ins.
-- Updated FeedAPI plug-in for 6.x (untested)
+- Updated FeedAPI plug-in for 6.x (untested). Added some theming for feed items
 - Fixed: Leftover debug message, by David Lesieur, #402306
 - Fixed: Autosubscribe on Create and Comment - but NOT on update, by a_c_m, #406072
 - Changed node/comment form fieldset so it works better with notifications_team, by David Goode.

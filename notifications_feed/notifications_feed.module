@@ -272,9 +272,9 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
         foreach ($updated as $item) {
           $refreshed[] = t('Updated: !title', array('!title' => $item));
         }
-        $values['feed-items-updated'] = $updated ? implode("\n- ", $updated) : t('no updated items');
-        $values['feed-items-new'] = $new ? '- '. implode("\n- ", $new) : t('no new items');
-        $values['feed-items-refresh'] = implode("\n", $refreshed); 
+        $values['feed-items-updated'] = theme('notifications_feed_items', $updated);
+        $values['feed-items-new'] = theme('notifications_feed_items', $new);
+        $values['feed-items-refresh'] = theme('notifications_feed_items', $refreshed);
      
         return $values;
       }
@@ -314,4 +314,30 @@ function notifications_feed_user_page($account = NULL) {
     $output .= theme('pager', NOTIFICATIONS_FEED_PAGER);
   }
   return $output;
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function notifications_feed_theme() {
+  return array(
+    'notifications_feed_items' => array(
+      'arguments' => array('items' => NULL),
+    ),
+  );
+}
+    
+/**
+ * Theme item list for the message
+ * 
+ * @param $items
+ *  Array
+ */
+function theme_notifications_feed_items($items) {
+  if ($items) {
+    return '- ' . implode("\n- ", $items) . "\n";
+  }
+  else {
+    return '';
+  }
 }
