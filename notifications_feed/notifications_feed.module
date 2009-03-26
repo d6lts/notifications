@@ -99,7 +99,7 @@ function notifications_feed_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
       $types[] = array(
         'type' => 'feed',
         'action' => 'update',
-        'name' => '[type-name]: [title]',
+        'name' => 'Feed: [title]',
         'line' => "The feed [title] has been updated\n[feed-updated-items]",
         'digest' => array('feed', 'type'), 
       );
@@ -261,7 +261,7 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
         $values['feed-name'] = check_plain($feed->title);
         $values['feed-teaser'] = $feed->teaser ? check_markup($feed->teaser, $feed->format, FALSE) : '';
         // We may need to use a different link here
-        $values['feed-url'] = url('node/'. $feed->nid, NULL, NULL, TRUE);
+        $values['feed-url'] = url('node/'. $feed->nid, array('absolute' => TRUE));
         // Item lists
         $updated = array_map('check_plain', $feed->items_updated);
         $new = array_map('check_plain', $feed->items_new);;
