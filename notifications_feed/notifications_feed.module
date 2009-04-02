@@ -263,8 +263,8 @@ function notifications_feed_token_values($type, $object = NULL, $options = array
         // We may need to use a different link here
         $values['feed-url'] = url('node/'. $feed->nid, array('absolute' => TRUE));
         // Item lists
-        $updated = array_map('check_plain', $feed->items_updated);
-        $new = array_map('check_plain', $feed->items_new);;
+        $updated = !empty($feed->items_updated) ? array_map('check_plain', $feed->items_updated) : array();
+        $new = !empty($feed->items_new) ? array_map('check_plain', $feed->items_new) : array();
         $refreshed = array();
         foreach ($new as $item) {
           $refreshed[] = t('New: !title', array('!title' => $item));
