@@ -831,7 +831,7 @@ function notifications_subscription_types($type = NULL, $field = NULL) {
   
   if (!isset($types)) {
     $types = notifications_module_information('subscription types');
-    notifications_alter('subscription_types', $types);
+    drupal_alter('notifications_subscription_types', $types);
   }
   
   return notifications_info($types, $type, $field);
@@ -844,7 +844,7 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
   static $fields;
   if (!isset($fields)) {
     $fields = notifications_module_information('subscription fields');
-    notifications_alter('subscription_fields', $fields);
+    drupal_alter('notifications_subscription_fields', $fields);
   }
   return notifications_info($fields, $type, $property);
 }
@@ -1097,7 +1097,7 @@ function notifications_event_types($type = NULL, $action = NULL) {
     foreach ($types as $type_info) {
       $info[$type_info['type']][$type_info['action']] = $type_info;
     }
-    notifications_alter('event_types', $info);
+    drupal_alter('notifications_event_types', $info);
   }
   if ($action) {
     return isset($info[$type][$action]) ? $info[$type][$action] : array();
@@ -1343,34 +1343,6 @@ function _notifications_subscription_status() {
    }
    return call_user_func_array($callback, $args);
  }
-
- /**
- * This dispatch function hands off structured Drupal arrays to type-specific
- * _notifications_*_alter implementations. Modelled after Drupal 6 drupal_alter()
- * 
- * @param $type
- *   The data type of the structured array. 'form', 'links',
- *   'node_content', and so on are several examples.
- * @param $data
- *   The structured array to be altered.
- * @param ...
- *   Any additional params will be passed on to the called
- *   hook_notifications_$type_alter functions.
- */
-function notifications_alter($type, &$data) {
-  // Now, use func_get_args() to pull in any additional parameters passed into
-  // the drupal_alter() call.
-  $args = array(&$data);
-  $additional_args = func_get_args();
-  array_shift($additional_args);
-  array_shift($additional_args);
-  $args = array_merge($args, $additional_args);
-
-  foreach (module_implements('notifications_'. $type .'_alter') as $module) {
-    $function = $module .'_notifications_'. $type .'_alter';
-    call_user_func_array($function, $args);
-  }
-}
 
 /**
  * Generic subscriptions content form
