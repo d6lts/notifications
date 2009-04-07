@@ -10,6 +10,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Fixed upgrade script error (pending pgsql testing), #375746
 - Added field type handling for the query builder (performance++ and pgsql support)
 - Fixed comment token parameters, by peter.swietoslawski, #420342
 - Notifications UI improvements. Better API, new form option for nodes..
