@@ -74,6 +74,10 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), TRUE, 'Subscription is allowed for user with the right permissions');
     $this->drupalLogin($user);
  
+    // Check unsubscribe page, no subscriptions yet
+    $this->drupalGet('notifications/unsubscribe/uid/' . $user->uid);
+    $this->assertText("You don't have any subscription on this site.", 'Unsubscribe page showing no subscriptions');
+    
     // Check content type page before and after enabling this content type
     $allowed = notifications_content_types();
     $this->assertEqual(isset($allowed[$ctype->type]), TRUE, 'Subscriptions are allowed for the new content type');
@@ -202,11 +206,17 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $count = db_result(db_query("SELECT count(*) FROM {notifications_event} WHERE counter = 0"));   
     $this->assertEqual($count, 1, 'The event counters have been updated:' . $count);
     
-    // Remove created subscriptions
-    notifications_delete_subscriptions(array('uid' => $user->uid));
-    // Remove temporary node and content-type
-    node_delete($node->nid);
-    node_type_delete($ctype->type);
-
+    // Check unsubscribe from all page, with confirmation and with direct link
+    $link = notifications_get_link('unsubscribe', array('uid' => $user->uid));
+    $this->drupalGet($link['href'], $link['options']);     
+    $this->assertText('Are you sure you want to remove all your subscriptions on this site?', 'Unsubscribe all page showing up.');
+    $link = notifications_get_link('unsubscribe', array('uid' => $user->uid, 'confirm' => FALSE));
+    $this->drupalGet($link['href'], $link['options']);     
+    $this->assertText('All your subscriptions have been removed.', 'Subscriptions removed with signed url.');
+    $this->assertEqual($this->countUserRows('notifications', $user->uid), 0, 'The subscriptions have been actually removed.');
+  }
+  
+  function countUserRows($table, $uid) {
+    return db_result(db_query("SELECT COUNT(*) FROM {$table} WHERE uid = %d", $uid));
   }
 }

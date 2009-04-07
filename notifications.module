@@ -113,10 +113,10 @@ function notifications_menu() {
     'file' => 'notifications.pages.inc',
   );
   // Unsubscribe links This page will need to work with anonymous users
-  $items['notifications/unsubscribe/%'] = array(
+  $items['notifications/unsubscribe'] = array(
     'type' => MENU_CALLBACK,
     'page callback' => 'notifications_page_unsubscribe',
-    'page arguments' => array(2),
+    'page arguments' => array(2, 3),
     'access callback' => TRUE,
     'file' => 'notifications.pages.inc',
   );
@@ -198,7 +198,7 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
   
   $account = $account ? $account : $user;
   
-  if (user_access('administer notifications', $account)) return TRUE;
+  if (user_access('administer notifications')) return TRUE;
   
   switch($op) {
     case 'edit':
@@ -1060,9 +1060,10 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       return $values;
     case 'user':
       if ($account = $object) {
-        return array(
-          'subscriptions-manage' => $account->uid ? url("user/$account->uid/notifications", array('absolute' =>TRUE)) : '',
-        );
+        $values['subscriptions-manage'] = $account->uid ? url("user/$account->uid/notifications", array('absolute' =>TRUE)) : '';
+        $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'signed' => TRUE, 'destination' => FALSE, 'absolute' => TRUE));
+        $values['unsubscribe-url-global'] = url($link['href'], $link['options']);
+        return $values;
       }
   }
 }
@@ -1075,6 +1076,7 @@ function notifications_token_list($type = 'all') {
   $tokens = array();
   if ($type == 'user' || $type == 'all') {
     $tokens['user']['subscriptions-manage']    = t('The url for the current user to manage subscriptions.');
+    $tokens['user']['unsubscribe-url-global'] = t('The url to allow a user to delete all their subscriptions.');
   }
   if ($type == 'subscription' || $type == 'all') {
     $tokens['subscription']['unsubscribe-url']      = t('The url for disabling a specific subscription.');
@@ -1150,10 +1152,13 @@ function notifications_get_link($type, $params) {
       );
       break;
     case 'unsubscribe':
-      $elements = array(
-        'unsubscribe',
-        $params['sid']        
-      );
+      // The unsubscribe link can be for a single subscription or all subscriptions for a user
+      if (!empty($params['sid'])) {      
+        $elements = array('unsubscribe', 'sid', $params['sid']);        
+      }
+      elseif (!empty($params['uid'])) {
+        $elements = array('unsubscribe', 'uid', $params['uid']); 
+      }
       break;
   }
   // Build query string using named parameters

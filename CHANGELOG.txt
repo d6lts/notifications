@@ -11,6 +11,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Fixed comment token parameters, by peter.swietoslawski, #420342
 - Notifications UI improvements. Better API, new form option for nodes..
 - Created node library for functions to be reused by multiple plug-ins.
 - Updated FeedAPI plug-in for 6.x (untested). Added some theming for feed items
