@@ -448,14 +448,21 @@ function notifications_query_build($params, $query = array()) {
     if ($name == 'fields') {
       // Fields elements have some special handling, they have the form: field => value
       foreach ($elements as $field => $value ) {
-        // Handle array values with IN conditions
+        // Use field definition provided by hook_notifications('subscription fields') and handle array values with IN conditions
+        // Workaround to have a valid one because not all modules provide the information yet (og?)
+        if (notifications_subscription_fields($field, 'type') == 'int') {
+          $type = 'int';
+          $fieldval = 'intval';
+        } else {
+          $type = 'char';
+          $fieldval = 'value';
+        }
         if (is_array($value)) {
-          $placeholders =  array_fill(0, count($value), "'%s'");
-          $query['fields'][] = "f.field = '%s' AND f.value IN (" . implode(', ', $placeholders). ")";
+          $query['fields'][] = "f.field = '%s' AND f.$fieldval IN (" . db_placeholders($value, $type) . ")";
           $query['fields args'][] = $field;
           $query['fields args'] = empty($query['fields args']) ? $value : array_merge($query['fields args'], $value);
         } else {
-          $query['fields'][] = "f.field = '%s' AND f.value = '%s'";
+          $query['fields'][] = "f.field = '%s' AND f.$fieldval = " . db_type_placeholder($type);
           $query['fields args'][] = $field;
           $query['fields args'][] = $value;
         }
@@ -729,8 +736,13 @@ function notifications_delete_subscription($sid) {
  */
 function notifications_delete_subscriptions($params, $conditions = array()) {
   $join = $where = $args = array();
+  $schema = drupal_get_schema('notifications');
   foreach ($params as $field => $value) {
-    $where[] =  'n.'. $field ." = '%s'";
+    if (in_array($schema['fields'][$field]['type'], array('serial', 'int'))) {
+      $where[] =  'n.'. $field ." = %d";
+    } else {
+      $where[] =  'n.'. $field ." = '%s'";
+    }
     $args[] = $value;
   }
   // Now we need to join once the fields table for each condition
@@ -740,7 +752,11 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
       $alias = 'nf'. $index++;
       $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
       $where[] = "$alias.field = '%s'";
-      $where[] = "$alias.value = '%s'";
+      if (notifications_subscription_fields($field, 'type') == 'int') {
+        $where[] = "$alias.intval = %d";        
+      } else {
+        $where[] = "$alias.value = '%s'";
+      }
       $args[] = $field;
       $args[] = $value;
     }

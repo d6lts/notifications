@@ -2,7 +2,6 @@
 
 TO DO
 ------
-* Add CAN-SPAM complicance, 'Unsubscribe from all'..
 * Use actions and triggers instead of old notifications' events, see http://drupal.org/node/260100
 * Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
 * Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
@@ -11,6 +10,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Added field type handling for the query builder (performance++ and pgsql support)
 - Fixed comment token parameters, by peter.swietoslawski, #420342
 - Notifications UI improvements. Better API, new form option for nodes..
 - Created node library for functions to be reused by multiple plug-ins.
