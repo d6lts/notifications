@@ -7,33 +7,78 @@
 
 /**
  * Menu callback. Overview page for user subscriptions.
+ * 
+ * We create the page as a form so it can be altered
  */
-function notifications_page_user_overview($account) {
-  // Build summary
-  $count = array();  
-  // Query all subscriptions for this user
-  $result = db_query("SELECT s.type, count(s.sid) as number FROM {notifications} s WHERE s.uid = %d  GROUP BY s.type", $account->uid);
-  while ($subs = db_fetch_object($result)) {
-    $count[$subs->type] =  $subs->number;
-  }
-  $header = array(t('Type'), t('Number'));
-  $rows = array();
+function notifications_user_overview($form_state, $account) {
+  $form['account'] = array('#type' => 'value', '#value' => $account);
   
-  // List types and count for each type
-  foreach (notifications_subscription_types() as $type => $info) {
-    $access = user_access('administer notifications') || !empty($info['access']) && user_access($info['access']);
-    // If no access and no count, skip this type.
-    // But if no access and there are some we show the type and number without link.
-    if ($access || !empty($count[$type])) {
-      $rows[] = array(
-         $access ? l($info['title'], "user/$account->uid/notifications/$type") : $info['title'],
-         isset($count[$type]) ? $count[$type] : 0,
-      );
+  $path = 'user/' . $account->uid;
+  
+  // Status, send method, interval
+  $count = db_query("SELECT status, COUNT(*) AS num FROM {notifications} WHERE uid = %d GROUP BY status", $account->uid);
+  $status_list = _notifications_subscription_status();
+  while ($current = db_fetch_object($count)) {
+    $status[$current->status] = t('You have %count @status subscriptions.', array('%count' => $current->num, '@status' => $status_list[$current->status]));
+  }
+  if (empty($status)) {
+    $status['none'] = t('You don\'t have any subscriptions yet.');
+  }
+  $send_intervals = _notifications_send_intervals();
+  $send_methods = _notifications_send_methods($account);
+  if ($method = notifications_user_setting('send_method', $account)) {
+    if (isset($send_methods[$method])) {      
+      $status['method'] = t('Your default sending method for new subscriptions is @send_method', array('@send_method' => $send_methods[$method]));
     }
   }
-
-  return $rows ? theme('table', $header, $rows) : t('No existing or allowed subscriptions');
+  $interval = notifications_user_setting('send_interval', $account);
+  if (isset($send_intervals[$interval])) {      
+    $status['interval'] = t('Your default sending interval for new subscriptions is @send_interval', array('@send_interval' => $send_intervals[$interval]));
+  }
+  
+  $form['status'] = array('#type' => 'item', '#weight' => 10, '#title' => t('Current status'), '#value' => theme('item_list', $status));
+  
+  // Build shortcut tips
+  $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
+  $tips['edit'] = l(t('Edit your notifications settings'), "$path/edit");
+  $link = notifications_get_link('unsubscribe', array('uid' => $account->uid));
+  $tips['cancel'] = l(t('Cancel all your subscriptions'), $link['href'], $link['options']);
+  
+  //$output .= theme('item_list', $tips, t('You can'));
+  $form['tips'] = array('#type' => 'item', '#weight' => 20, '#title' => t('You can'), '#value' => theme('item_list', $tips));
+  
+  // Create new subscription
+  foreach (notifications_subscription_types() as $key => $type) {
+    if (empty($type['custom']) && (empty($type['access']) || user_access($type['access']))) {
+      $create[] = l($type['title'], "$path/notifications/add/$key");
+    }
+  }
+  if (!empty($create)) {
+    // $output .= theme('item_list', $create, t('or create a new subscription'));
+    $form['create'] = array('#type' => 'item', '#weight' => 30, '#title' => t('or create a new subscription'), '#value' => theme('item_list', $create));
+  }
+    
+  return $form;  
 }
+
+/**
+ * Menu callback: user subscriptions management
+ */
+function notifications_user_manage_subscriptions($form_state, $account) {
+  module_load_include('inc', 'notifications', 'notifications.manage');
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
+    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
+  }
+  $form = notifications_subscriptions_filter_form();
+  $form['filters']['#title'] = t('Filter');
+  $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => TRUE);
+  $form['#theme'] = 'notifications_subscriptions_filter_form';
+  $form['admin']  = notifications_manage_subscriptions_form($account);
+
+  return $form;
+}
+
+
 
 /**
  * Menu callback add subscription

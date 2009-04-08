@@ -133,8 +133,10 @@ function notifications_menu() {
   $items['user/%user/notifications'] = array(
     'type' => MENU_LOCAL_TASK,
     'title' => 'Notifications',
-    'page callback' => 'notifications_page_user_overview',
-    'page arguments' => array(1),
+    //'page callback' => 'notifications_page_user_overview',
+    //'page arguments' => array(1),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_user_overview', 1),
     'access callback' => 'notifications_access_user',
     'access arguments' => array(1),
     'file' => 'notifications.pages.inc',
@@ -144,7 +146,15 @@ function notifications_menu() {
     'title' => 'Overview',
     'weight' => -10,
   );  
-  
+  $items['user/%user/notifications/subscriptions'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Subscriptions',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_user_manage_subscriptions', 1),
+    'access callback' => 'notifications_access_user',
+    'access arguments' => array(1),
+    'file' => 'notifications.pages.inc',
+  );  
   // Some autocomplete callbacks
   $items['notifications/autocomplete/node/title'] = array(
     'title' => 'Node title autocomplete',
@@ -203,7 +213,7 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
   switch($op) {
     case 'edit':
     case 'unsubscribe':
-      return ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
+      return user_access('manage all subscriptions') || ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
   }
 
   return FALSE;
@@ -212,9 +222,13 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
 /**
  * Implementation of hook_perms()
  * 
+ * This module defines the following permissions
+ * - administer notifications = Full access to all administration for the module
+ * - maintain own subscriptions = Create / delete own subscriptions
+ * - manage all subscriptions = Administer other users subscriptions
  */
 function notifications_perm() {
-  return array('administer notifications', 'maintain own subscriptions');
+  return array('administer notifications', 'maintain own subscriptions', 'manage all subscriptions');
 }
 
 /**
@@ -1332,8 +1346,8 @@ function _notifications_subscription_defaults($account = NULL) {
  */
 function _notifications_subscription_status() {
   return array(
-    NOTIFICATIONS_SUBSCRIPTION_BLOCKED => t('blocked'),
     NOTIFICATIONS_SUBSCRIPTION_ACTIVE => t('active'),
+    NOTIFICATIONS_SUBSCRIPTION_BLOCKED => t('blocked'),
     NOTIFICATIONS_SUBSCRIPTION_INACTIVE => t('inactive'),
  );
 }
@@ -1570,13 +1584,13 @@ function notifications_theme() {
       'arguments' => array('header' => NULL, 'content' => NULL, 'footer' => NULL),
       'file' => 'notifications.cron.inc',
     ),
-    'notifications_admin_subscriptions' => array(
+    'notifications_manage_subscriptions' => array(
       'arguments' => array('form' => NULL),
-      'file' => 'notifications.admin.inc',
+      'file' => 'notifications.manage.inc',
     ),
     'notifications_subscriptions_filter_form' => array(
       'arguments' => array('form' => NULL),
-      'file' => 'notifications.admin.inc',
+      'file' => 'notifications.manage.inc',
     ),
     'notifications_table_form' => array(
       'arguments' => array('form' => NULL),

@@ -125,23 +125,23 @@ function notifications_custom_notifications($op) {
 /**
  * Build user account form
  */
-function notifications_custom_user_form($edit, $account, $category, $register = FALSE) {
+function notifications_custom_user_form($edit, $account, $category, $register = FALSE, $hidden = TRUE) {
   $form = $params = array();
   if ($register) {
     $params['register'] = 1;
   }
   if ($custom = notifications_custom_list($params)) {
-    $form['notifications_custom'] = array('#type' => 'fieldset', '#tree' => TRUE);
+    $form['notifications_custom'] = array('#type' => 'fieldset', '#tree' => TRUE, '#title' => t('Subscriptions'));
     foreach ($custom as $subs) {
       if ($subs->visibility || user_access('administer users')) {
         $form['notifications_custom'][$subs->type] = array(
           '#type' => 'checkbox',
           '#title' => $subs->title,
-          '#default_value' => $register ? $subs->default_value : (bool)notifications_custom_get_subscription($subs, $account->uid),
+          '#default_value' => $register ? $subs->default_value : (bool)notifications_custom_get_subscription($subs->type, $account->uid),
           '#description' => $subs->explanation,      
         );
       }
-      else {
+      elseif($hidden) {
         // Hidden option 
         $form['notifications_custom'][$subs->type] = array('#type' => 'value', '#value' => $subs->default_value);
       }
@@ -150,7 +150,7 @@ function notifications_custom_user_form($edit, $account, $category, $register = 
   return $form;
 }
 
-/**
+ /**
  * Save user subscription
  */
 function notifications_custom_user_save(&$edit, $account, $category, $register = FALSE) {
@@ -162,22 +162,71 @@ function notifications_custom_user_save(&$edit, $account, $category, $register =
   if ($register && ($custom = notifications_custom_list(array('register' => 0, 'default_value' => 1)))) {
     $enabled = array_merge($enabled, $custom);
   }
-  foreach ($enabled as $type => $value) {
-    $subscription = notifications_custom_build_subscription($type);
-    $user_subs = $register ? NULL : notifications_custom_get_subscription($type, $account->uid);
+  notifications_custom_account_update($account, $enabled);
+  $edit['notifications_custom'] = NULL;
+}
+
+/**
+ * Implementation of hook_form_alter()
+ */
+function notifications_custom_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'notifications_user_overview' && ($custom = notifications_custom_list(array('visibility' => 1)))) {
+    $form['custom'] = array('#type' => 'item', '#title' => t('edit subscriptions'), '#weight' => 25);
+    $form['custom']['notifications_custom']['#tree'] = TRUE;
+    foreach ($custom as $subs) {
+      $form['custom']['notifications_custom'][$subs->type] = array(
+        '#type' => 'checkbox',
+        '#title' => $subs->title,
+        '#default_value' => (bool)notifications_custom_get_subscription($subs->type, $form['account']['#value']->uid),
+        '#description' => $subs->explanation,      
+      );     
+    }
+    $form['custom']['button'] = array('#type' => 'submit', '#value' => t('Update'));
+    $form['#submit'][] = 'notifications_custom_form_submit';
+  }
+}
+
+/**
+ * Form submission with custom notifications
+ */
+function notifications_custom_form_submit($form, $form_state) {
+  if (notifications_custom_account_update($form_state['values']['account'], $form_state['values']['notifications_custom'])) {
+    drupal_set_message(t('Your subscriptions have been updated'));
+  }
+}
+
+/**
+ * Update custom subscriptions for user account
+ * 
+ * @param $account
+ *   User account
+ * @param $update
+ *   Array of type => status
+ * 
+ * @return int
+ *   The number of updated subscriptions
+ */
+function notifications_custom_account_update($account, $update) {
+  $changed = 0;
+  
+  foreach ($update as $type => $value) {    
+    $user_subs =  notifications_custom_get_subscription($type, $account->uid);
     if ($value && !$user_subs) {
       // Add new subscription
+      $subscription = notifications_custom_build_subscription($type);
       $subscription->uid = $account->uid;
       notifications_save_subscription($subscription);
+      $changed++;
     }
     elseif (!$value && $user_subs) {
       // Disable existing subscription
       notifications_delete_subscription($user_subs->sid);
+      $changed++;
     }
   }
-  $edit['notifications_custom'] = NULL;
+  
+  return $changed;
 }
-
 /**
  * Retrieve list of custom notifications
  * 
@@ -291,8 +340,8 @@ function notifications_custom_build_subscription($type) {
 /**
  * Get user subscription for a custom one
  * 
- * @param $csid
- *   Custom subscription id
+ * @param $type
+ *   Custom subscription type
  * @param $uid
  *   User id
  */
