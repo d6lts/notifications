@@ -31,7 +31,40 @@ function notifications_ui_menu() {
     'access arguments' => array('administer site configuration'),
     'type' => MENU_LOCAL_TASK,
   );
+  // Enabled pages
+  foreach (notifications_subscription_types() as $type => $info) {
+    $info = notifications_subscription_types($type);
+    if (!empty($info['page callback'])) {
+      $items['user/%user/notifications/' . $type] = array(  
+        'type' => MENU_LOCAL_TASK,
+        'access callback' => 'notifications_ui_access', 
+        'access arguments' => array($type, 1),
+        'title' => $info['title'],
+        'page callback' => $info['page callback'],
+        'page arguments' => array(1),
+        'weight' => 10,
+      );
+    }
+  }
   return $items;
+}
+
+/**
+ * Menu access callback
+ */
+function notifications_ui_access($type, $account) {
+  global $user;
+  
+  // Global user permissions
+  if (user_access('administer subscriptions') || user_access('manage all subscriptions') ||
+      $user->uid && $user->uid == $account->uid && user_access('maintain own subscriptions')) {    
+    // Check specifics for this subscription type
+    $info = notifications_subscription_types($type);
+    $enabled = variable_get('notifications_ui_pages', array());
+    if (!empty($enabled[$type]) && (empty($info['access']) || user_access($info['access'], $account))) {
+      return TRUE;
+    }
+  }
 }
 
 /**
@@ -73,11 +106,28 @@ function notifications_ui_settings_form() {
     '#default_value' => variable_get('notifications_ui_types', array()),
     '#description' => t('Check the subscription types the UI module should show.'),
   );
+  // Use an item instead of fieldset for formatting
+  $form['content'] = array('#type' => 'item', '#title' => t('Content options'));
   $form['notifications_link_teaser'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Show subscribe link with teaser'),
     '#default_value' => variable_get('notifications_link_teaser', 1),
     '#description'   => t('Uncheck to show links only in full node view. This will work only for content types that have subscription links enabled.'),
+  );
+
+  // User account pages
+  $options = array();
+  foreach (notifications_subscription_types() as $key => $type) {
+    if (!empty($type['page callback'])) {
+      $options[$key] = $type['title'];
+    }
+  }
+  $form['notifications_ui_pages'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Enabled user pages'),
+    '#options' => $options,
+    '#default_value' => variable_get('notifications_ui_pages', array()),
+    '#description' =>  t('Check the user account pages to enable'),  
   );
   return system_settings_form($form);
 }

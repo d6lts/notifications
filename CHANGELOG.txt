@@ -10,6 +10,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- User account tabs now provided by Notifications UI, can be disabled.
 - Added new account overview page and administration page
 - Fixed upgrade script error (pending pgsql testing), #375746
 - Added field type handling for the query builder (performance++ and pgsql support)

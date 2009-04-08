@@ -22,33 +22,6 @@ function notifications_content_menu() {
     'page arguments' => array('notifications_content_settings_form'),
     'access arguments' => array('administer site configuration'),
   );
-  $items['user/%user/notifications/thread'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'access callback' => 'notifications_content_access', 
-    'access arguments' => array(1, 'subscribe to content'),
-    'title' => 'Thread',
-    'page callback' => 'notifications_content_page_thread',
-    'page arguments' => array(1),
-    'weight' => 10,
-  );
-  $items['user/%user/notifications/nodetype'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'access callback' => 'notifications_content_access', 
-    'access arguments' => array(1, 'subscribe to content type'),
-    'title' => 'Content type',
-    'page callback' => 'notifications_content_page_nodetype',
-    'page arguments' => array(1),
-    'weight' => 10,
-  );
-  $items['user/%user/notifications/author'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'access callback' => 'notifications_content_access', 
-    'access arguments' => array(1, 'subscribe to author'),
-    'title' => t('Author'),
-    'page callback' => 'notifications_content_page_author',
-    'pàge arguments' => array(1),
-    'weight' => 10,
-  );
   return $items;
 }
 
@@ -180,21 +153,21 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'event_type' => 'node',
         'title' => t('Thread'),
         'access' => 'subscribe to content',
-        'page' => 'notifications_content_page_thread',
+        'page callback' => 'notifications_content_page_thread',
         'fields' => array('nid'),
       );
       $types['nodetype'] = array(
         'event_type' => 'node',
         'title' => t('Content type'),
         'access' => 'subscribe to content type',
-        'page' => 'notifications_content_page_nodetype',
+        'page callback' => 'notifications_content_page_nodetype',
         'fields' => array('type'),
       );
       $types['author'] = array(
         'event_type' => 'node',
         'title' => t('Author'),
         'access' => 'subscribe to author',
-        'page' => 'notifications_content_page_author',
+        'page callback' => 'notifications_content_page_author',
         'fields' => array('author'),
       );
       return $types;

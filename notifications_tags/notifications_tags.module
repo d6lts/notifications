@@ -9,15 +9,6 @@
  * Implementation of hook_menu_()
  */
 function notifications_tags_menu() {
-  $items['user/%user/notifications/taxonomy'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'access callback' => 'notifications_content_access',
-    'access arguments' => array(1, 'subscribe to taxonomy terms'),
-    'title' => t('Tags'),
-    'page callback' => 'notifications_tags_user_page',
-    'page arguments' => array(1),
-    'weight' => 10,
-  );
   $items['notifications_tags/autocomplete'] = array(
     'title' => 'Autocomplete taxonomy',
     'page callback' => 'notifications_tags_autocomplete',
@@ -54,6 +45,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'title' => t('Tags'),
         'access' => 'subscribe to taxonomy terms',
         'fields' => array('tid'),
+        'page callback' => 'notifications_tags_user_page',
       );
       return $types;
     case 'subscription fields':
