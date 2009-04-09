@@ -17,22 +17,6 @@ define('NOTIFICATIONS_FEED_PAGER', 20);
 require_once drupal_get_path('module', 'notifications') .'/notifications.node.inc';
 
 /**
- * Implementation of hook_menu_()
- */
-function notifications_feed_menu() {
-  $items['user/%user/notifications/feeds'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'access callback' => 'notifications_feed_access', 
-    'access arguments' => array(1, 'subscribe to content'),
-    'title' => 'Feeds',
-    'page callback' => 'notifications_feed_user_page',
-    'page arguments' => array(1),
-    'weight' => 10,
-  );
-  return $items;
-}
-
-/**
  * Menu access callback
  */
 function notifications_feed_access($account) {
@@ -69,6 +53,7 @@ function notifications_feed_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'title' => t('Feed'),
         'access' => 'subscribe to feeds',
         'fields' => array('feed-nid'),
+        'page callback' => 'notifications_feed_user_page',
       );
       return $types;
     case 'subscription fields':

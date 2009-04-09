@@ -49,7 +49,7 @@ function notifications_user_overview($form_state, $account) {
   
   // Create new subscription
   foreach (notifications_subscription_types() as $key => $type) {
-    if (empty($type['custom']) && (empty($type['access']) || user_access($type['access']))) {
+    if (empty($type['custom']) && notifications_access_user_add($key, $account)) {
       $create[] = l($type['title'], "$path/notifications/add/$key");
     }
   }
@@ -61,6 +61,128 @@ function notifications_user_overview($form_state, $account) {
   return $form;  
 }
 
+/**
+ * User add subscription
+ */
+function notifications_page_user_add($account, $type = NULL) {
+  if ($type && ($info = notifications_subscription_types($type)) && notifications_access_user_add($type)) {
+    drupal_set_title(t('Create subscription'));
+    return drupal_get_form('notifications_add_subscription_form', $account, $type);
+  }
+  else {
+    foreach (notifications_subscription_types() as $key => $type) {
+      if (empty($type['custom']) && notifications_access_user_add($key, $account)) {
+        $create[] = l($type['title'], "user/$account->uid/notifications/add/$key");
+      }
+
+    }
+    $output = theme('item_list', $create, t('Select the type of subscription'));
+    return $output;     
+  }
+  
+}
+
+/**
+ * Form for creating new subscriptions
+ */
+function notifications_add_subscription_form($form_state, $account, $type) {
+  $info = notifications_subscription_types($type);
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['type'] = array('#type' => 'value', '#value' => $type);
+
+  // Display general information
+  $form['info'] = array(
+    '#type' => 'item',
+    '#title' => t('Create @type subscription', array('@type' => $info['title'])),
+    '#description' => !empty($info['description']) ? $info['description'] : '',
+  );
+
+  // Build subscription fields
+
+  $form['fields']['#tree'] = TRUE;
+  
+  foreach ($info['fields'] as $fid => $field_type) {
+    $field = notifications_subscription_fields($field_type);
+    $form['fields'][$fid]['type'] = array('#type' => 'value', '#value' => $field_type);
+    $form['fields'][$fid]['value'] = notifications_subscription_form_field($field_type);
+    $form['fields'][$fid]['value'] += array(
+      '#title' => $field['name'],
+      '#required' => TRUE,   
+    ); 
+  }
+
+  $form['send_interval'] = array(
+    '#type' => 'select',
+    '#title' => t('Send interval'),
+    '#options' => _notifications_send_intervals(),
+    '#default_value' => $subscription->send_interval,
+  );
+  $send_methods = _notifications_send_methods();
+  $form['send_method'] = array(
+    '#type' => 'select',
+    '#title' => t('Send method'),
+    '#options' => $send_methods,
+    '#default_value' => $subscription->send_method,
+  );
+
+  $form['buttons']['save'] = array('#type' => 'submit', '#value' => t('Create subscription'));
+  
+  $form['buttons']['delete'] = array('#type' => 'submit', '#value' => t('Cancel'));
+  
+  return $form;    
+}
+
+/**
+ * Validate new subscription, compute actual field values
+ */
+function notifications_add_subscription_form_validate($form, &$form_state) {
+  $field_values = array();
+  foreach ($form_state['values']['fields'] as $fid => $field){
+    // We may need additional validation or field - value mappging for some fields
+    $value = $field['value'];
+    if ($callback = notifications_subscription_fields($field['type'], 'value callback')) {
+      $value = call_user_func($callback, $value, "fields][$fid][value");
+    }
+    // If we still have a value (mapping may have failed, go and save)
+    if ($value) {
+      $field_values[$fid] = array('type' => $field['type'], 'value' => $value);
+    }
+    else {
+      // We don't have a value, error message
+      form_set_error("fields][$fid][value", t('You must set a value for this field.'));
+    }
+   
+  }
+  // Final check, we should have some valid field/value pairs
+  if ($field_values) {
+    $form_state['field_values'] = $field_values;
+  }
+  else {
+    form_set_error('', t('You must provide valid values for all fields.'));
+  } 
+}
+
+/**
+ * Submit new subscription
+ */
+function notifications_add_subscription_form_submit($form, &$form_state) {
+  $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
+  if ($op == t('Create subscription')) {
+    $subscription = array(
+      'type' => $form_state['values']['type'],
+      'uid' => $form_state['values']['account']->uid,
+      'send_method' => $form_state['values']['send_method'],
+      'send_interval' => $form_state['values']['send_interval'],
+      'fields' => $form_state['field_values'],
+    );
+    $result = notifications_save_subscription($subscription);
+    if ($result === SAVED_NEW) {
+      drupal_set_message(t('Your subscription has been created.'));
+    } else {
+      drupal_set_message(t('Your subscription cannot be created.'), 'error');
+    }
+  }
+}
 /**
  * Menu callback: user subscriptions management
  */
@@ -360,4 +482,21 @@ function notifications_subscription_form_submit($form, $form_state) {
       notifications_delete_subscription($subscription->sid);
       break;
   }
+}
+
+/**
+ * Theme function for fields in form
+ */
+function theme_notifications_subscription_fields($elements) {
+  $header = array(t('Field type'), t('Value'));
+  $rows = array();
+  foreach (element_children($elements['name']) as $key) {
+    $rows[] = array(
+      drupal_render($elements['name'][$key]),
+      drupal_render($elements['value'][$key]),
+    );
+  }
+  $output = theme('table', $header, $rows);
+  $output .= drupal_render($elements);
+  return $output;
 }

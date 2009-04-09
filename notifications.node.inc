@@ -41,12 +41,12 @@ function notifications_node_title2nid($name, $field = NULL, $types = array()) {
     }
     else {
       // No explicit nid.
-      $reference = _notifications_content_node_references($name, 'equals', $types, 1);
+      $reference = _notifications_node_references($name, 'equals', $types, 1);
       if (!empty($reference)) {
         $nid = key($reference);
       }
       elseif ($field) {
-        form_error($field, t('Found no valid post with that title: %title', array('%title' => $name)));
+        form_set_error($field, t('Found no valid post with that title: %title', array('%title' => $name)));
       }
     }
   }

@@ -155,6 +155,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'access' => 'subscribe to content',
         'page callback' => 'notifications_content_page_thread',
         'fields' => array('nid'),
+        'description' => t('Subscribe to all changes and comments for a thread.')
       );
       $types['nodetype'] = array(
         'event_type' => 'node',
@@ -162,6 +163,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'access' => 'subscribe to content type',
         'page callback' => 'notifications_content_page_nodetype',
         'fields' => array('type'),
+        'description' => t('Subscribe to all content of a given type.')
       );
       $types['author'] = array(
         'event_type' => 'node',
@@ -169,6 +171,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'access' => 'subscribe to author',
         'page callback' => 'notifications_content_page_author',
         'fields' => array('author'),
+        'description' => t('Subscribe to all content submitted by a user.')
       );
       return $types;
 

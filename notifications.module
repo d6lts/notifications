@@ -154,7 +154,17 @@ function notifications_menu() {
     'access callback' => 'notifications_access_user',
     'access arguments' => array(1),
     'file' => 'notifications.pages.inc',
-  );  
+  );
+  $items['user/%user/notifications/add'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Add subscription',
+    'page callback' => 'notifications_page_user_add',
+    'page arguments' => array(1),
+    'access callback' => 'notifications_access_user_add',
+    //'access arguments' => array(4, 1),
+    'file' => 'notifications.pages.inc',
+    'weight' => 100,
+  ); 
   // Some autocomplete callbacks
   $items['notifications/autocomplete/node/title'] = array(
     'title' => 'Node title autocomplete',
@@ -180,7 +190,24 @@ function notifications_menu() {
 function notifications_access_user($account) {
   global $user;
   return $account->uid && 
-  ($user->uid == $account->uid && user_access('maintain own subscriptions') || user_access('administer notifications'));
+  ($user->uid == $account->uid && user_access('maintain own subscriptions') || user_access('administer notifications') || user_access('manage all subscriptions'));
+}
+
+/**
+ * Menu access callback, add a given subscription type
+ */
+function notifications_access_user_add($type = NULL, $account = NULL) {
+  global $user;
+  
+  $account = $account ? $account : $user;
+  
+  if (notifications_access_user($account)) {
+    if ($type && ($access = notifications_subscription_types($type, 'access'))) {
+      return user_access($access, $account);
+    } else {
+      return TRUE;
+    }
+  }
 }
 
 /**
@@ -648,7 +675,10 @@ function notifications_save_subscription(&$subscription) {
       $subscription->$field = $value;
     }
   }
-  
+  // Fill in event type if not set
+  if (empty($subscription->event_type)) {
+    $subscription->event_type = notifications_subscription_types($subscription->type, 'event_type');
+  }
   if (!empty($subscription->sid)) {
     $op = 'update';
     $result = drupal_write_record('notifications', $subscription, 'sid');
@@ -680,7 +710,11 @@ function notifications_save_subscription(&$subscription) {
     // There may be subscriptions with no fields, some people are coding such plug-ins.
     if (!empty($subscription->fields)) {
       foreach ($subscription->fields as $name => $value) {
-        db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
+        if (is_array($value)) {
+          db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $value['type'], $value['value'], (int)$value['value']);
+        } else { 
+          db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
+        }
       }
     }
     notifications_module_invoke($op, $subscription);
@@ -804,6 +838,8 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
  * 
  * @return
  *   Array of subscriptions indexed by uid, module, field, value, author
+ * 
+ * @todo Check field types for building the query
  */
 function notifications_get_subscriptions($params, $conditions = array(), $limit = TRUE, $key = 'sid', $pager = NULL) {
   // Build query
@@ -813,7 +849,14 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
       $params += array('conditions' => count($conditions));
     }
     $index = 0;
-    foreach ($conditions as $name => $value) {
+    foreach ($conditions as $index => $data) {
+      if (is_array($data)) {
+        $name = $data['type'];
+        $value = $data['value'];
+      } else {
+        $name = $index;
+        $value = $data;
+      }
       $alias = "f$index";
       $join[] = "INNER JOIN {notifications_fields} $alias ON s.sid = $alias.sid ";
       $params["$alias.field"] = $name;
@@ -1595,6 +1638,10 @@ function notifications_theme() {
     'notifications_table_form' => array(
       'arguments' => array('form' => NULL),
       'file' => 'notifications.admin.inc',
+    ),
+    'notifications_subscription_fields' => array(
+      'arguments' => array('form' => NULL),
+      'file' => 'notifications.pages.inc',
     ),
   );
 }
