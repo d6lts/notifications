@@ -560,14 +560,14 @@ function notifications_query_sql($query) {
   if (!empty($query['having'])) {
     $sql .= ' HAVING ' . implode(' AND ', $query['having']);
   }
-  // Merge all args
-  $args = array();
+  // Merge all args, start with generic ones for subscription queries, then other groups
+  $args = !empty($query['args']) ? $query['args'] : array();
   foreach (array('select', 'join', 'where', 'fields', 'having') as $key) {
     if (!empty($query[$key . ' args'])) {
       $args = array_merge($args, $query[$key . ' args']);
     }
   }
-  
+ 
   return array($sql, $args);
 }
 
@@ -775,42 +775,23 @@ function notifications_delete_subscription($sid) {
 /**
  * Delete multiple subscriptions and clean up related data (pending notifications, fields).
  * 
- * Warning: It will delete also subscriptions with more conditions than the fields passed.
+ * Warning: If !$limit, it will delete also subscriptions with more conditions than the fields passed.
  * 
  * @param array $params
  *   Array of multiple conditions in the notifications table to delete subscriptions
  * @param array $conditions
  *   Array of multiple conditions in the notifications_fields table to delete subscriptions
+ * @param $limit
+ *   Whether to limit the result to subscriptions with exactly that condition fields
  */
-function notifications_delete_subscriptions($params, $conditions = array()) {
-  $join = $where = $args = array();
-  $schema = drupal_get_schema('notifications');
-  foreach ($params as $field => $value) {
-    if (in_array($schema['fields'][$field]['type'], array('serial', 'int'))) {
-      $where[] =  'n.'. $field ." = %d";
-    } else {
-      $where[] =  'n.'. $field ." = '%s'";
-    }
-    $args[] = $value;
-  }
-  // Now we need to join once the fields table for each condition
-  if ($conditions) {
-    $index = 0;
-    foreach ($conditions as $field => $value) {
-      $alias = 'nf'. $index++;
-      $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
-      $where[] = "$alias.field = '%s'";
-      if (notifications_subscription_fields($field, 'type') == 'int') {
-        $where[] = "$alias.intval = %d";        
-      } else {
-        $where[] = "$alias.value = '%s'";
-      }
-      $args[] = $field;
-      $args[] = $value;
-    }
-  }
+function notifications_delete_subscriptions($params, $conditions = array(), $limit = FALSE) {
+  // Build query conditions using the query builder
+  $query = notifications_subscriptions_query_build($params, $conditions, $limit);
+  $query['select'][] = 'n.sid';
+  list($sql, $args) = notifications_query_sql($query);
   // Query notifications that meet these conditions and build an array
-  $result = db_query('SELECT n.sid FROM {notifications} n '. implode(' ', $join) .' WHERE '. implode(' AND ', $where), $args);
+  //$result = db_query('SELECT n.sid FROM {notifications} n '. implode(' ', $query['join']) .' WHERE '. implode(' AND ', $query['where']), $query['args']);
+  $result = db_query($sql, $args);
   $delete = array();
   while ($n = db_fetch_object($result)) {
     $delete[] = $n->sid;
@@ -825,6 +806,69 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
 }
 
 /**
+ * Query builder for subscriptions
+ * 
+ * Builds queries for 'notifications' and 'notifications_fields' tables using schema
+ * and fields (subscription fields) information.
+ * 
+ * @param array $params
+ *   Array of multiple conditions in the notifications table. 
+ * @param array $conditions
+ *   Array of multiple conditions in the notifications_fields table. The array elements may be 
+ *   - single field => value pairs 
+ *   - or key => array('type' => field, 'value' => value)
+ * @param $limit
+ *   Whether to limit the result to subscriptions with exactly that condition fields
+ * 
+ * @return array()
+ *   Structured array with 'join', 'where', 'args' elements
+ */
+function notifications_subscriptions_query_build($params, $conditions = array(), $limit = FALSE) {
+  $join = $where = $args = array();
+  $schema = drupal_get_schema('notifications');
+  
+  // If we limit this query to the number of conditions add a new param
+  if ($limit && $conditions) {
+    $params += array('conditions' => count($conditions));
+  }
+  // Add conditions for main notifications table
+  foreach ($params as $field => $value) {
+    if (in_array($schema['fields'][$field]['type'], array('serial', 'int'))) {
+      $where[] =  'n.'. $field ." = %d";
+    } else {
+      $where[] =  'n.'. $field ." = '%s'";
+    }
+    $args[] = $value;
+  }
+  
+  // Now we need to join once the fields table for each condition
+  if ($conditions) {
+    $index = 0;
+    foreach ($conditions as $key => $data) {
+      if (is_array($data)) {
+        $field = $data['type'];
+        $value = $data['value'];
+      } else {
+        $field = $key;
+        $value = $data;
+      }
+      $alias = 'nf'. $index++;
+      $join[] = "INNER JOIN {notifications_fields} $alias ON n.sid = $alias.sid";
+      $where[] = "$alias.field = '%s'";
+      if (notifications_subscription_fields($field, 'type') == 'int') {
+        $where[] = "$alias.intval = %d";        
+      } else {
+        $where[] = "$alias.value = '%s'";
+      }
+      $args[] = $field;
+      $args[] = $value;
+    }
+  }
+  // Return query array
+  return array('from' => array('{notifications} n'), 'join' => $join, 'where' => $where, 'args' => $args);
+}
+
+/**
  * Get subscriptions that fit a set of conditions.
  *
  * @param $params
@@ -832,57 +876,35 @@ function notifications_delete_subscriptions($params, $conditions = array()) {
  * @param $conditions
  *   Optional array of condition fields
  * @param $limit
- *   Whether to limit the result to subscriptions with exatly that condition fields
+ *   Whether to limit the result to subscriptions with exactly that condition fields
  * @param $key
  *   Optional key field to use as the array index. Will default to sid 
- * 
+ * @param $pager
+ *   Whether to throw a pager query 
  * @return
  *   Array of subscriptions indexed by uid, module, field, value, author
  * 
  * @todo Check field types for building the query
  */
 function notifications_get_subscriptions($params, $conditions = array(), $limit = TRUE, $key = 'sid', $pager = NULL) {
-  // Build query
-  $join = $where = array();
-  if ($conditions) {
-    if ($limit) {
-      $params += array('conditions' => count($conditions));
-    }
-    $index = 0;
-    foreach ($conditions as $index => $data) {
-      if (is_array($data)) {
-        $name = $data['type'];
-        $value = $data['value'];
-      } else {
-        $name = $index;
-        $value = $data;
-      }
-      $alias = "f$index";
-      $join[] = "INNER JOIN {notifications_fields} $alias ON s.sid = $alias.sid ";
-      $params["$alias.field"] = $name;
-      if (!is_null($value)) {
-        $params["$alias.value"] = $value;
-      }
-      $index++;
-    }
-  }  
-  foreach ($params as $field => $value) {
-    $name = strstr($field, '.') ? $field : 's.'. $field;
-    $where[] = is_numeric($value) ? $name .' = %d' : "$name = '%s'";
-  }
-  
-  $sql = 'SELECT * FROM {notifications} s '. implode(' ', $join) . ' WHERE '. implode(' AND ', $where);
-  
+  // Build query conditions using the query builder
+  $query = notifications_subscriptions_query_build($params, $conditions, $limit);
+
+  // Build actual query  
+  //$sql = 'SELECT * FROM {notifications} n '. implode(' ', $query['join']) . ' WHERE '. implode(' AND ', $query['where']);
+  $query['select'][] = 'n.*';
+  list ($sql, $args) = notifications_query_sql($query);
+    
   if ($pager) {
     $sql .= ' ORDER BY s.sid';
-    $result = pager_query($sql, $pager, 0, NULL, $params);
+    $result = pager_query($sql, $pager, 0, NULL, $args);
   }
   else {
-    $result = db_query($sql, $params);
+    $result = db_query($sql, $args);
   }
   $subscriptions = array();
-  while ($s = db_fetch_object($result)) {
-    $subscriptions[$s->$key] = notifications_load_subscription($s);
+  while ($subs = db_fetch_object($result)) {
+    $subscriptions[$subs->$key] = notifications_load_subscription($subs);
   }
   return $subscriptions;
 }

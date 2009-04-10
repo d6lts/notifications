@@ -182,14 +182,14 @@ function notifications_custom_form_alter(&$form, $form_state, $form_id) {
       );     
     }
     $form['custom']['button'] = array('#type' => 'submit', '#value' => t('Update'));
-    $form['#submit'][] = 'notifications_custom_form_submit';
+    $form['#submit'][] = 'notifications_custom_user_overview_submit';
   }
 }
 
 /**
  * Form submission with custom notifications
  */
-function notifications_custom_form_submit($form, $form_state) {
+function notifications_custom_user_overview_submit($form, $form_state) {
   if (notifications_custom_account_update($form_state['values']['account'], $form_state['values']['notifications_custom'])) {
     drupal_set_message(t('Your subscriptions have been updated'));
   }

@@ -31,7 +31,7 @@ function notifications_ui_menu() {
     'access arguments' => array('administer site configuration'),
     'type' => MENU_LOCAL_TASK,
   );
-  // Enabled pages
+  // Enabled pages for user account and subscription types
   foreach (notifications_subscription_types() as $type => $info) {
     $info = notifications_subscription_types($type);
     if (!empty($info['page callback'])) {
@@ -60,8 +60,9 @@ function notifications_ui_access($type, $account) {
       $user->uid && $user->uid == $account->uid && user_access('maintain own subscriptions')) {    
     // Check specifics for this subscription type
     $info = notifications_subscription_types($type);
-    $enabled = variable_get('notifications_ui_pages', array());
-    if (!empty($enabled[$type]) && (empty($info['access']) || user_access($info['access'], $account))) {
+    $enabled = variable_get('notifications_ui_pages', NULL);
+    // For backwards compatibility if the variable not set, defaults to true
+    if ((is_null($enabled) || !empty($enabled[$type]) && (empty($info['access'])) || user_access($info['access'], $account))) {
       return TRUE;
     }
   }

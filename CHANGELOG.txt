@@ -3,13 +3,13 @@
 TO DO
 ------
 * Use actions and triggers instead of old notifications' events, see http://drupal.org/node/260100
-* Streamline the UI. Replace the user account tabs with a single page using collapsible fieldsets providing some more global options for each type (method, interval for each subscription type)
-* Move some left parts of the UI provided by modules into the notifications_ui module so we can have a drop-in replacement to provide a yet more simple UI.
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
 6.x-1.1 to .....
 -----------------
+- Improved query builder used for notifications_get_subscriptions() and notifications_delete_subscriptions()
+- New UI for creating new subscriptions with autocomplete fields and drop downs.
 - User account tabs now provided by Notifications UI, can be disabled.
 - Added new account overview page and administration page
 - Fixed upgrade script error (pending pgsql testing), #375746
