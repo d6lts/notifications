@@ -28,7 +28,7 @@ function notifications_manage_subscriptions_access($sids) {
 /**
  * Administer user subscriptions
  */
-function notifications_manage_subscriptions_form($account = NULL) {
+function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) {
   $filter = notifications_subscriptions_build_filter_query($account);
   
   if ($account) {
@@ -68,9 +68,21 @@ function notifications_manage_subscriptions_form($account = NULL) {
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = _notifications_send_intervals();
   while ($sub = db_fetch_object($result)) {
+    if ($full) {
+      $sub = notifications_load_subscription($sub);
+    }
     $subscriptions[$sub->sid] = '';
     $name = notifications_subscription_types($sub->type, 'title');
     $form['type'][$sub->sid] = array('#value' => $name ? $name : $sub->type );
+    // Build description using field formatters
+    if ($full) {
+      $description = array();
+      foreach ($sub->fields as $type => $value) {
+        $format = notifications_format_subscription_field($type, $value, TRUE);
+        $description[] = $format['value'];
+      }
+    }
+    $form['description'][$sub->sid] = array('#value' => implode(', ', $description));
     if (!$account) {
       $form['username'][$sub->sid] = array('#value' => theme('username', $sub));
     }
@@ -410,6 +422,9 @@ function theme_notifications_manage_subscriptions($form) {
   $select_header = $has_posts ? theme('table_select_header_cell') : '';
   $header = array($select_header);
   $header[] = t('Type');
+  if (!empty($form['description'])) {
+    $header[] = t('Description');
+  }
   if (!empty($form['username'])) {
     $header[] = t('User');
   }
@@ -425,6 +440,9 @@ function theme_notifications_manage_subscriptions($form) {
       $row = array();
       $row[] = drupal_render($form['subscriptions'][$key]);
       $row[] = drupal_render($form['type'][$key]);
+      if (!empty($form['description'])) {
+        $row[] = drupal_render($form['description'][$key]);
+      }
       if (!empty($form['username'])) {
         $row[] = drupal_render($form['username'][$key]);
       }

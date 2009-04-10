@@ -1594,6 +1594,9 @@ function notifications_subscription_form_field($type, $value = NULL) {
 
 /**
  * Format subscriptions field for display and get some more information
+ * 
+ * @return array()
+ *   Array with 'name' and 'value' elements
  */
 function notifications_format_subscription_field($type, $value, $html = TRUE) {
   $format_name = $format_value = t('Unknown');
