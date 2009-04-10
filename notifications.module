@@ -155,16 +155,6 @@ function notifications_menu() {
     'access arguments' => array(1),
     'file' => 'notifications.pages.inc',
   );
-  $items['user/%user/notifications/add'] = array(
-    'type' => MENU_LOCAL_TASK,
-    'title' => 'Add subscription',
-    'page callback' => 'notifications_page_user_add',
-    'page arguments' => array(1),
-    'access callback' => 'notifications_access_user_add',
-    //'access arguments' => array(4, 1),
-    'file' => 'notifications.pages.inc',
-    'weight' => 100,
-  ); 
   // Some autocomplete callbacks
   $items['notifications/autocomplete/node/title'] = array(
     'title' => 'Node title autocomplete',
@@ -196,7 +186,7 @@ function notifications_access_user($account) {
 /**
  * Menu access callback, add a given subscription type
  */
-function notifications_access_user_add($type = NULL, $account = NULL) {
+function notifications_access_user_add($account = NULL, $type = NULL) {
   global $user;
   
   $account = $account ? $account : $user;
@@ -896,7 +886,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
   list ($sql, $args) = notifications_query_sql($query);
     
   if ($pager) {
-    $sql .= ' ORDER BY s.sid';
+    $sql .= ' ORDER BY n.sid';
     $result = pager_query($sql, $pager, 0, NULL, $args);
   }
   else {

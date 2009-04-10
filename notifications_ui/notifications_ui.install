@@ -1,0 +1,27 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_uninstall()
+ */
+function notifications_ui_uninstall() {
+  // Just delete variables
+  variable_del('notifications_link_teaser');
+  foreach (array_keys(notifications_subscription_types()) as $key) {
+    variable_del('notifications_ui_type_' . $key);
+  }
+}
+
+/**
+ * Update UI variables
+ */
+function notifications_ui_update_6000() {
+  $ret = array();
+  foreach (variable_get('notifications_ui_types', array()) as $key => $value) {
+    $settings = array('enabled' => $value, 'page' => 1, 'create' => 0);
+    variable_set('notifications_ui_type_' . $key, $settings);
+  }
+  //variable_del('notifications_ui_types');
+  drupal_set_message('Please, check all your Notifications UI settings and note the new options.');
+  return $ret;
+}

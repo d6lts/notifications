@@ -46,40 +46,8 @@ function notifications_user_overview($form_state, $account) {
   
   //$output .= theme('item_list', $tips, t('You can'));
   $form['tips'] = array('#type' => 'item', '#weight' => 20, '#title' => t('You can'), '#value' => theme('item_list', $tips));
-  
-  // Create new subscription
-  foreach (notifications_subscription_types() as $key => $type) {
-    if (empty($type['custom']) && notifications_access_user_add($key, $account)) {
-      $create[] = l($type['title'], "$path/notifications/add/$key");
-    }
-  }
-  if (!empty($create)) {
-    // $output .= theme('item_list', $create, t('or create a new subscription'));
-    $form['create'] = array('#type' => 'item', '#weight' => 30, '#title' => t('or create a new subscription'), '#value' => theme('item_list', $create));
-  }
-    
+   
   return $form;  
-}
-
-/**
- * User add subscription
- */
-function notifications_page_user_add($account, $type = NULL) {
-  if ($type && ($info = notifications_subscription_types($type)) && notifications_access_user_add($type)) {
-    drupal_set_title(t('Create subscription'));
-    return drupal_get_form('notifications_add_subscription_form', $account, $type);
-  }
-  else {
-    foreach (notifications_subscription_types() as $key => $type) {
-      if (empty($type['custom']) && notifications_access_user_add($key, $account)) {
-        $create[] = l($type['title'], "user/$account->uid/notifications/add/$key");
-      }
-
-    }
-    $output = theme('item_list', $create, t('Select the type of subscription'));
-    return $output;     
-  }
-  
 }
 
 /**
