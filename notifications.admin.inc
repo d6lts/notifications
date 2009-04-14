@@ -447,22 +447,6 @@ function notifications_admin_queue_process($op) {
 }
 
 /**
- * Menu callback: subscriptions administration.
- */
-function notifications_admin_subscriptions($form_state) {
-  module_load_include('inc', 'notifications', 'notifications.manage');
-  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
-    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
-  }
-  $form = notifications_subscriptions_filter_form();
-
-  $form['#theme'] = 'notifications_subscriptions_filter_form';
-  $form['admin']  = notifications_manage_subscriptions_form();
-
-  return $form;
-}
-
-/**
  * Generic table formatting for forms
  */
 function theme_notifications_table_form($form) {

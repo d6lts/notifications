@@ -24,3 +24,18 @@ function notifications_content_update_6000() {
   notifications_content_install();
   return array();
 }
+
+/**
+ * Update enabled options
+ */
+function notifications_content_update_6001() {
+  // Enable all options by default for backwards compatibility
+  $defaults = array_fill_keys(array_keys(_notifications_content_type_options()), TRUE);
+  $enabled = variable_get('notifications_content_types', array());
+  foreach (array_keys(node_get_types()) as $type) {   
+    $defaults['nodetype'] = !empty($enabled[$type]);
+    variable_set('notifications_content_type_' . $type, $defaults);
+  }
+  variable_del('notifications_content_types');
+  return array();
+}

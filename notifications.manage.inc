@@ -7,6 +7,40 @@
  */
 
 /**
+ * Menu callback: subscriptions administration.
+ */
+function notifications_manage_admin_subscriptions($form_state) {
+  module_load_include('inc', 'notifications', 'notifications.admin');
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
+    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
+  }
+  $form = notifications_subscriptions_filter_form();
+
+  $form['#theme'] = 'notifications_subscriptions_filter_form';
+  $form['admin']  = notifications_manage_subscriptions_form();
+
+  return $form;
+}
+
+/**
+ * Menu callback: user subscriptions management
+ */
+function notifications_manage_user_subscriptions($form_state, $account) {
+  module_load_include('inc', 'notifications', 'notifications.pages');
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
+    $form = notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
+    return $form;
+  }
+  $form = notifications_subscriptions_filter_form();
+  $form['filters']['#title'] = t('Filter');
+  $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => TRUE);
+  $form['#theme'] = 'notifications_subscriptions_filter_form';
+  $form['admin']  = notifications_manage_subscriptions_form($account);
+
+  return $form;
+}
+
+/**
  * Check access for current user to manage subscriptions
  * 
  * @param $sids
@@ -298,9 +332,7 @@ function notifications_multiple_delete_confirm(&$form_state, $items, $destinatio
     foreach ($items as $id => $value) {
       // Load the subscription to display a friendly name
       $subscription = notifications_load_subscription($id);      
-  
-      notifications_module_invoke('names', $subscription);
-      $title = t('Subscription %id of type %type for user !user', array('%type' => $subscription->type_name, '%id' => $id, '!user' => theme('username', user_load($subscription->uid))));
+      $title = notifications_format_subscription($subscription, 'long');
       $form['items'][$id] = array(
         '#type' => 'hidden',
         '#value' => $id,
@@ -310,6 +342,7 @@ function notifications_multiple_delete_confirm(&$form_state, $items, $destinatio
     }    
     $form['operation'] = array('#type' => 'hidden', '#value' => 'delete');
     $form['#submit'][] = 'notifications_multiple_delete_confirm_submit';
+    $form['#validate'][] = 'notifications_multiple_delete_confirm_validate';
     $form['#redirect'] = $destination;
     return confirm_form($form,
                       t('Are you sure you want to delete these items?'),
@@ -327,7 +360,7 @@ function notifications_multiple_delete_confirm(&$form_state, $items, $destinatio
  */
 function notifications_multiple_delete_confirm_validate($form, &$form_state) {
   if (!notifications_manage_subscriptions_access(array_keys($form_state['values']['items']))) {
-    form_set_error(t('You don\'t have permission to manage all these subscriptions'));
+    form_set_error('', t('You don\'t have permission to manage all these subscriptions'));
   }
 }
 

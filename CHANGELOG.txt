@@ -8,6 +8,7 @@ TO DO
 
 6.x-1.1 to .....
 -----------------
+- Added subscription options to user account, optionally in block too.
 - Reworked UI module, more options, moved some stuff from other modules there.
 - Improved query builder used for notifications_get_subscriptions() and notifications_delete_subscriptions()
 - New UI for creating new subscriptions with autocomplete fields and drop downs.

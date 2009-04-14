@@ -18,7 +18,10 @@ function notifications_ui_uninstall() {
 function notifications_ui_update_6000() {
   $ret = array();
   foreach (variable_get('notifications_ui_types', array()) as $key => $value) {
-    $settings = array('enabled' => $value, 'page' => 1, 'create' => 0);
+    $settings = array('page', 'create');
+    if ($value) {
+      $settings[] = 'enabled';
+    }
     variable_set('notifications_ui_type_' . $key, $settings);
   }
   //variable_del('notifications_ui_types');

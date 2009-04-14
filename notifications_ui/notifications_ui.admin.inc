@@ -31,15 +31,7 @@ function notifications_ui_settings_form() {
     $form['subscriptions'][$key]['page'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['page']));
     $form['subscriptions'][$key]['create'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['create']));
   }
-  /*
-  $form['notifications_ui_types'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Enabled subscription types'),
-    '#options' => notifications_subscription_types(NULL, 'title'),
-    '#default_value' => variable_get('notifications_ui_types', array()),
-    '#description' => t('Check the subscription types the UI module should show.'),
-  );
-  */
+
   // Use an item instead of fieldset for formatting
   $form['content'] = array('#type' => 'item', '#title' => t('Content options'));
   $form['notifications_link_teaser'] = array(
@@ -49,6 +41,14 @@ function notifications_ui_settings_form() {
     '#description'   => t('Uncheck to show links only in full node view. This will work only for content types that have subscription links enabled.'),
   );
 
+  // User account options. Subscribe to author, etc...
+  $form['notifications_ui_account_options'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('User account options'),
+    '#default_value' => variable_get('notifications_ui_account_options', array()),
+    '#options' => _notifications_ui_account_options(),
+    '#description' => t('Check elements to display on user account tabs'),  
+  );
   return system_settings_form($form);
 }
 

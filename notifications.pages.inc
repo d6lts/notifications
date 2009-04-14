@@ -151,24 +151,6 @@ function notifications_add_subscription_form_submit($form, &$form_state) {
     }
   }
 }
-/**
- * Menu callback: user subscriptions management
- */
-function notifications_user_manage_subscriptions($form_state, $account) {
-  module_load_include('inc', 'notifications', 'notifications.manage');
-  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
-    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
-  }
-  $form = notifications_subscriptions_filter_form();
-  $form['filters']['#title'] = t('Filter');
-  $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => TRUE);
-  $form['#theme'] = 'notifications_subscriptions_filter_form';
-  $form['admin']  = notifications_manage_subscriptions_form($account);
-
-  return $form;
-}
-
-
 
 /**
  * Menu callback add subscription
