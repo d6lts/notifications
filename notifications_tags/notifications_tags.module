@@ -118,7 +118,7 @@ function notifications_tags_form_alter(&$form, $form_state, $form_id) {
   if ($form_id == 'notifications_content_settings_form') {
     $vocabularies = taxonomy_get_vocabularies();
     foreach ($vocabularies as $vocabulary) {
-      $select[$vocabulary->vid] = $vocabulary->name;
+      $select[$vocabulary->vid] = check_plain($vocabulary->name);
     }  
     $form['tags'] = array(
       '#type' => 'fieldset',
@@ -195,7 +195,7 @@ function notifications_tags_user_form($form_state, $account) {
     // display vocabulary name and group terms together
     $form['subscriptions'][$vid] = array(
       '#type' => 'fieldset',
-      '#title' => $vocab->name,
+      '#title' => check_plain($vocab->name),
       '#tree' => TRUE,
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
@@ -217,7 +217,7 @@ function notifications_tags_user_form($form_state, $account) {
         '#default_value' => $rowdefaults['sid'],
       );
       $form['subscriptions'][$vid]['title'][$key] = array(
-        '#value' => $term->name,
+        '#value' => check_plain($term->name),
       );
       $form['subscriptions'][$vid]['send_interval'][$key] = array(
         '#type' => 'select',

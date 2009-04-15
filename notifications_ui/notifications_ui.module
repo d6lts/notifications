@@ -32,7 +32,7 @@ function notifications_ui_menu() {
     'page arguments' => array('notifications_ui_settings_form'),
     'access arguments' => array('administer site configuration'),
     'type' => MENU_LOCAL_TASK,
-    'file' => 'notifications_ui.admin.inc',
+    'file' => 'notifications_ui.pages.inc',
   );
   // Add single subscription page
   $items['user/%user/notifications/add'] = array(
@@ -85,7 +85,7 @@ function notifications_ui_access_user_add($account, $type = NULL) {
   // Main tab, visible only if any subscription type enabled
   $check_types = $type ? array($type) : array_keys(notifications_ui_subscription_types());
   foreach ($check_types as $type) {
-    if (notifications_ui_subscription_type($type) && notifications_ui_user_options($type, 'create') && notifications_access_user_add($account, $type)) {
+    if (notifications_ui_subscription_type($type) && notifications_ui_user_options('create') && notifications_access_user_add($account, $type)) {
       return TRUE;
     }
   }
@@ -95,15 +95,11 @@ function notifications_ui_access_user_add($account, $type = NULL) {
  * Menu access callback: account pages
  */
 function notifications_ui_access_page($type, $account) {
-  global $user;
-  
   // Global user permissions
-  if (notifications_access_user($account) && notifications_ui_subscription_type($type)) {    
+  if (notifications_access_user($account) && notifications_ui_subscription_type($type) && notifications_ui_user_options('page')) {    
     // Check specifics for this subscription type
-    $info = notifications_subscription_types($type);
-    if (notifications_ui_user_options($type, 'page') && (empty($info['access']) || user_access($info['access'], $account))) {
-      return TRUE;
-    }
+    $access = notifications_subscription_types($type, 'access');
+    return $access ? user_access($access, $account) : TRUE;
   }
 }
 
@@ -548,7 +544,11 @@ function notifications_ui_node_options($type = NULL, $option = NULL) {
 }
 
 /**
- * Get options for user account pages
+ * Check enabled option / Get options for user account pages
+ * 
+ * @param $type
+ *   Option type = 'page', 'create'
+ *   Null to get all of them
  */
 function notifications_ui_user_options($type = NULL) {
   $settings = variable_get('notifications_ui_user', array('page', 'create'));
@@ -646,11 +646,11 @@ function notifications_ui_theme() {
   return array(
     'notifications_ui_subscription_types' => array(
       'arguments' => array('element' => NULL),
-      'file' => 'notifications_ui.admin.inc',
+      'file' => 'notifications_ui.pages.inc',
     ),
     'notifications_ui_content_types' => array(
       'arguments' => array('element' => NULL),
-      'file' => 'notifications_ui.admin.inc',
+      'file' => 'notifications_ui.pages.inc',
     ),
     'notifications_ui_add_list' => array(
       'arguments' => array('content' => NULL),
