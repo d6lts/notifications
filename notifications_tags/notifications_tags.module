@@ -43,6 +43,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
       $types['taxonomy'] = array(
         'event_type' => 'node',
         'title' => t('Tags'),
+        'description' => t('Subscribe to content tagged with a given taxonomy term.'),
         'access' => 'subscribe to taxonomy terms',
         'fields' => array('tid'),
         'page callback' => 'notifications_tags_user_page',

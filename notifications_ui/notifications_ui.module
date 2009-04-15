@@ -11,10 +11,12 @@
 function notifications_ui_help($path, $arg) {
   switch ($path) {
     case 'admin/messaging/notifications/ui':
-      $output = '<p>'. t('These are UI settings only. They will be combined with other settings and permissions to determine which subscription options will be finally available for each page.') .'</p>';
-      if (module_exists('notifications_content')) {
-        $output .= '<p>'. t('To determine how the subscription controls will be rendered for each content type (links, form, block) visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
-      }
+      $output = '<p>' . t('These are UI settings only and will define which options will be visible for end users and how they\'ll be displayed. Which options will be finally available will be determined by:') . 
+      $output .= '<ol>';
+      $output .= '<li>' . t('Enabled subscription types on the other Notifications settings pages') . '</li>';
+      $output .= '<li>' . t('Permissions that you can configure on <a href="@administer-permissions">Administer permissions</a>.', array('@administer-permissions' => url('user/admin/permissions'))) . '</li>';
+      $output .= '<li>' . t('The enabled options on this page.') .'</li>';
+      $output .= '</ol></p>';
       return $output;
   }
 }
@@ -315,8 +317,9 @@ function notifications_ui_options_form_submit($form, &$form_state) {
 function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
   global $user;
 
-  if ($type == 'node' && $user->uid && (variable_get('notifications_link_teaser', 1) || !$teaser) &&
-    notifications_ui_node_options($node->type, 'links') && ($options = notifications_ui_user_node($user, $node))) {
+  if ($type == 'node' && $user->uid && 
+    (notifications_ui_node_options($node->type, 'teaserlinks') && $teaser || notifications_ui_node_options($node->type, 'links') && !$teaser)
+     && ($options = notifications_ui_user_node($user, $node))) {
       // Now we have the array of allowed options ready, build single links 
       return notifications_ui_build_links($options);
   }
@@ -544,7 +547,7 @@ function notifications_ui_node_options($type, $option = NULL, $default = NULL) {
   // The default setting will be 'links' = 1
   $settings = variable_get('notifications_node_ui_'. $type, array('links'));
   if ($option) {
-    return is_array($settings) && in_array($option, $settings) ? TRUE : $default;
+    return is_array($settings) && in_array($option, $settings, TRUE) ? TRUE : $default;
   }
   else {
     return $settings;
@@ -610,11 +613,12 @@ function notifications_ui_account_subform($author, $options) {
  */
 function _notifications_ui_node_type_options() {
   return array(
-    'form' => t('Display in node form'),
-    'comment' => t('Display in comment form'),
-    'links' => t('Display as plain node links'),
-    'subform' => t('Display as collapsible form on node pages'),
-    'block' => t('Display in block'),
+    'form' => t('In node form'),
+    'comment' => t('In comment form'),
+    'links' => t('Full node links'),
+    'teaserlinks' => t('Teaser node links'),
+    'subform' => t('Form on node pages'),    
+    'block' => t('In block'),
   );
 }
 
@@ -635,6 +639,10 @@ function _notifications_ui_account_options() {
 function notifications_ui_theme() {
   return array(
     'notifications_ui_subscription_types' => array(
+      'arguments' => array('element' => NULL),
+      'file' => 'notifications_ui.admin.inc',
+    ),
+    'notifications_ui_content_types' => array(
       'arguments' => array('element' => NULL),
       'file' => 'notifications_ui.admin.inc',
     ),

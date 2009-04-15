@@ -36,13 +36,6 @@ function notifications_content_access($account, $perm) {
 }
 
 /**
- * Access to a given type of notifications for this content type
- */
-function notifications_content_subscription_type($content_type, $subs_type = NULL, $account = NULL) {
-  $settings = variable_get('notifications_content_subscribe_', array());
-}
-
-/**
  * Implementation of hook_perm()
  */
 function notifications_content_perm() {
@@ -54,7 +47,7 @@ function notifications_content_perm() {
  */
 function notifications_content_help($path, $arg) {
   if ($path == 'admin/messaging/notifications/content') {
-    $output .= '<p>'. t('To determine the available subscription types for each content type visit the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
+    $output .= '<p>'. t('To determine the available subscription types for each content type you can also use the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
     return $output;
   }
   elseif (array($arg[0], $arg[1], $arg[2], $arg[3]) == array('admin', 'messaging', 'template', 'edit') && ($group = $arg[4])) {
@@ -141,30 +134,58 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
  * Admin settings form
  */
 function notifications_content_settings_form() {
-  // Allowed content types settings, compile options
-
+  // Build check boxes table with content types x subscription types
   $form['content'] = array(
     '#type' => 'fieldset',
     '#title' => t('Options per content type'),
     '#weight' => -10,
     '#collapsible' => TRUE,
-    '#description' => t('To determine the available subscription types for each content type visit the <a href="@content-type-settings">Content type settings</a> pages.', array('@content-type-settings' => url('admin/content/types')))
+    '#theme' => 'notifications_content_type_settings',
+    '#description' => t('Define the available subscription types that will be enabled for each content type'),
   );
+  foreach (node_get_types('names') as $content_type => $type_name) {
+    $key = 'notifications_content_type_' . $content_type;
+    $settings = variable_get($key, array());
+    // These will be expanded to individual checkboxes before theming
+    $form['content'][$key] = array(
+      '#title' => check_plain($type_name),
+      '#type' => 'checkboxes',
+      '#default_value' => notifications_content_type_enabled($content_type),
+      '#options' => _notifications_content_type_options(),
+    );
+  }
+  return system_settings_form($form);
+}
+
+function theme_notifications_content_type_settings(&$elements) {
+  $output = '';
   $options = _notifications_content_type_options();
-  $header = array_merge(array(t('Content type')), $options);
+  $header = array_merge(array(''), array_values($options));
   $rows = array();
-  foreach (node_get_types('names') as $type => $name) {
-    $row = array(check_plain($name));
-    foreach (array_keys($options) as $key) {
-      $row[] = notifications_content_type_enabled($type, $key) ? t('Yes') : t('--');
+  foreach (element_children($elements) as $key) {
+    $row = array($elements[$key]['#title']);
+    unset($elements[$key]['#title']);
+    foreach (array_keys($options) as $index) {
+      unset($elements[$key][$index]['#title']);
+      $row[] = drupal_render($elements[$key][$index]);
     }
     $rows[] = $row;
   }
-  $form['content']['notifications_content_types'] = array(
-    '#value'   => theme('table', $header, $rows),
-  );
+  $output .= theme('table', $header, $rows);
+  $output .= drupal_render($elements);
+  return $output;
+}
 
-  return system_settings_form($form);
+/**
+ * Implementation of hook_theme()
+ */
+function notifications_content_theme() {
+  return array(
+    'notifications_content_type_settings' => array(
+      'arguments' => array('element' => NULL),
+      // 'file' => 'notifications_ui.admin.inc',
+    ),
+  );  
 }
 
 /**

@@ -39,7 +39,9 @@ function notifications_user_overview($form_state, $account) {
   $form['status'] = array('#type' => 'item', '#weight' => 10, '#title' => t('Current status'), '#value' => theme('item_list', $status));
   
   // Build shortcut tips
-  $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
+  if (notifications_access_user($account, 'manage')) {
+    $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
+  }
   $tips['edit'] = l(t('Edit your notifications settings'), "$path/edit");
   $link = notifications_get_link('unsubscribe', array('uid' => $account->uid));
   $tips['cancel'] = l(t('Cancel all your subscriptions'), $link['href'], $link['options']);
