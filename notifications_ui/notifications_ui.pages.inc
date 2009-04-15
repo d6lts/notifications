@@ -75,7 +75,7 @@ function notifications_ui_settings_form() {
     '#collapsible' => TRUE,
     '#description' => t('You can use the global settings here or set different options for each content type. On this second case these will be the defaults for new content types.'),  
   );
-  $form['content']['notificatins_ui_per_type'] = array(
+  $form['content']['notifications_ui_per_type'] = array(
     '#type' => 'radios',
     '#default_value' => variable_get('notifications_ui_per_type', 0),
     '#options' => array(

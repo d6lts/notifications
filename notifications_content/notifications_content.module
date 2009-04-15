@@ -116,7 +116,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       }
       break;   
     case 'node_type_form':
-      if (isset($form['identity']['type']) && variable_get('notifications_content_per_type', 0)) {
+      if (isset($form['identity']['type'])) {
         // Hack for modules with different weights to add options here
         if (!isset($form['notifications'])) $form['notifications'] = array();
         $form['notifications'] += array(
@@ -130,9 +130,13 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
           '#title' => t('Allowed subscription types'),
           '#default_value' => notifications_content_type_enabled($form['#node_type']->type),
           '#options' => _notifications_content_type_options(),
-          '#description' => t('Enable different subscription options for this content type'),
+          '#description' => t('Enable different subscription options for this content type.'),
           '#weight' => -10,
         );
+        if (!variable_get('notifications_content_per_type', 0)) {
+          $form['notifications']['notifications_content_type']['#disabled'] = TRUE;
+          $form['notifications']['notifications_content_type']['#description'] .= ' <strong>' . t('To enable these options check the <a href="@notifications-settings">Notifications content settings</a>', array('@notifications-settings' => url('admin/messaging/notifications/content'))) . '</strong>';
+        }
       }
       break;      
     default:

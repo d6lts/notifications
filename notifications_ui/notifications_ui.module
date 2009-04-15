@@ -159,15 +159,19 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
   // Content type settings
   switch ($form_id) {
     case 'node_type_form':
-      if (isset($form['identity']['type']) && variable_get('notifications_ui_per_type', 0)) {
+      if (isset($form['identity']['type'])) {
         // Just in case we want to add more settings here
         $form['notifications']['notifications_node_ui'] = array(
           '#type' => 'checkboxes',
           '#title' => t('Subscriptions UI'),
           '#default_value' => notifications_ui_node_options($form['#node_type']->type),
           '#options' => _notifications_ui_node_options(),
-          '#description' => t('Enable different display options for subscriptions to this content type'), 
+          '#description' => t('Enable different display options for subscriptions to this content type.'),
         );
+        if (!variable_get('notifications_ui_per_type', 0)) {
+          $form['notifications']['notifications_node_ui']['#disabled'] = TRUE;
+          $form['notifications']['notifications_node_ui']['#description'] .= ' <strong>' . t('To enable these options check the <a href="@notifications-ui-settings">Notifications UI settings</a>', array('@notifications-ui-settings' => url('admin/messaging/notifications/ui'))) . '</strong>';
+        }
       }
       break;
 
