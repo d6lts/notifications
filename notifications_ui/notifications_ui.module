@@ -26,7 +26,7 @@ function notifications_ui_help($path, $arg) {
  */
 function notifications_ui_menu() {
   $items['admin/messaging/notifications/ui'] = array(
-    'title' => 'User Interface',
+    'title' => 'User interface',
     'description' => 'Enables site settings for user subscriptions.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_ui_settings_form'),
@@ -47,6 +47,7 @@ function notifications_ui_menu() {
   );
 
   // Enabled pages for user account and subscription types
+  /*
   foreach (notifications_subscription_types() as $type => $info) {
     $info = notifications_subscription_types($type);
     if (!empty($info['page callback'])) {
@@ -61,7 +62,20 @@ function notifications_ui_menu() {
       );
     }
   }
+  */
   return $items;
+}
+
+/**
+ * Implementation of hook_menu_alter()
+ */
+function notifications_ui_menu_alter(&$items) {
+  foreach (notifications_subscription_types() as $type => $info) {
+    if (!empty($info['user page'])) {
+      $items[$info['user page']]['access callback'] = 'notifications_ui_access_page';
+      $items[$info['user page']]['access arguments'] = array($type, 1);
+    }
+  }
 }
 
 /**

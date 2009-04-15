@@ -28,7 +28,7 @@ function notifications_ui_settings_form() {
     $form['subscriptions'][$key]['#tree'] = TRUE;
     $form['subscriptions'][$key]['title'] = array('#value' => $info['title']);
     $form['subscriptions'][$key]['enabled'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['enabled']));
-    $form['subscriptions'][$key]['page'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['page']), '#disabled' => empty($info['page callback']));
+    $form['subscriptions'][$key]['page'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['page']), '#disabled' => empty($info['user page']));
     $form['subscriptions'][$key]['create'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['create']));
   }
   

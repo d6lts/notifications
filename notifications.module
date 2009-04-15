@@ -693,6 +693,7 @@ function notifications_save_subscription(&$subscription) {
     // We've found duplicates, resolve conflict updating first, deleting the rest
     // It is possible that we had a disabled one, this updating will fix it
     $update = array_shift($duplicate);
+    unset($subscription->sid); // It may be 0
     foreach ($subscription as $key => $value) {
       if (isset($value)) {
         $update->$key = $value;
