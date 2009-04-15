@@ -4,6 +4,7 @@
  * @file
  *   Admin pages for User Interface for subscriptions modules
  */
+
 /**
  *  Site-wide settings form.
  */
@@ -14,6 +15,64 @@ function notifications_ui_settings_form() {
     '<strong>' . t('User account page') . '</strong> ' . t('If checked a new tab will be displayed under the user account Notifications page.'),
     '<strong>' . t('Create subscription page') . '</strong> ' . t('If checked a link to create this type of subscriptions will be added to the user account pages.')
   );
+  $form['notifications_ui_types'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Visible subscription types'),
+    '#options' => _notifications_subscription_types('long'),
+    '#default_value' => variable_get('notifications_ui_types', array()),
+    '#description' => t('Check the subscription types the UI module should show. If not checked no options for this subscription type will be displayed at all.'),
+  );
+  $options = array(
+    'page' => t('<strong>Tab</strong>. A full tab for some subscription types will be displayed for each enabled subscription type when available.'),
+    'create' => t('<strong>Create</strong>. A create link and a custom page for adding subscriptions will be available for each enabled subscription type.'),
+  
+  );
+  // UI elements on user account pages
+  $form['users'] = array(
+    '#title' => t('User account pages'),
+    '#type' => 'fieldset',    
+    '#collapsible' => TRUE,
+    '#description' => t('Check elements to display on user account pages'),
+  );
+  $form['users']['notifications_ui_user'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Manage own subscriptions'),
+    '#default_value' => notifications_ui_user_options(),
+    '#options' => $options,
+    '#description' => t('Check elements to display on user account tabs for site users to manage their own subscriptions'),  
+  );
+  $form['users']['notifications_ui_account_options'] = array(
+    '#title' => t('Subscribe to users'),
+    '#type' => 'checkboxes',
+    '#default_value' => variable_get('notifications_ui_account_options', array()),
+    '#options' => _notifications_ui_account_options(),
+    '#description' => t('Check elements to display on user account tabs for other users to subscribe to them'),     
+  );
+
+  // Several options to subscribe to content  
+  $form['content'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Subscribe to content'),
+    '#collapsible' => TRUE,
+    '#description' => t('You can use the global settings here or set different options for each content type. On this second case these will be the defaults for new content types.'),  
+  );
+  $form['content']['notificatins_ui_per_type'] = array(
+    '#type' => 'radios',
+    '#default_value' => variable_get('notifications_ui_per_type', 0),
+    '#options' => array(
+      t('Use global settings on this page for all content types'),
+      t('Set up for each content type on <a href="@content-type-settings">Administer Content Types</a>.', array('@content-type-settings' => url('admin/content/types'))),
+    ),
+  );  
+  $form['content']['notifications_ui_node'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Global settings'),
+    '#default_value' => variable_get('notifications_ui_node', array()),
+    '#options' => _notifications_ui_node_options(),
+    '#description' => t('Check elements to display on each node for users to subscribe / unsubscribe.'),
+       
+  );  
+  /*
   $form['subscriptions'] = array(
     '#type' => 'fieldset',
     '#title' => t('Visible options per subscription type'),
@@ -31,34 +90,11 @@ function notifications_ui_settings_form() {
     $form['subscriptions'][$key]['page'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['page']), '#disabled' => empty($info['user page']));
     $form['subscriptions'][$key]['create'] = array('#type' => 'checkbox', '#default_value' => !empty($settings['create']));
   }
-  
+  */
   // Build check boxes table with content types x subscription types
-  $form['content'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Visible options per content type'),
-    '#collapsible' => TRUE,
-    '#theme' => 'notifications_ui_content_types',
-    '#description' => t('Define the subscription options that will be visible for each content type. These can be configured too on <a href="@content-type-settings">Administer Content Types</a>.', array('@content-type-settings' => url('admin/content/types'))),
-  );
-  foreach (node_get_types('names') as $content_type => $type_name) {
-    $key = 'notifications_node_ui_' . $content_type;
-    $settings = variable_get($key, array());
-    // These will be expanded to individual checkboxes before theming
-    $form['content'][$key] = array(
-      '#title' => check_plain($type_name),
-      '#type' => 'checkboxes',
-      '#default_value' => notifications_ui_node_options($content_type),
-      '#options' => _notifications_ui_node_type_options(),
-    );
-  }
+
   // User account options. Subscribe to author, etc...
-  $form['notifications_ui_account_options'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Display on user account page'),
-    '#default_value' => variable_get('notifications_ui_account_options', array()),
-    '#options' => _notifications_ui_account_options(),
-    '#description' => t('Check elements to display on user account tabs for other users to subscribe to them'),  
-  );
+
   return system_settings_form($form);
 }
 

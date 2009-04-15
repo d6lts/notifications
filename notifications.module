@@ -1428,6 +1428,31 @@ function _notifications_subscription_status() {
 }
 
 /**
+ * Build list of subscription types
+ * 
+ * Note: some custom types may have user defined strings, that's why the check_plain() everywhere
+ */
+function _notifications_subscription_types($format = 'short', $filter = NULL) {
+  $options = array();  
+  foreach (notifications_subscription_types() as $type => $info) {
+    if (!$filter || count(array_intersect_assoc($filter, $info)) == count($filter)) {
+      switch ($format) {
+        case 'short':
+          $options[$type] = check_plain($info['title']);
+          break;
+        case 'long':
+          $options[$type] = '<strong>' . check_plain($info['title']) . '</strong>.';
+          if (!empty($info['description'])) { 
+            $options[$type] .= ' ' . check_plain($info['description']);
+          }
+          break;
+      }
+    }
+  }
+  return $options;
+}
+
+/**
  * Callback for module dependent data
  * 
  * Some data stored in the notifications system is meant to be processed by other modules and
