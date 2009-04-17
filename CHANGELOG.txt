@@ -6,8 +6,13 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
-6.x-1.1 to .....
------------------
+6.x-1.2-beta1 to ..........
+---------------------------
+- Fixed WSOD with notifications_ui, renamed old functions, #434766
+- Fixing releases, moved new development to DRUPAL--6-2 branch
+
+6.x-1.1 to 6.x-1.2-beta1
+---------------------------
 - Added subscription options to user account, optionally in block too.
 - Reworked UI module, more options, moved some stuff from other modules there.
 - Improved query builder used for notifications_get_subscriptions() and notifications_delete_subscriptions()

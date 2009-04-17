@@ -289,7 +289,7 @@ function notifications_ui_node_subform($node) {
   global $user;
   
   // Retrieve node options if not passed
-  $node_options = notifications_ui_user_node($user, $node);
+  $node_options = notifications_ui_subscribe_options($user, 'node', $node);
   
   $subform = notifications_ui_options_form(NULL, $node_options, TRUE, FALSE);
   
@@ -346,7 +346,7 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
  * These links can be added as node link elements or rendered some other way
  * 
  * @param $options
- *   Array of subscription options, like the one produced by notifications_ui_user_node()
+ *   Array of subscription options, like the one produced by notifications_ui_subscribe_options()
  * @param $prefix
  *   Prefix to use for the link indexes
  */
@@ -381,7 +381,7 @@ function notifications_ui_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   global $user;
 
   if ($op == 'alter' && notifications_ui_node_options($node->type, 'subform')) {
-    if (($options = notifications_ui_user_node($user, $node)) ) {
+    if (($options = notifications_ui_subscribe_options($user, 'node', $node)) ) {
       $node->body .= drupal_get_form('notifications_ui_options_form', $options, TRUE, TRUE);
     }
   }
