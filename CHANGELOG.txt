@@ -8,6 +8,8 @@ TO DO
 
 6.x-1.2-beta1 to ..........
 ---------------------------
+- Fixed wrong event author for node/comment events, #436498
+- Added taxonomy subscription links/options to nodes, by Jody Lynn, #406606
 - Fixed WSOD with notifications_ui, renamed old functions, #434766
 - Fixing releases, moved new development to DRUPAL--6-2 branch
 

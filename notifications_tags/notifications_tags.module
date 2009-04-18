@@ -79,7 +79,48 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         }
       }
       break;
+    
+    case 'node options':
+      return _notifications_tags_node_options($arg0, $arg1);
+   
+    case 'access': 
+      $type = $arg0;
+      $object = &$arg2;
+      $access = TRUE;
+      if ($type == 'subscription') {
+        $access = TRUE;
+        if (!empty($object->fields['tid'])) {
+          $term = taxonomy_get_term($object->fields['tid']);
+          $allowed_vocabs = notifications_tags_vocabularies(TRUE);
+          if (!array_key_exists($term->vid, $allowed_vocabs)) {
+            $access = FALSE;
+          }
+        }
+      }
+      return array($access);      
+      break;
+ 
   }
+}
+
+/**
+ * Provide tag subscriptions on nodes.
+ */
+function _notifications_tags_node_options($account, $node) {
+  $options = array();
+  $vocabs = notifications_tags_vocabularies();
+  if (notifications_content_type_enabled($node->type, 'taxonomy') && !empty($node->taxonomy)) {
+    foreach ($node->taxonomy as $tid => $term) {
+      if (array_key_exists($term->vid, $vocabs)) {
+        $options[] = array(
+          'name' => t('Posts tagged with %name', array('%name' => $term->name)),
+          'type' => 'taxonomy',
+          'fields' => array('tid' => $tid),
+        );
+      }
+    }
+  }
+  return $options;
 }
 
 /**

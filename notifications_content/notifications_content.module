@@ -635,7 +635,6 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
       if ($node->status && empty($node->notifications_content_disable) && notifications_content_type_enabled($node->type)) {
         $event = array(
           'module' => 'node',
-          'uid' => $node->uid,
           'oid' => $node->nid,
           'type' => 'node',
           'action' => $op,
@@ -678,7 +677,6 @@ function notifications_content_comment($comment, $op) {
     if (notifications_content_type_enabled($node->type)) {
       $event = array(
         'module' => 'node',
-        'uid' => $comment->uid,
         'type' => 'node',
         'action' => 'comment',
         'node' => $node,
