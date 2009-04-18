@@ -151,7 +151,7 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
     );
     // Build fake subscriptions array
     $subscriptions = array_fill(1, count($event_list), array());
-    $digest = notifications_process_send(NULL, $event_list, $subscriptions, 'test', 1);
+    $digest = notifications_process_compose(NULL, $event_list, $subscriptions, 'test', 1);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for short digest.'. $this->compareTexts($message, $target));
     //$this->printObject('Digest target', $target); 
@@ -168,7 +168,7 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
       'body' => theme('notifications_digest_long_body', $body_common['header'], $body, $body_common['footer']),
     );
     $subscriptions = array_fill(1, count($event_list), array());
-    $digest = notifications_process_send(NULL, $event_list, $subscriptions, 'test', 2);
+    $digest = notifications_process_compose(NULL, $event_list, $subscriptions, 'test', 2);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
     //$this->printObject('Digest target', $target);

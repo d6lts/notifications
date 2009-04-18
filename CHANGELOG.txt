@@ -8,6 +8,9 @@ TO DO
 
 6.x-1.2-beta1 to ..........
 ---------------------------
+- New feature: support for anonymous subscriptions, #233830
+- Fixed some notices, by grendzy, #437282
+- Fixed PHP fatal error: unsupported operand types, by chintu84, #436698
 - Fixed wrong event author for node/comment events, #436498
 - Added taxonomy subscription links/options to nodes, by Jody Lynn, #406606
 - Fixed WSOD with notifications_ui, renamed old functions, #434766

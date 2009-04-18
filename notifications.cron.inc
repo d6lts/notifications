@@ -166,51 +166,85 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
  * 
  * @param $conditions
  *   Array of query conditions
+ * @param $limit
+ *   Optional, limit the number of rows to process
+ * @param $update
+ *   Optional, update queue rows and event counter after processing
  */
-function notifications_process_rows($conditions) {
+function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
   notifications_log('Processing queue rows', $conditions);
-  $account = NULL;
+  $account = $destination = NULL;
   $subscriptions = $events = $processed = array();
   $send_method = $send_interval = NULL;
+  $test = notifications_process('option', 'test');
+  $count = 0;
 
   // Build query and fetch rows from queue
   $query = notifications_queue_query($conditions);
   $sql = "SELECT * FROM {notifications_queue} ";
   $sql .= " WHERE ". implode(' AND ', $query['where']);
-  $sql .= " ORDER BY uid, send_method, send_interval";
-  $result = db_query($sql, $query['args']);
+  $sql .= " ORDER BY uid, destination, send_method, send_interval";
+  if ($limit) {
+    $result = db_query_range($sql, $query['args'], 0, $limit);
+  }
+  else {
+    $result = db_query($sql, $query['args']);
+  }
 
-  // Group rows by user, send_method, send_interval before sending
+  // Group rows by user, send_method, send_interval before composing and sending
   // This loop has to run a final time after all rows have been fetched
   while (($queue = db_fetch_object($result)) || $processed) {
-    if (!$account || !$queue || ($queue->uid != $account->uid) || $queue->send_method != $send_method || $queue->send_interval != $send_interval) {
-      // New user or sending method, send if not the first row and reset
+    $count++;
+    if (!$account || !$queue || ($queue->uid != $account->uid) || ($queue->destination != $destination) || $queue->send_method != $send_method || $queue->send_interval != $send_interval) {
+      // New user or sending method or destination, send if not the first row and reset
       if ($account && $events && $subscriptions) {
-        notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
-        notifications_update_sent($account->uid, $send_method, $send_interval, time());
+        $messages = notifications_process_compose($account, $events, $subscriptions, $send_method, $send_interval);
+        notifications_log('Composed messages', array('number' => count($messages), 'send_method' => $send_method));
+        if (!$test) {
+          notifications_process_send($account, $messages, $send_method);
+          notifications_update_sent($account, $send_method, $send_interval, time());
+        }
       }
-      if ($processed) {
+      if ($processed && $update) {
         notifications_queue_done(array('sqid' => $processed));        
       }
       $subscriptions = $events = $processed = array();
+      
+      // Keep track of parameters that will trigger a sending when changing
       if ($queue) {
-        $account = notifications_load_user($queue->uid);
+        // Users may be handled by a different module implementing the _load_user callback. 
+        // I.e. for anonymous users it may load the name from somewhere
+        $account = notifications_callback($queue->module, 'load_user', $queue->uid, $queue->destination);
         $send_method = $queue->send_method;
         $send_interval = $queue->send_interval;
+        $destination = $queue->destination;
       }
     }
+    // For every row in queue, compile everyting that will be available for sending
     if ($queue) {
+      $processed[] = $queue->sqid;
+      // Load event, check it exists and check the user has access to the event objects
       if ($event = notifications_load_event($queue->eid)) {
         notifications_event_tracker('count', $event);
+        notifications_log('Processing queued', array('queue sqid' => $queue->sqid , 'event' => $queue->eid, 'type' => $event->type, 'action' => $event->action, 'send method' =>$send_method));
         if (notifications_user_allowed('event', $account, $event)) {
+          // This will take care of duplicated events
           $events[$queue->eid] = $event;
-          $subscriptions[$queue->eid][] = $queue->sid;
-        }
-        $processed[] = $queue->sqid;
+          // We keep track also of subscriptions originating this event
+          $subscriptions[$queue->eid][] = $queue->sid;          
+        } else {
+          notifications_log('Access denied for event', array('account' => $user->uid, 'event' => $queue->eid));
+        }      
+      } else {
+        notifications_log('Cannot load event', array('eid' => $queue->eid, 'queue sid' => $queue->sid));
       }
     }
   }
-  notifications_event_tracker('update');
+  if ($update) {
+    notifications_event_tracker('update');
+  }
+  // Return number of rows processed
+  return $count;
 }
 
 /**
@@ -236,7 +270,7 @@ function notifications_process_rows($conditions) {
 function notifications_process_queue($send_interval, $max_sqid) {
   notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max squid' => $max_sqid));
   $test = notifications_process('option', 'test');
-  
+  // Count processed rows
   $count = 0;
   // This is the time from which stored rows will be sent
   $timelimit = time() - $send_interval;
@@ -244,62 +278,53 @@ function notifications_process_queue($send_interval, $max_sqid) {
   // Get users to process messages for, with this time interval and ordered by squid
   // Order by last sent for this send interval
   // Note: If we get the users with more messages pending first this may save some time
-  $sql = "SELECT q.uid, q.module, q.send_method, count(*) AS count FROM {notifications_queue} q ";
+  $sql = "SELECT q.uid, q.destination, q.module, q.send_method, count(*) AS count_rows FROM {notifications_queue} q ";
   $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
   $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
   $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
   // Note: the group by su.sent seems to be needed by pgsql
-  $sql .= " GROUP BY q.uid, q.module, q.send_method, su.sent ORDER BY su.sent";
+  $sql .= " GROUP BY q.uid, q.destination, q.module, q.send_method, su.sent ORDER BY su.sent";
   $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, NOTIFICATIONS_STEP_USERS);
 
-  $sqid = 0;
-  // @ TODO Add time conditions
-  while (($user = db_fetch_object($result)) && notifications_process('check')) {
-    notifications_log('Queue processing', array('user' => $user->uid , 'rows' => $user->count, 'send method' => $user->send_method));
-    $module = $user->module;
+  // We create a bach for each user, destination method and handle it to notifications_process_rows()
+  while (($queue = db_fetch_object($result)) && notifications_process('check')) {
+    notifications_log('Queue processing', array('user' => $queue->uid , 'rows' => $queue->count_rows, 'send method' => $queue->send_method));
+    $module = $queue->module;
     $events = $subscriptions = $processed = array();    
-    $send_method = $user->send_method;
-    // Users may be handled by a different module
-    $account = notifications_callback($module, 'load_user', $user->uid);
 
     // Process all rows for this user. With some hard limit to prevent process lock ups.
-    $result_subs = db_query_range("SELECT * FROM {notifications_queue} WHERE cron = 1 AND send_interval = '%d' AND uid = %d AND sqid <= %d ORDER BY send_method, sqid", $send_interval, $account->uid, $max_sqid, 0, NOTIFICATIONS_STEP_ROWS);
-    while (($queue = db_fetch_object($result_subs)) && notifications_process('count', 'row')) {
-      $count++;
-      $processed[] = $sqid = $queue->sqid;
-      
-      // Load event, check it exists and check the user has access to the event objects
-      if ($event = notifications_load_event($queue->eid, TRUE)) {
-        notifications_event_tracker('count', $event);
-        notifications_log('Processing queued', array('queue sid' => $queue->sid , 'event' => $queue->eid, 'type' => $event->type, 'action' => $event->action, 'send method' =>$send_method));
-        if (notifications_callback($module, 'user_allowed', 'event', $account, $event)) {
-          // This will take care of duplicated events
-          $events[$queue->eid] = $event;
-          // We keep track also of subscriptions originating this event
-          $subscriptions[$queue->eid][] = $queue->sid;
-        } else {
-          notifications_log('Access denied for event', array('account' => $user->uid, 'event' => $queue->eid, 'type' => $event->type, 'action' => $event->action));
-        }
-      } else {
-        notifiations_log('Cannot load event', array('eid' => $queue->eid, 'queue sid' => $queue->sid));
-      }
+    // In case we have too many rows, we go updating step by step
+    if ($queue->count_rows > NOTIFICATIONS_STEP_ROWS) {
+      $limit = NOTIFICATIONS_STEP_ROWS;
+      $update = TRUE;
     }
-    if ($events) {
-      notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval);
-      if (!$test) {
-        notifications_update_sent($user->uid, $send_method, $send_interval, time());  
-      }
+    else {
+      $limit = $queue->count_rows;
+      $update = FALSE;
     }
-    if ($processed && !$test) {
-      notifications_queue_done(array('uid' => $user->uid, 'send_interval' => $send_interval, 'send_method' => $send_method, 'max_sqid' => $sqid));      
+    $batch = array(
+      'uid' => $queue->uid, 'destination' => $queue->destination,
+      'send_method' => $queue->send_method, 'send_interval' => $send_interval, 
+      'cron' => 1, 'max_sqid' => $max_sqid,
+    );
+    // These rows may be processed by a different module
+    $processed = notifications_callback($queue->module, 'process_rows', $batch, $limit, $update);
+    $count += $processed;
+
+    if ($processed && !$test && !$update) {
+      notifications_queue_done($batch);      
     }
   }
-  // Update event counter
+
+  // If not doing a test run, update event counter and return count
+  // If doing a test run, return 0 so we don't go through this again
   if (!$test) {
     notifications_event_tracker('update');
+    return $count;
   }
-  // If doing a test run, return 0 so we don't go through this again
-  return $test ? 0 : $count;
+  else {
+    return 0;
+  }
 }
 
 /**
@@ -317,6 +342,15 @@ function notifications_event_tracker($op, $event = NULL) {
     case 'count':
       $events[$event->eid] = array_key_exists($event->eid, $events) ? $events[$event->eid] + 1 : 1;
       break;
+    case 'delete':
+      // Delete event and all related rows. For events no longer available, deleted nodes, comments, etc..
+      foreach (array('notifications_queue', 'notifications_event') as $table) {
+        db_query('DELETE FROM {' . $table . '} WHERE eid = %d', $event->eid);
+      }
+      if (array_key_exists($event->eid, $events)) {
+        unset($events[$event->eid]);
+      }
+      break;
     case 'update':
       foreach ($events as $eid => $count) {
         db_query('UPDATE {notifications_event} SET counter = counter - %d WHERE eid = %d', $count, $eid);
@@ -330,17 +364,17 @@ function notifications_event_tracker($op, $event = NULL) {
 /**
  * Update user last time sent for each sending method / interval
  */
-function notifications_update_sent($uid, $method, $interval, $time) {
-  db_query("UPDATE {notifications_sent} SET sent = %d WHERE uid = %d AND send_interval = '%d' AND send_method = '%s'", $time, $uid, $interval, $method);
+function notifications_update_sent($account, $method, $interval, $time) {
+  db_query("UPDATE {notifications_sent} SET sent = %d WHERE uid = %d AND send_interval = '%d' AND send_method = '%s'", $time, $account->uid, $interval, $method);
   if (!db_affected_rows()) {
-    db_query("INSERT INTO {notifications_sent}(uid, send_interval, send_method, sent) VALUES(%d, '%d', '%s', %d)", $uid, $interval, $method, $time);
+    db_query("INSERT INTO {notifications_sent}(uid, send_interval, send_method, sent) VALUES(%d, '%d', '%s', %d)", $account->uid, $interval, $method, $time);
   }
 }
 
 /**
- * Message delivery.
+ * Message composition.
  * 
- * Processes everything, included digestion and sends message/s.
+ * Processes everything, included templating and digestion and sends message/s.
  * 
  * Adds some more information into $message['notifications'] that may be used by other modules
  *
@@ -350,8 +384,11 @@ function notifications_update_sent($uid, $method, $interval, $time) {
  *   Array of loaded event objects to be processed
  * @param $subscriptions
  *   Array of arrays of subscription ids (sids) for each event(eid)
+ * 
+ * @return array()
+ *   Array of messages ready for sending out
  */
-function notifications_process_send($account, $events, $subscriptions, $send_method, $send_interval) {
+function notifications_process_compose($account, $events, $subscriptions, $send_method, $send_interval) {
   notifications_log('Processing for sending', array('method' => $send_method, 'interval' => $send_interval, 'events' => count($events)));
   // Digest if send_interval > 0 (not immediate sending)
   if ($digest = notifications_digest_method($send_interval)) {
@@ -385,6 +422,21 @@ function notifications_process_send($account, $events, $subscriptions, $send_met
     if (!$test) {
       notifications_message_send($account, $message, $send_method);
     }
+  }
+  return $messages;
+}
+
+/**
+ * Send array of messages through messaging module
+ * 
+ * @param $account
+ *   User account to send to, may be an anonymous user account with destination
+ */
+function notifications_process_send($account, $messages, $send_method) {  
+  foreach ($messages as $message) {
+    notifications_process('count', 'send');
+    notifications_log('Sending out', array('method' => $send_method, 'message' => $message));
+    notifications_message_send($account, $message, $send_method);
   }
   return $messages;
 }
@@ -504,25 +556,40 @@ function notifications_event_text($event) {
 }
 
 /**
- * Get users with static caching
+ * Get users with static caching for existing users
+ * 
+ * Build anonymous fake user (with destination) for anonymous users
  */
-function notifications_load_user($uid) {
-  return messaging_load_user($uid);
+function notifications_load_user($uid, $destination = NULL) {
+  if ($uid) {
+    return messaging_load_user($uid);
+  }
+  elseif ($destination) {
+    $account = drupal_anonymous_user();
+    $account->destination = $destination;
+  }
 }
 
 /**
- * Get events with static caching
+ * Get events with static caching. Handle event deletion if not available anymore
  */
 function notifications_load_event($id) {
   static $cache = array();
+
   if (!array_key_exists($id, $cache)) {
     $event = db_fetch_object(db_query("SELECT * FROM {notifications_event} WHERE eid = %d", $id));
     $event->params = unserialize($event->params);
     // Load aditional objects for the event
     $event->objects = array();
     notifications_module_invoke('event load', $event);
+    // Check event status, it may need deletion if objects are not available
+    if (!empty($event->delete)) {
+      notifications_event_tracker('delete', $event);
+      $event = NULL;
+    }
     $cache[$id] = $event;
   }
+
   return $cache[$id];
 }
 

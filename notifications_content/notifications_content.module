@@ -78,7 +78,8 @@ function notifications_content_perm() {
  */
 function notifications_content_help($path, $arg) {
   if ($path == 'admin/messaging/notifications/content') {
-    $output .= '<p>'. t('To determine the available subscription types for each content type you can also use the !content-type-settings', array('!content-type-settings' => l(t('content types settings page'), 'admin/content/types'))) .'</p>';
+    $output = '<p>' . t('Content subscriptions are subscriptions to nodes that will produce notifications when a node is posted or updated or when a comment is posted for that nodes. Notifications will be sent only for published content so if you need to be notified of unpublished content waiting for approval you better use Triggers and Actions or some other module for that.') . '</p>';
+    $output .= '<p>'. t('On this page you can set which of the available subscription types are allowed. Alternatively you can select the <i>Set up for each content type</i> option and use the <a href="@content-type-settings">Administer Content types</a> page. These settings will be combined with permissions and other options (See user interface options if enabled) to determine which subscriptions will be finally available for users.', array('@content-type-settings' => url( 'admin/content/types'))) .'</p>';
     return $output;
   }
   elseif (array($arg[0], $arg[1], $arg[2], $arg[3]) == array('admin', 'messaging', 'template', 'edit') && ($group = $arg[4])) {
@@ -294,11 +295,21 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       $event = &$arg0;
       $load = array();
       if ($event->type == 'node') {
-        if (!empty($event->params['nid'])) {
-          $event->objects['node'] = node_load($event->params['nid']);
+        if (!empty($event->params['nid']) && empty($event->objects['node'])) {
+          if ($node = node_load($event->params['nid'])) {
+            $event->objects['node'] = $node;
+          }
+          else { // Node not available anymore, mark event for deletion
+            $event->delete = TRUE;
+          }
         }
-        if (!empty($event->params['cid'])) {
-          $event->objects['comment'] = notifications_content_comment_load($event->params['cid']);
+        if (!empty($event->params['cid']) && empty($event->objects['comment'])) {
+          if ($comment = notifications_content_comment_load($event->params['cid'])) {
+            $event->objects['comment'] = $comment;
+          }
+          else { // Comment not available anymore, mark event for deletion
+            $event->delete = TRUE;
+          }
         }
       }
       break;
@@ -671,7 +682,7 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
 function notifications_content_comment($comment, $op) {
   // $comment can be an object or an array.
   $comment = (object)$comment;
-  
+
   if (($op == 'update' || $op == 'publish') && empty($comment->notifications_content_disable) && empty($comment->status)) {
     $node = node_load($comment->nid);
     if (notifications_content_type_enabled($node->type)) {
@@ -683,8 +694,8 @@ function notifications_content_comment($comment, $op) {
         'comment' => $comment,
         'params' => array('nid' => $comment->nid, 'cid' => $comment->cid),
       );
-    }
-    notifications_event($event);
+      notifications_event($event);
+    }    
   }
 }
 
@@ -722,7 +733,7 @@ function notifications_content_comment_load($cid) {
 function notifications_content_types($field = 'name', $subs_type = 'nodetype') {
   // Get list of available node types, all of them will be allowed by default
   $types = array();
-  
+
   foreach (node_get_types() as $key => $data) {
     if (notifications_content_type_enabled($key, $subs_type)) {
       $types[$key] = $data;

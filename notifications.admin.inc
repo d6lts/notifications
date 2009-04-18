@@ -292,6 +292,7 @@ function notifications_admin_status_page() {
   $result = db_query("SELECT type, count(*) AS count FROM {notifications} GROUP BY type");
   $count = 0;
   $types = notifications_subscription_types();
+  $rows = array();
   while ($stype = db_fetch_object($result)) {
     $rows[] = array(
       !empty($types[$stype->type]['title']) ? $types[$stype->type]['title'] : '<strong>' . $stype->type . '</strong>' , 
@@ -329,6 +330,7 @@ function notifications_admin_queue_summary() {
   $header = array(t('Send interval'), t('Number'));
   $count = 0;
   $result = db_query("SELECT send_interval, count(*) AS count FROM {notifications_queue} GROUP BY send_interval");    
+  $rows = array();
   while ($stype = db_fetch_object($result)) {
     $rows[] = array($send_intervals[$stype->send_interval], $stype->count);
     $count += $stype->count;
