@@ -13,7 +13,7 @@ function notifications_ui_uninstall() {
   // Just delete variables for subscription types and node types  
   variable_del('notifications_ui_types');
   foreach (array_keys(node_get_types()) as $type) {
-    variable_del('notifications_node_ui_' . $type);
+    variable_del('notifications_node_ui_'. $type);
   }
 }
 
@@ -23,6 +23,6 @@ function notifications_ui_uninstall() {
 function notifications_ui_update_6000() {
   // All options will be messed up so we better do manual review
   variable_del('notifications_link_teaser');  
-  drupal_set_message('Please, check all your Notifications UI settings and note the new options.');
+  drupal_set_message(t('Please, check all your Notifications UI settings and note the new options.'));
   return array();
 }

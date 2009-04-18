@@ -35,7 +35,7 @@ function notifications_custom_admin_page($op = NULL) {
       $output .= theme('table', $header, $rows);
     }
     else {
-      $output .= '<p>' . t('There are no custom subscriptions defined.') . '</p>';
+      $output .= '<p>'. t('There are no custom subscriptions defined.') .'</p>';
     }
   }
   $output .= l(t('Add new custom subscription.'), "$base_path/new");
@@ -118,7 +118,8 @@ function notifications_custom_form($form_state, $subs) {
   $form['buttons']['submit'] = array('#type' => 'submit', '#value' => t('Save'));
   if ($subs->module == 'notifications_custom') {
     $form['buttons']['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
-  } else {
+  }
+  else {
     $form['buttons']['reset'] = array('#type' => 'submit', '#value' => t('Reset to defaults'));
   }
   return $form;
@@ -131,7 +132,8 @@ function notifications_custom_form_validate($form, &$form_state) {
   if (empty($form_state['values']['subscription']['csid'])) {
     if (notifications_custom_load($form_state['values']['subscription']['newtype'])) {
       form_set_error('newtype', t('Duplicate subscription type. You need to select a unique string for it.'));
-    } else {
+    }
+    else {
       $form_state['values']['subscription']['type'] = $form_state['values']['subscription']['newtype'];
     }
   }
@@ -149,12 +151,12 @@ function notifications_custom_form_submit($form, &$form_state) {
     notifications_custom_rebuild();
   }
   elseif ($op == t('Delete')) {
-    $form_state['redirect'] = 'admin/messaging/customsubs/csid/' . $subs['csid'] . '/delete';
+    $form_state['redirect'] = 'admin/messaging/customsubs/csid/'. $subs['csid'] .'/delete';
   }
   elseif (empty($subs['csid'])) {
     drupal_write_record('notifications_custom', $subs);
     drupal_set_message(t('The subscription type has been created. Now you must add one or more fields to it.'));
-    $form_state['redirect'] = 'admin/messaging/customsubs/csid/' . $subs['csid'] . '/fields';    
+    $form_state['redirect'] = 'admin/messaging/customsubs/csid/'. $subs['csid'] .'/fields';    
   }
   else {
     drupal_write_record('notifications_custom', $subs, 'csid');
@@ -188,7 +190,8 @@ function notifications_custom_fields_form($form_state, $subscription) {
     if (!empty($form_state['values']['newfield'])) {
       $fields[] = array('type' => $form_state['values']['newfield'], 'value' => '');
     }
-  } else {
+  }
+  else {
     $fields = $subscription->fields;
   }
 
@@ -214,7 +217,8 @@ function notifications_custom_fields_form($form_state, $subscription) {
         $form['fields']['value'][$fid]['#default_value'] = $data['value'];
       }
     }
-  } else {
+  }
+  else {
     $form['fields']['#description'] = t('You have to define at least one field for this subscription.');
   }
   $form['fields']['name']['new'] = array(

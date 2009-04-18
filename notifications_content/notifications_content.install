@@ -19,7 +19,7 @@ function notifications_content_uninstall() {
   variable_del('notifications_content_per_type');
   
   foreach (array_keys(node_get_types()) as $type) {
-    variable_del('notifications_content_type_' . $type);
+    variable_del('notifications_content_type_'. $type);
   }  
   drupal_set_message(t('Content notifications uninstallation script complete.'));
 }
@@ -37,6 +37,6 @@ function notifications_content_update_6000() {
  */
 function notifications_content_update_6001() {
   // All options will be messed up so we better do manual review
-  drupal_set_message('Please, check all your Notifications content settings and note the new options.');
+  drupal_set_message(t('Please, check all your Notifications content settings and note the new options.'));
   return array();
 }

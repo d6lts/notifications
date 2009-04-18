@@ -75,7 +75,7 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
     $part = notifications_message_part('event', 'test', 'test', $event1);
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
     $part = notifications_message_part('type', 'key', 'test');
-    $this->assertEqual($part, 'type key [type-name] [title] [site-name]', 'Retrieved testing message part: ' . $part);
+    $this->assertEqual($part, 'type key [type-name] [title] [site-name]', 'Retrieved testing message part: '. $part);
     $text = messaging_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
     $this->assertEqual($text, "$node1->title $node1->type Test Site", 'Text replacement for node object');
     
@@ -121,8 +121,8 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
     $test_line = '[type-name] [title] Test Site';
 
     $body_common = array(
-      'header' => 'digest header ' . $test_line,
-      'footer' => 'digest footer ' . $test_line,
+      'header' => 'digest header '. $test_line,
+      'footer' => 'digest footer '. $test_line,
     );
     $lines = array();
     $lines['node']['story'] = array(
@@ -146,7 +146,7 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
       ),    
     );
     $target = array(
-      'subject' => 'digest subject ' . $test_line,
+      'subject' => 'digest subject '. $test_line,
       'body' => theme('notifications_digest_short_body', $body_common, $lines),
     );
     // Build fake subscriptions array
@@ -192,16 +192,18 @@ class NotificationsTemplatesTests extends DrupalWebTestCase {
     foreach ($text1 as $key => $value) {
       if (!isset($text2[$key])) {
         $diff .= "($key)";
-      } elseif (is_array($value)) {
+      }
+      elseif (is_array($value)) {
         $diff .= $this->compareTexts($text1[$key], $text2[$key]);
-      } elseif ($value != $text2[$key]) {
-        $diff .= "($key)$value=" .$text2[$key];
+      }
+      elseif ($value != $text2[$key]) {
+        $diff .= "($key)$value=". $text2[$key];
       }
     }
     return $diff;
   }
   // Debug dump object
   function printObject($title, $object) {
-    $this->assertTrue(TRUE, $title . '= ' .  print_r($object, TRUE));
+    $this->assertTrue(TRUE, $title .'= '.  print_r($object, TRUE));
   }
 }

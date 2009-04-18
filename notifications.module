@@ -88,7 +88,7 @@ function notifications_menu() {
     'file' => 'notifications.admin.inc',
   );
   $items['admin/messaging/notifications/intervals'] = array(
-    'title' =>'Intervals',
+    'title' => 'Intervals',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_send_intervals_form'),
     'type' => MENU_LOCAL_TASK,
@@ -96,7 +96,7 @@ function notifications_menu() {
     'file' => 'notifications.admin.inc',
   );
   $items['admin/messaging/notifications/events'] = array(
-    'title' =>'Events',
+    'title' => 'Events',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_admin_events_form'),
     'type' => MENU_LOCAL_TASK,
@@ -206,7 +206,8 @@ function notifications_access_user_add($account = NULL, $type = NULL) {
   if (notifications_access_user($account)) {
     if ($type && ($access = notifications_subscription_types($type, 'access'))) {
       return user_access($access, $account);
-    } else {
+    }
+    else {
       return TRUE;
     }
   }
@@ -242,7 +243,7 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
   
   if (user_access('administer notifications') || user_access('manage all subscriptions')) return TRUE;
   
-  switch($op) {
+  switch ($op) {
     case 'edit':
     case 'unsubscribe':
       return $account->uid && ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
@@ -279,7 +280,8 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
           // Delete pending notifications and block existing active subscriptions
           db_query('DELETE FROM {notifications_queue} WHERE uid = %d', $user->uid);
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
-        } else { 
+        }
+        else {
           // User may be being unblocked, unblock subscriptions if any
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_ACTIVE, NOTIFICATIONS_SUBSCRIPTION_BLOCKED, $user->uid);
         }
@@ -295,8 +297,7 @@ function notifications_form_alter(&$form, $form_state, $form_id) {
   switch ($form_id) {
     // Default send interval for user form
     case 'user_profile_form':
-      if ($form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) 
-      {
+      if ($form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) {
         $form['messaging']['#title'] = t('Messaging and Notifications settings');
         $send_intervals = _notifications_send_intervals();
         $form['messaging']['notifications_send_interval'] = array(
@@ -329,12 +330,12 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
   if ($name == 'send_method') {
     return messaging_method_default($account);
   } 
-  $field = 'notifications_' . $name;
+  $field = 'notifications_'. $name;
   if (isset($account->$field)) {
     return $account->$field;
   }
   else {
-    return variable_get('notifications_default_' . $name, $default);
+    return variable_get('notifications_default_'. $name, $default);
   }
 }
 
@@ -362,7 +363,8 @@ function notifications_event($event) {
       'save' => FALSE,
       'queue' => FALSE,
     );
-  } else {
+  }
+  else {
     $event += array(
       'save' => TRUE, 
       'queue' => TRUE,
@@ -404,7 +406,7 @@ function notifications_event($event) {
  *   Event array.
  */
 function notifications_queue($event) {
-  global $notifications_send_immediate;
+  global $_notifications_send_immediate;
   $query = array();
   // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
   // If no arguments retrieved, skip this step
@@ -453,9 +455,10 @@ function notifications_queue($event) {
     db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $count, $event->eid);
     // If immediate sending enabled, store eid for sending on page exit.
     if (variable_get('notifications_send_immediate', 0)) {
-      $notifications_send_immediate[] = $event->eid;
+      $_notifications_send_immediate[] = $event->eid;
     }
-  } else {
+  }
+  else {
     db_query('DELETE FROM {notifications_event} WHERE eid = %d', $event->eid);
   }
 
@@ -468,11 +471,11 @@ function notifications_queue($event) {
  * have finished node processing when node update.
  */
 function notifications_exit() {
-  global $notifications_send_immediate;
+  global $_notifications_send_immediate;
   
-  if (!empty($notifications_send_immediate)) {
+  if (!empty($_notifications_send_immediate)) {
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-    foreach ($notifications_send_immediate as $eid) {
+    foreach ($_notifications_send_immediate as $eid) {
       notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
     }    
   }
@@ -500,21 +503,24 @@ function notifications_query_build($params, $query = array()) {
         if (notifications_subscription_fields($field, 'type') == 'int') {
           $type = 'int';
           $fieldval = 'intval';
-        } else {
+        }
+        else {
           $type = 'char';
           $fieldval = 'value';
         }
         if (is_array($value)) {
-          $query['fields'][] = "f.field = '%s' AND f.$fieldval IN (" . db_placeholders($value, $type) . ")";
+          $query['fields'][] = "f.field = '%s' AND f.$fieldval IN (". db_placeholders($value, $type) .")";
           $query['fields args'][] = $field;
           $query['fields args'] = empty($query['fields args']) ? $value : array_merge($query['fields args'], $value);
-        } else {
+        }
+        else {
           $query['fields'][] = "f.field = '%s' AND f.$fieldval = " . db_type_placeholder($type);
           $query['fields args'][] = $field;
           $query['fields args'][] = $value;
         }
       }
-    } else {
+    }
+    else {
       if ($name == 'fields sql') {
         // These are added as 'fields' parameters without further parsing
         $name = 'fields';
@@ -542,13 +548,13 @@ function notifications_query_build($params, $query = array()) {
 function notifications_query_sql($query) {
   $sql = '';
   if (!empty($query['insert'])) {
-    $sql .= 'INSERT INTO ' . $query['into'] . '(' . implode(', ', $query['insert']) . ') ';
+    $sql .= 'INSERT INTO ' . $query['into'] . ' ('. implode(', ', $query['insert']) .') ';
   }
   $sql .= !empty($query['distinct']) ? 'SELECT DISTINCT ' : 'SELECT ';
   $sql .=  implode(', ', $query['select']);
-  $sql .= ' FROM ' . implode(', ', $query['from']);
+  $sql .= ' FROM '. implode(', ', $query['from']);
   if (!empty($query['join'])) {
-    $sql .= ' ' . implode(' ', $query['join']);
+    $sql .= ' '. implode(' ', $query['join']);
   }  
   
   // Where conditions come from 'where' and 'fields' elements
@@ -558,19 +564,19 @@ function notifications_query_sql($query) {
     $where[] = '('. implode(') OR (', $query['fields']) .')';
   }  
   if ($where) {
-    $sql .= ' WHERE (' . implode(') AND (', $where) . ')';  
+    $sql .= ' WHERE ('. implode(') AND (', $where) .')';
   }  
   if (!empty($query['group'])) {
-    $sql .= ' GROUP BY ' . implode(', ', $query['group']);
+    $sql .= ' GROUP BY '. implode(', ', $query['group']);
   }
   if (!empty($query['having'])) {
-    $sql .= ' HAVING ' . implode(' AND ', $query['having']);
+    $sql .= ' HAVING '. implode(' AND ', $query['having']);
   }
   // Merge all args, start with generic ones for subscription queries, then other groups
   $args = !empty($query['args']) ? $query['args'] : array();
   foreach (array('select', 'join', 'where', 'fields', 'having') as $key) {
-    if (!empty($query[$key . ' args'])) {
-      $args = array_merge($args, $query[$key . ' args']);
+    if (!empty($query[$key .' args'])) {
+      $args = array_merge($args, $query[$key .' args']);
     }
   }
  
@@ -721,7 +727,8 @@ function notifications_save_subscription(&$subscription) {
       foreach ($subscription->fields as $name => $value) {
         if (is_array($value)) {
           db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $value['type'], $value['value'], (int)$value['value']);
-        } else { 
+        }
+        else { 
           db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
         }
       }
@@ -844,7 +851,8 @@ function notifications_subscriptions_query_build($params, $conditions = array(),
   foreach ($params as $field => $value) {
     if (in_array($schema['fields'][$field]['type'], array('serial', 'int'))) {
       $where[] =  'n.'. $field ." = %d";
-    } else {
+    }
+    else {
       $where[] =  'n.'. $field ." = '%s'";
     }
     $args[] = $value;
@@ -857,7 +865,8 @@ function notifications_subscriptions_query_build($params, $conditions = array(),
       if (is_array($data)) {
         $field = $data['type'];
         $value = $data['value'];
-      } else {
+      }
+      else {
         $field = $key;
         $value = $data;
       }
@@ -869,7 +878,8 @@ function notifications_subscriptions_query_build($params, $conditions = array(),
       if (!is_null($value)) {
         if (notifications_subscription_fields($field, 'type') == 'int') {
           $where[] = "$alias.intval = %d";        
-        } else {
+        }
+        else {
           $where[] = "$alias.value = '%s'";
         }        
         $args[] = $value;
@@ -1164,7 +1174,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       return $values;
     case 'user':
       if ($account = $object) {
-        $values['subscriptions-manage'] = $account->uid ? url("user/$account->uid/notifications", array('absolute' =>TRUE)) : '';
+        $values['subscriptions-manage'] = $account->uid ? url("user/$account->uid/notifications", array('absolute' => TRUE)) : '';
         $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'signed' => TRUE, 'destination' => FALSE, 'absolute' => TRUE));
         $values['unsubscribe-url-global'] = url($link['href'], $link['options']);
         return $values;
@@ -1398,7 +1408,7 @@ function _notifications_send_methods($account = NULL) {
  *   TRUE to skip confirmation form
  */
 function _notifications_signature($params, $skip_confirm = FALSE) {
-  return md5('notifications:'. drupal_get_private_key() .':'. ($skip_confirm ? 1 : 0) . ':' . implode(':', $params));
+  return md5('notifications:'. drupal_get_private_key() .':'. ($skip_confirm ? 1 : 0) .':'. implode(':', $params));
 }
 
 /**
@@ -1440,9 +1450,9 @@ function _notifications_subscription_types($format = 'short', $filter = NULL) {
           $options[$type] = check_plain($info['title']);
           break;
         case 'long':
-          $options[$type] = '<strong>' . check_plain($info['title']) . '</strong>.';
+          $options[$type] = '<strong>'. check_plain($info['title']) .'</strong>.';
           if (!empty($info['description'])) { 
-            $options[$type] .= ' ' . check_plain($info['description']);
+            $options[$type] .= ' '. check_plain($info['description']);
           }
           break;
       }
@@ -1552,7 +1562,8 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
         '#options' => _notifications_send_methods(),
         '#default_value' => $rowdefaults['send_method'],
       );
-    } else {
+    }
+    else {
       $form['subscriptions']['send_method'][$key] = array('#type' => 'value', '#value' => $rowdefaults['send_method']);
     }
     // Pass on the fields for processing
@@ -1788,15 +1799,15 @@ function _notifications_log_format($log) {
           break;
         default:
           // Append to string a key value pair, different from watchdog format
-          $append[] = ' <strong>' . $key . '</strong>= ' . check_plain($value);
+          $append[] = ' <strong>'. $key .'</strong>= '. check_plain($value);
           break;
       }
     }
     $string = strtr($string, $args);
-    $append ? $string .= ' ' . implode(', ', $append) : NULL;
+    $append ? $string .= ' '. implode(', ', $append) : NULL;
   }
 
-  return '<strong> '.$type . '</strong>: ' . $string;
+  return '<strong> '. $type .'</strong>: '. $string;
 }
 
 // For PHP4 compatibility
@@ -1805,7 +1816,7 @@ if (!function_exists('array_combine')) {
     $out = array();
     $arr1 = array_values($arr1);
     $arr2 = array_values($arr2);
-    foreach($arr1 as $key1 => $value1) {
+    foreach ($arr1 as $key1 => $value1) {
       $out[(string)$value1] = $arr2[$key1];
     }
     return $out;

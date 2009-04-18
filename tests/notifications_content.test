@@ -44,7 +44,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $this->enableUIPages(0);
     $user = $this->drupalCreateUser($this->listPermissions());
     $this->drupalLogin($user);
-    $prefix = 'user/' . $user->uid . '/notifications';
+    $prefix = 'user/'. $user->uid .'/notifications';
     $test_pages = array(
       "$prefix/thread" => 'Thread overview page',
       "$prefix/add/thread" => 'Add thread subscription',
@@ -55,30 +55,30 @@ class NotificationsContentTests extends DrupalWebTestCase {
     );
     // Test UI api function
     foreach (array('thread', 'nodetype', 'author') as $type) {
-      $this->assertFalse(notifications_ui_access_page($type, $user), 'No permission for account page: ' . $type);
-      $this->assertFalse(notifications_ui_access_user_add($user, $type), 'No permission for adding type: ' . $type);
+      $this->assertFalse(notifications_ui_access_page($type, $user), 'No permission for account page: '. $type);
+      $this->assertFalse(notifications_ui_access_user_add($user, $type), 'No permission for adding type: '. $type);
     }
     // First we shouldn't be able to access any of them
     foreach ($test_pages as $path => $name) {
       $this->drupalGet($path);
-      $this->assertResponse(403, 'User cannot access the page: ' . $name);
+      $this->assertResponse(403, 'User cannot access the page: '. $name);
     }
     $this->enableUIPages();
     
     // Now we should be able to access all of them
     // Test UI api function
     foreach (array('page', 'create') as $type) {
-      $this->assertTrue(notifications_ui_user_options($type), 'Enabled user page: ' . $type);
+      $this->assertTrue(notifications_ui_user_options($type), 'Enabled user page: '. $type);
     }
     foreach (array('thread', 'nodetype', 'author') as $type) {
-      $this->assertTrue(notifications_ui_subscription_type($type), 'Enabled subscription type: ' . $type);      
-      $this->assertTrue(notifications_ui_access_page($type, $user), 'Permission for account page: ' . $type);
-      $this->assertTrue(notifications_ui_access_user_add($user, $type), 'Permission for adding type: ' . $type);
+      $this->assertTrue(notifications_ui_subscription_type($type), 'Enabled subscription type: '. $type);      
+      $this->assertTrue(notifications_ui_access_page($type, $user), 'Permission for account page: '. $type);
+      $this->assertTrue(notifications_ui_access_user_add($user, $type), 'Permission for adding type: '. $type);
     }
     
     foreach ($test_pages as $path => $name) {
       $this->drupalGet($path);
-      $this->assertResponse(200, 'User can access the page: ' . $name);
+      $this->assertResponse(200, 'User can access the page: '. $name);
     }    
   }
 
@@ -123,7 +123,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $this->drupalLogin($user);
  
     // Check unsubscribe page, no subscriptions yet
-    $this->drupalGet('notifications/unsubscribe/uid/' . $user->uid);
+    $this->drupalGet('notifications/unsubscribe/uid/'. $user->uid);
     $this->assertText("You don't have any subscription on this site.", 'Unsubscribe page showing no subscriptions');
     
     // Check content type page before and after enabling this content type
@@ -193,7 +193,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $this->assertEqual(count($subs), 3, 'The 3 subscriptions have actually been created');
 
     // Check user account pages
-    $this->drupalGet('user/'. $user->uid. '/notifications');
+    $this->drupalGet('user/'. $user->uid .'/notifications');
     $this->assertText(t('Thread'), 'User account overview shows threads.');
     $this->assertText(t('Content type'), 'User account overview shows content type.');
     $this->assertText(t('Author'), 'User account overview shows author.');
@@ -218,8 +218,8 @@ class NotificationsContentTests extends DrupalWebTestCase {
     node_save($node);
         
     // Check queued notifications. We should have three queued notifs at the end
-    $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
-    $this->assertEqual($count, 3, 'We have the right number of rows in queue: '.$count);
+    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
+    $this->assertEqual($count, 3, 'We have the right number of rows in queue: '. $count);
 
     // Disable notifications for updates and try again
     $events['node']['update'] = 0;
@@ -231,12 +231,12 @@ class NotificationsContentTests extends DrupalWebTestCase {
     node_save($node);
  
     // Check queued notifications. We should have three queued notifs at the end
-    $count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
+    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($count, 3, 'Disabling notifications for node updates worked, we have the right number of rows in queue: '. $count);
     
     // Check queued events, these should be cleaned at the end
-    $count = db_result(db_query("SELECT count(*) FROM {notifications_event}"));   
-    $this->assertEqual($count, 1, 'The right number of events are stored:' . $count);
+    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_event}"));   
+    $this->assertEqual($count, 1, 'The right number of events are stored:'. $count);
     
     // Get messages from queue. After de-duping there should be only one.
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
@@ -279,6 +279,6 @@ class NotificationsContentTests extends DrupalWebTestCase {
   // Helper option for debugging
   function printDebug($data) {
     $string = is_array($data) || is_object($data) ? print_r($data, TRUE) : $data;
-    $this->assertTrue(FALSE, 'DEBUG: ' . $string);
+    $this->assertTrue(FALSE, 'DEBUG: '. $string);
   }
 }
