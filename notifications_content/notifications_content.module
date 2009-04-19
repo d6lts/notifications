@@ -113,8 +113,13 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
           '#title'         => t('Do not send notifications for this comment.'),
           '#default_value' => 0,
           '#access' => user_access('skip notifications'),
-        ); 
+        );
+        // If editing the comment, add values to remember
+        if (!empty($form['cid']['#value']) && !empty($form['admin']['status'])) {
+          $form['notifications_comment_status'] = array('#type' => 'value', '#value' => $form['admin']['status']['#default_value']);
+        }
       }
+
       break;   
     case 'node_type_form':
       if (isset($form['identity']['type'])) {
@@ -654,12 +659,15 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
         );        
         if ($op == 'update') {
           // If the node has been published the 'update' will become a 'insert' (first post)
+          // In this case the event user will be the node author instead of the current user
           if (!isset($node->old_status)) {
             // We try to find out previous status with the cached node.
             $oldnode = node_load($node->nid);
             $node->old_status = $oldnode->status;
           }
           if (!$node->old_status) {
+            // The node has gone from unpublished to published, adjust event parameters
+            $event['uid'] = $node->uid;
             $event['action'] = 'insert';
           }
           // If immediate sending is active, need to reset the node cache so we don't send old versions of the node
@@ -678,15 +686,25 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
 
 /**
  * Implementation of hook_comment().
- */
-function notifications_content_comment($comment, $op) {
+ * 
+ * This is a bit tricky because we just want to send notifications when they are published. Quick reminder:
+ * - Normal 'insert' operations are followed by a 'publish' one so we don't process that ones.
+ * - Normal 'update' operations are followed by a 'publish' whatever the previous status was
+ * - For 'publish' operations we notify if the comment was not published before.
+ * 
+ * Note that we don't take the comment by ref so we don't change it when it's an array
+ **/
+function notifications_content_comment($comment, $op) {dsm($op);
   // $comment can be an object or an array.
   $comment = (object)$comment;
 
-  if (($op == 'update' || $op == 'publish') && empty($comment->notifications_content_disable) && empty($comment->status)) {
-    $node = node_load($comment->nid);
-    if (notifications_content_type_enabled($node->type)) {
+  if ($op == 'publish' && empty($comment->notifications_content_disable) &&
+    (!isset($comment->notifications_comment_status) || !empty($comment->notifications_comment_status)) ) {
+    // Check that the node is published and comment notifications are enabled for this node type
+    $node = node_load($comment->nid);    
+    if ($node->status && notifications_content_type_enabled($node->type)) {
       $event = array(
+        'uid' => $comment->uid, // For this special case the event actor is the user who posts the comment
         'module' => 'node',
         'type' => 'node',
         'action' => 'comment',

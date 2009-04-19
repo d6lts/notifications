@@ -8,6 +8,8 @@ TO DO
 
 6.x-1.2-beta1 to ..........
 ---------------------------
+- Improved notifications for node/comment approval workflow, added tests, #285226
+- Notifications autosubscribe now operating on node/comment post fixing some issues, #359634
 - Added table and fields description to schema, #429184
 - Fixed code style / formatting, by grendzy, #437286
 - New feature: support for anonymous subscriptions, #233830

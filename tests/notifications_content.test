@@ -17,7 +17,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
   }
   
   function setUp() {
-    parent::setUp('messaging', 'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui');
+    parent::setUp('messaging', 'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui', 'comment');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
@@ -212,13 +212,13 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $events['node']['update'] = 1;
     variable_set('notifications_events', $events);
     
-    // Trigger a node update event
+    // Trigger a node update event, with node unpublished
     $node = node_load($node->nid, NULL, TRUE);   
     $node->body .= 'Updated.';
     node_save($node);
         
     // Check queued notifications. We should have three queued notifs at the end
-    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
+    $count = $this->countUserRows('notifications_queue', $user->uid);
     $this->assertEqual($count, 3, 'We have the right number of rows in queue: '. $count);
 
     // Disable notifications for updates and try again
@@ -267,10 +267,58 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $this->drupalGet($link['href'], $link['options']);     
     $this->assertText('All your subscriptions have been removed.', 'Subscriptions removed with signed url.');
     $this->assertEqual($this->countUserRows('notifications', $user->uid), 0, 'The subscriptions have been actually removed.');
+    
+    // Clean up events and test content update workflow: publish node and publish comment
+    db_query("DELETE FROM {notifications_event}");
+    db_query("DELETE FROM {notifications_queue}");
+    variable_del('notifications_events');
+    // Create unpublished node and subscribe to content type
+    $subscription = array('type' => 'nodetype', 'uid' => $user->uid, 'fields' => array('type' => $ctype->type));
+    notifications_save_subscription($subscription);
+    $node = $this->drupalCreateNode(array(
+      'title' => 'Notifications '. $this->randomName(),
+      'body' => 'This is a test node for content subscriptions.',
+      'type' => $ctype->type,
+      'uid' => $author->uid,
+      'status' => 0,    
+    ));
+    // There should be no events and nothing in the queue
+    $this->assertRowCount('notifications_event', 0);
+    $this->assertRowCount('notifications_queue', 0);
+    // Publish the node, we get event and notification
+    $node->status = 1;
+    node_save($node);
+    $this->assertRowCount('notifications_event', 1);
+    $this->assertRowCount('notifications_queue', 1);
+    // Create unpublished comment, should produce nothing
+    $comment = array(
+      'subject' => 'Test comment subject',
+      'comment' => 'Test comment',
+      'uid' => $author->uid,
+      'nid' => $node->nid,
+      'status' => COMMENT_NOT_PUBLISHED,
+      'cid' => 0, 'pid' => 0, 'format' => FILTER_FORMAT_DEFAULT, 
+    );
+    $cid = comment_save($comment);
+    $this->assertTrue($cid, 'Successfully created comment: ' . $cid);
+    $this->assertRowCount('notifications_event', 1);
+    $this->assertRowCount('notifications_queue', 1);
+    // Now publish comment and check again
+    $comment = (array)_comment_load($cid);
+    $comment['status'] = COMMENT_PUBLISHED;
+    comment_save($comment);
+    $this->assertRowCount('notifications_event', 2);
+    $this->assertRowCount('notifications_queue', 2);        
   }
   
-  function countUserRows($table, $uid) {
-    return db_result(db_query("SELECT COUNT(*) FROM {$table} WHERE uid = %d", $uid));
+  function countUserRows($table, $uid = NULL) {
+    return db_result(db_query("SELECT COUNT(*) FROM {" . $table . "} WHERE uid = %d", $uid));
+  }
+  
+  // Helper. Asserts the right number of rows in table
+  function assertRowCount($table, $target, $message = 'We have the right number of rows in table') {
+    $count =  db_result(db_query("SELECT COUNT(*) FROM {" . $table . "}"));
+    $this->assertEqual($count, $target, $message . " ($table, $target = $count)");
   }
   
   function listPermissions() {
