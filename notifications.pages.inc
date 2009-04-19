@@ -246,12 +246,13 @@ function notifications_form_subscribe_confirm_submit($form, &$form_state) {
     case t('Subscribe'):
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
+      $form_state['redirect'] = 'notifications/subscription/' . $subscription->sid;
       break;
     case t('Cancel'):
       drupal_set_message(t('Your subscription was cancelled'));
+      $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
-  }
-  return 'user/'. $subscription->uid .'/notifications';   
+  }  
 }
 
 /**
@@ -365,11 +366,13 @@ function notifications_form_unsubscribe_confirm_submit($form, &$form_state) {
         notifications_delete_subscriptions(array('uid' => $account->uid));
         drupal_set_message(t('All your subscriptions have been removed.'));
       }
+      $form_state['redirect'] = '';
       break;
     case t('Cancel'):
       // Do nothing, not worth showing a message, just get back
+      $form_state['redirect'] = '';
       break;
-  } 
+  }
 }
 
 /**
@@ -432,6 +435,7 @@ function notifications_subscription_form_submit($form, $form_state) {
       break;
     case t('Delete'):
       notifications_delete_subscription($subscription->sid);
+      $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
   }
 }

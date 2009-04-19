@@ -8,6 +8,7 @@ TO DO
 
 6.x-1.2-beta1 to ..........
 ---------------------------
+- Fixed subscribe/unsubscribe forms redirection, #400996, #380672
 - Improved notifications for node/comment approval workflow, added tests, #285226
 - Notifications autosubscribe now operating on node/comment post fixing some issues, #359634
 - Added table and fields description to schema, #429184
