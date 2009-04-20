@@ -149,7 +149,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       // Node form. Option to disable notifications
       if (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
         $types = notifications_content_types(NULL);
-        if (notifications_content_type_enabled($node->type)) {
+        if (notifications_content_type_enabled($form['#node']->type)) {
           $noprevious = !isset($form['notifications']);
           $form['notifications']['#type'] = 'fieldset';
           $form['notifications']['#title'] = t('Notifications');

@@ -91,7 +91,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         $access = TRUE;
         if (!empty($object->fields['tid'])) {
           $term = taxonomy_get_term($object->fields['tid']);
-          $allowed_vocabs = notifications_tags_vocabularies(TRUE);
+          $allowed_vocabs = notifications_tags_vocabularies();
           if (!array_key_exists($term->vid, $allowed_vocabs)) {
             $access = FALSE;
           }

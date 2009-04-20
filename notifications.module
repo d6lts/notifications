@@ -901,6 +901,7 @@ function notifications_subscriptions_query_build($params, $conditions = array(),
  *   Whether to limit the result to subscriptions with exactly that condition fields
  * @param $key
  *   Optional key field to use as the array index. Will default to sid 
+ *   For notifications with one field, it may be 'value' or 'intval'
  * @param $pager
  *   Whether to throw a pager query 
  * @return
@@ -923,7 +924,14 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
   }
   $subscriptions = array();
   while ($subs = db_fetch_object($result)) {
-    $subscriptions[$subs->$key] = notifications_load_subscription($subs);
+    $load = notifications_load_subscription($subs);
+    if ($key == 'value' || $key == 'intval') {
+      $field = array_shift(_notifications_fields($load->fields));
+      $subscriptions[$field->value] = $load;
+    }
+    else {
+      $subscriptions[$subs->$key] = $load;
+    }  
   }
   return $subscriptions;
 }
@@ -1459,6 +1467,38 @@ function _notifications_subscription_types($format = 'short', $filter = NULL) {
     }
   }
   return $options;
+}
+
+/**
+ * Normalize field format
+ * 
+ * Converts notifications field into an array with known structure
+ * which will be an array containing objects with key, type, value pairs
+ * 
+ * In some parts, fields are a key => value array
+ * They can be also an array of arrays or objects
+ */
+function _notifications_fields($source) {
+  $result = array();
+  if ($source) {
+    foreach ($source as $key => $data) {
+      if (is_object($data)) {
+        $field = $data;
+      }
+      elseif (is_array($data)) {
+        $field = (object)$data;
+        $field->key = $key;
+      }
+      else {
+        $field = new Stdclass();
+        $field->key = $key;
+        $field->type = $key;
+        $field->value = $data;
+      }
+      $result[] = $field;
+    }
+  }
+  return $result;
 }
 
 /**
