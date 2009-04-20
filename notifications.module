@@ -647,7 +647,7 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
     }
    
     // Build the query merging all the parts
-    list($sql, $args) = notifications_query_sql($query);dsm($sql);dsm($args);    
+    list($sql, $args) = notifications_query_sql($query);  
     $result = db_query($sql, $args);
 
     while ($sub = db_fetch_object($result)) {
@@ -1755,7 +1755,7 @@ function notifications_theme() {
  * Short hand for info logs
  */
 function notifications_log($message = NULL, $variables = NULL) {
-  return _notifications_log('info', $message, $variables); dsm($message);
+  return _notifications_log('info', $message, $variables);
 }
 
 /**
