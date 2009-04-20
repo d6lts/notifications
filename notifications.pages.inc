@@ -43,6 +43,16 @@ function notifications_user_overview($form_state, $account) {
     $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
   }
   $tips['edit'] = l(t('Edit your notifications settings'), "$path/edit");
+  
+  // Enable / disable all subscriptions
+  if (notifications_access_user($account, 'maintain')) {
+    if (!empty($status[NOTIFICATIONS_SUBSCRIPTION_ACTIVE])) {
+      $tips['disable'] = l(t('Temporarily disable all your subscriptions'), "$path/notifications/update/disable");
+    }
+    if (!empty($status[NOTIFICATIONS_SUBSCRIPTION_INACTIVE]) || !empty($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED])) {
+      $tips['enable'] = l(t('Enable all your subscriptions'), "$path/notifications/update/enable");
+    }    
+  }
   $link = notifications_get_link('unsubscribe', array('uid' => $account->uid));
   $tips['cancel'] = l(t('Cancel all your subscriptions'), $link['href'], $link['options']);
   
@@ -404,11 +414,17 @@ function notifications_subscription_form($form_state, $subscription) {
     '#options' => $send_methods,
     '#default_value' => $subscription->send_method,
   );
+  // Status, show blocked only to administrators
+  $status = _notifications_subscription_status();
+  if (!user_access('administer notifications') && !user_access('manage all subscriptions')) {
+    unset($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED]);
+  }
   $form['status'] = array(
     '#type' => 'radios',
     '#title' => t('Status'),
-    '#options' => _notifications_subscription_status(),
+    '#options' => $status,
     '#default_value' => $subscription->status,
+    '#description' => t('You can temporarily disable this subscription for not getting notifications.')
   );
 
   $form['save'] = array('#type' => 'submit', '#value' => t('Save'));
@@ -416,6 +432,53 @@ function notifications_subscription_form($form_state, $subscription) {
   $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
   
   return $form;  
+}
+
+/**
+ * Bulk update all user subscriptions, confirmation form
+ * 
+ * @param $account
+ *   User account
+ * @param $operation
+ *   Operation to perform: enable, disable
+ */
+function notifications_update_user_subscriptions($form_state, $account, $operation) {
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['operation'] = array('#type' => 'value', '#value' => $operation);  
+  $destination = 'user/' . $account->uid . '/notifications';
+  $form['#redirect'] = $destination;
+  if ($operation == 'enable') {
+    return confirm_form($form,
+                      t('Are you sure you want to enable all your subscriptions?'),
+                      $destination, t('You will get notifications again for all of them.'),
+                      t('Enable'), t('Cancel'));
+  }
+  elseif ($operation == 'disable') {
+    return confirm_form($form,
+                      t('Are you sure you want to disable all your subscriptions?'),
+                      $destination, t('You will stop getting notifications until you enable them again.'),
+                      t('Disable'), t('Cancel'));    
+  }
+  else {
+    drupal_access_denied();
+  }
+}
+
+function notifications_update_user_subscriptions_submit($form, $form_state) {
+  $account = $form_state['values']['account'];
+  
+  switch ($form_state['values']['operation']) {
+    case 'enable':
+      // Enable also blocked subscriptions just in case there are some
+      db_query('UPDATE {notifications} SET status = %d WHERE uid = %d', NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
+      drupal_set_message(t('All your subscriptions have been enabled.'));
+      break;
+    case 'disable':
+      db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_INACTIVE, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
+      notifications_queue_clean(array('uid' => $account->uid));
+      drupal_set_message(t('All your subscriptions have been disabled.'));
+      break;
+  }
 }
 
 /**

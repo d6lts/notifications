@@ -70,15 +70,29 @@ function notifications_process_prepare() {
   if ($keep = variable_get('notifications_log', 0)) {
     db_query("DELETE FROM {notifications_queue} WHERE cron = 0 AND sent < %d", time() - $keep);
   }
-  // Clean up event table. As events are created sequentially, we use this fact to speed up the query
-  // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
-  $expiretime = time() - 60;  
-  db_query("DELETE FROM {notifications_event} WHERE counter = 0 AND created < %d", $expiretime);
-  db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid < (SELECT MIN(eid) FROM {notifications_queue})", $expiretime);
-  
+  // Clean up event table
+  notifications_event_clean();
   // This will get the latest notification in queue so we don't mess with new ones being created during cron run
   // It will also prevent clashes with the immediate sending feature
   return db_result(db_query("SELECT max(sqid) FROM {notifications_queue}"));
+}
+
+/**
+ * Clean up event table
+ * 
+ * @param $update
+ *   Update event counter
+ */
+function notifications_event_clean($update = FALSE) {
+  // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
+  $expiretime = time() - 60; 
+  if ($update) {
+    // Update event counter, which keeps the number of notifications pending for each event
+    db_query("UPDATE {notifications_event} e SET counter = (SELECT COUNT(*) FROM {notifications_queue} q WHERE q.eid = e.eid ) WHERE e.created < %d", $expiretime);
+  }
+  db_query("DELETE FROM {notifications_event} WHERE counter = 0 AND created < %d", $expiretime);
+  // Delete events with no pending notifications. As events are created sequentially, we use this fact to speed up the query
+  db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid < (SELECT MIN(eid) FROM {notifications_queue})", $expiretime); 
 }
 
 /**

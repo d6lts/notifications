@@ -109,7 +109,7 @@ function notifications_schema() {
       ),
       'params' => array(
         'description' => 'Serialized event parameters.',
-        'type' => 'text', 'not null' => FALSE
+        'type' => 'text', 'not null' => FALSE, 'serialize' => TRUE,
       ),
       'created' => array(
         'description' => 'Unix timestamp, when it was created.',
@@ -365,4 +365,12 @@ function notifications_update_6003() {
       break;
   }
   return $ret;
+}
+
+/**
+ * Just rebuild schema
+ */
+function notifications_update_6004() {
+  drupal_get_schema(NULL, TRUE);
+  return array();
 }

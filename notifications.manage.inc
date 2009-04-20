@@ -125,7 +125,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     $form['status'][$sub->sid] =  array('#value' => $status[$sub->status]);
     $operations = array(
       l(t('edit'), 'notifications/subscription/' . $sub->sid, array('query' => $destination)),
-      l(t('drop'), 'notifications/unsubscribe/' . $sub->sid, array('query' => $destination)),
+      l(t('drop'), 'notifications/unsubscribe/sid/' . $sub->sid, array('query' => $destination)),
     );
     $form['operations'][$sub->sid] = array('#value' => implode(', ', $operations));
   }
@@ -247,11 +247,6 @@ function notifications_subscriptions_filters() {
  */
 function notifications_subscriptions_operations($account = NULL) {
   $operations = array(
-    'block' => array(
-      'label' => t('Block'),
-      'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_BLOCKED)),
-    ),
     'activate' => array(
       'label' => t('Activate'),
       'callback' => 'notifications_subscriptions_mass_update',
@@ -267,6 +262,14 @@ function notifications_subscriptions_operations($account = NULL) {
       'callback' => NULL,
     ),
   );
+  // Block option only for administrators
+  if (user_access('administer notifications') || user_access('manage all subscriptions')) {
+    $operations['block'] = array(
+      'label' => t('Block'),
+      'callback' => 'notifications_subscriptions_mass_update',
+      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_BLOCKED)),
+    );
+  }
   // Sending methods
   $parent = t('Change send method to');
   foreach (messaging_method_list($account) as $key => $name) {

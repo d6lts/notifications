@@ -694,7 +694,7 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
  * 
  * Note that we don't take the comment by ref so we don't change it when it's an array
  **/
-function notifications_content_comment($comment, $op) {dsm($op);
+function notifications_content_comment($comment, $op) {
   // $comment can be an object or an array.
   $comment = (object)$comment;
 

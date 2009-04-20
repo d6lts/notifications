@@ -155,6 +155,15 @@ function notifications_menu() {
     'access arguments' => array(1, 'manage'),
     'file' => 'notifications.manage.inc',
   );
+  $items['user/%user/notifications/update/%'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Update subscriptions',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_update_user_subscriptions', 1, 4),
+    'access callback' => 'notifications_access_user',
+    'access arguments' => array(1, 'maintain'),
+    'file' => 'notifications.pages.inc',
+  );  
   // Some autocomplete callbacks
   $items['notifications/autocomplete/node/title'] = array(
     'title' => 'Node title autocomplete',
@@ -278,8 +287,8 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
       if (isset($edit['status'])) {
         if ($edit['status'] == 0) { // user is being blocked now
           // Delete pending notifications and block existing active subscriptions
-          db_query('DELETE FROM {notifications_queue} WHERE uid = %d', $user->uid);
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
+          notifications_queue_clean(array('uid' => $user->uid));
         }
         else {
           // User may be being unblocked, unblock subscriptions if any
@@ -288,6 +297,15 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
       }
       break;
   }
+}
+
+/**
+ * Clean queue for a user and update event tracker
+ */
+function notifications_queue_clean($params) {
+  require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+  notifications_queue_delete($params);
+  notifications_event_clean(TRUE);
 }
 
 /**
@@ -341,6 +359,9 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
 
 /**
  * Process subscriptions events
+ * 
+ * @param $event
+ *   Array with event parameters
  */
 function notifications_event($event) {
   global $user;
@@ -379,7 +400,7 @@ function notifications_event($event) {
   
   // Store event, unles marked not to be saved 
   if ($event->save) {
-    notifications_event_save($event);
+    drupal_write_record('notifications_event', $event);
   }
   // Send event to queue for subscriptions, unless marked not to
   if ($event->queue) {
@@ -406,7 +427,6 @@ function notifications_event($event) {
  *   Event array.
  */
 function notifications_queue($event) {
-  global $_notifications_send_immediate;
   $query = array();
   // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
   // If no arguments retrieved, skip this step
@@ -454,14 +474,26 @@ function notifications_queue($event) {
   if ($count = db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid))) {
     db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $count, $event->eid);
     // If immediate sending enabled, store eid for sending on page exit.
-    if (variable_get('notifications_send_immediate', 0)) {
-      $_notifications_send_immediate[] = $event->eid;
-    }
+    notifications_send_immediate($event->eid);
   }
   else {
     db_query('DELETE FROM {notifications_event} WHERE eid = %d', $event->eid);
   }
 
+}
+
+/**
+ * Store / return events for immediate sending
+ */
+function notifications_send_immediate($eid = 0) {
+  static $events;
+  
+  if (!$eid) {
+    return $events;
+  }
+  elseif (variable_get('notifications_send_immediate', 0)) {
+    $events[] = $eid;
+  }
 }
 
 /**
@@ -471,11 +503,9 @@ function notifications_queue($event) {
  * have finished node processing when node update.
  */
 function notifications_exit() {
-  global $_notifications_send_immediate;
-  
-  if (!empty($_notifications_send_immediate)) {
+  if ($events = notifications_send_immediate()) {
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-    foreach ($_notifications_send_immediate as $eid) {
+    foreach ($events as $eid) {
       notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
     }    
   }
@@ -581,36 +611,6 @@ function notifications_query_sql($query) {
   }
  
   return array($sql, $args);
-}
-
-/**
- * Helper function for the query builder
- */
-/*
-function _notifications_query_sql($type, $query) {
-  if (!empty($query[$type])) {
-    switch ($type) {
-      case 'select':
-        return implode()
-    }
-  } else {
-    return '';
-  }
-}
-*/
-/**
- * Stores new events
- * 
- * @param $event
- *   Event object
- * @TODO: Avoid to and from array conversion
- */
-function notifications_event_save(&$event) {
-  $event = (array)$event;
-  db_query("INSERT INTO {notifications_event} (module, type, action, uid, created, params) VALUES ('%s', '%s', '%s', %d, %d, '%s')",
-    $event['module'], $event['type'], $event['action'], $event['uid'],  $event['created'], serialize($event['params']));
-  $event['eid'] = db_last_insert_id('notifications_event', 'eid');
-  $event = (object)$event;
 }
 
 /**
@@ -1382,7 +1382,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
 function _notifications_send_intervals() {
   return variable_get('notifications_send_intervals',
     array(
-      -1 => t('Never'),
+      // -1 => t('Never'),
       0 => t('Immediately'),
       3600 => t('Every hour'),
       43200 => t('Twice a day'),

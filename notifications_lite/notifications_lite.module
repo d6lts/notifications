@@ -88,10 +88,18 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
     'oid' => $uid,
     'type' => 'lite',
     'action' => $action,
-    'params' => array('for-uid' => $uid, 'subject' => $subject, 'body' => $body),      
+    'params' => array('for-uid' => $uid, 'subject' => $subject, 'body' => $body),
+    'queue' => FALSE, // Do not send to notifications queue, save some queries
+    'counter' => 1, // There will be just one queued row for this event
   );  
   $event['params'] = array_merge($event['params'], $params);
+
   $event  = notifications_event($event);
+
+  // Store row in notifications queue and for inmediate sending
+  notifications_lite_queue_event($event);
+  notifications_module_invoke('event queued', $event);
+  notifications_send_immediate($event->eid);
 }
 
 /**
@@ -105,7 +113,7 @@ function notifications_lite_mail($key, &$message, $params) {
 /**
  * Implementation of hook_notifications()
  * 
- * It handles event texts
+ * It handles event texts to rebuild the message from stored event parameters
  */
 function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
@@ -122,28 +130,30 @@ function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         } 
       }
       break;
-    // By queueing the event here we gain access to some features, like immediate sending
-    case 'event queued': // $event is arg0
-      $event = &$arg0;
-      if ($event->type == 'lite') {
-        notifications_lite_queue_event($event);
-      }
-      break;
-
   }
 }
 
 /**
- * Insert lite notification into queue
+ * Insert lite notification into queue.
+ * 
+ * This just insert a row into notifications_queue table for this event, so it will be processed on cron
+ * The message information (subject, body) will be in the event itself, as serialized parameters
  */
 function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
   $account = user_load(array('uid' => $uid));
-  $send_interval = notifications_user_setting('send_interval', $account);
-  $send_method = notifications_user_setting('send_method', $account);
-  $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) ';
-  $sql .= " VALUES(%d, 0, 'notifications', %d, %d, '%s', 1,  %d, 0) ";
-  db_query($sql, $uid , $event->eid, $send_interval, $send_method, time());
+  $queue = array(
+    'uid' => $uid,
+    'sid' => 0,
+    'module' => 'notifications',
+    'eid' => $event->eid,
+    'send_interval' => notifications_user_setting('send_interval', $account),
+    'send_method' => notifications_user_setting('send_method', $account),
+    'cron' => 1,
+    'created' => time(),
+    'conditions' => 0,
+  );
+  return drupal_write_record('notifications_queue', $queue);
 }
 
 /**

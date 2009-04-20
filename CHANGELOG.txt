@@ -8,6 +8,11 @@ TO DO
 
 6.x-1.2-beta1 to ..........
 ---------------------------
+- Added temporary enable / disable options
+- Fixed some issues with administration and edit forms
+- Improved event handling functions, removed global variable, fixed event schema
+- Some code clean up and performance improvements in notifications_lite, related #434826
+- Fixed WSOD When Notifications Content Module is Enabled, #438886
 - Fixed subscribe/unsubscribe forms redirection, #400996, #380672
 - Improved notifications for node/comment approval workflow, added tests, #285226
 - Notifications autosubscribe now operating on node/comment post fixing some issues, #359634
