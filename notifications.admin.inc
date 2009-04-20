@@ -119,7 +119,7 @@ function notifications_send_intervals_form() {
     '#title' => t('Send intervals'),
     '#tree' => TRUE,
     '#theme' => 'notifications_send_intervals',
-    '#description' => t('To delete an interval, set the time unit and the name empty.'),
+    '#description' => t('To delete an interval, set the time unit and the name empty. If the time is negative, notifications will never be sent.'),
   );
   $intervals = _notifications_send_intervals() + array('new1' => '', 'new2' => '');
   $index = 0;

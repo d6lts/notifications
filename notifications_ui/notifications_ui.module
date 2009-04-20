@@ -11,7 +11,7 @@
 function notifications_ui_help($path, $arg) {
   switch ($path) {
     case 'admin/messaging/notifications/ui':
-      $output = '<p>' . t('These are UI settings only and will define which options will be visible for end users and how they\'ll be displayed. Which options will be finally available will be determined by:') . 
+      $output = '<p>' . t('These are UI settings only and will define which options will be visible for end users and how they\'ll be displayed. Which options will be finally available will be determined by:'); 
       $output .= '<ol>';
       $output .= '<li>' . t('Enabled subscription types on the other Notifications settings pages') . '</li>';
       $output .= '<li>' . t('Permissions that you can configure on <a href="@administer-permissions">Administer permissions</a>.', array('@administer-permissions' => url('admin/user/permissions'))) . '</li>';
@@ -460,7 +460,8 @@ function notifications_ui_load_subscriptions(&$options, $account = NULL) {
   $account = $account ? $account : $user;
   $subscriptions = array();
   foreach ($options as $index => $info) {
-    if ($subs_type = notifications_get_subscriptions(array('uid' => $account->uid, 'type' => $info['type']), $info['fields'], TRUE)) {
+    // If the 'subscription' property is already set, skip loading
+    if (!isset($options[$index]['subscription']) && ($subs_type = notifications_get_subscriptions(array('uid' => $account->uid, 'type' => $info['type']), $info['fields'], TRUE))) {
       // Take the first subscription only, there may be cases when there are more than one
       $subscriptions = array_merge($subscriptions, $subs_type); 
       $options[$index]['subscription'] = array_shift($subs_type);

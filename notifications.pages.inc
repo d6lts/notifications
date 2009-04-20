@@ -95,14 +95,14 @@ function notifications_add_subscription_form($form_state, $account, $type) {
     '#type' => 'select',
     '#title' => t('Send interval'),
     '#options' => _notifications_send_intervals(),
-    '#default_value' => $subscription->send_interval,
+    '#default_value' => notifications_user_setting('send_interval', $account),
   );
-  $send_methods = _notifications_send_methods();
+  $send_methods = _notifications_send_methods($account);
   $form['send_method'] = array(
     '#type' => 'select',
     '#title' => t('Send method'),
     '#options' => $send_methods,
-    '#default_value' => $subscription->send_method,
+    '#default_value' => notifications_user_setting('send_method', $account),
   );
 
   $form['buttons']['save'] = array('#type' => 'submit', '#value' => t('Create subscription'));

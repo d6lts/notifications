@@ -6,8 +6,14 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
-6.x-1.2-beta1 to ..........
----------------------------
+6.x-1.2-beta3 to ............
+------------------------------
+- Fixed some notices, variables not initialized.
+- New option to limit the displayed terms to subscribed ones only, by mehmeta, #328708
+- Change in notifications ui to avoid loading subscriptions twice.
+
+6.x-1.2-beta1 to 6.x-1.2-beta3
+------------------------------
 - Added temporary enable / disable options
 - Fixed some issues with administration and edit forms
 - Improved event handling functions, removed global variable, fixed event schema
