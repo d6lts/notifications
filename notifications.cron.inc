@@ -428,15 +428,6 @@ function notifications_process_compose($account, $events, $subscriptions, $send_
       $messages[] = $message;
     }
   }
-  // Now send messages, not if testing enabled
-  $test = notifications_process('option', 'test');
-  foreach ($messages as $message) {
-    notifications_process('count', 'send');
-    notifications_log('Sending out', array('method' => $send_method, 'message' => $message));
-    if (!$test) {
-      notifications_message_send($account, $message, $send_method);
-    }
-  }
   return $messages;
 }
 

@@ -8,6 +8,7 @@ TO DO
 
 6.x-1.2-beta3 to ............
 ------------------------------
+- Fixed bug: double emails, #440168
 - Fixed some notices, variables not initialized.
 - New option to limit the displayed terms to subscribed ones only, by mehmeta, #328708
 - Change in notifications ui to avoid loading subscriptions twice.
