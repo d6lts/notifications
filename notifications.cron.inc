@@ -725,7 +725,7 @@ function notifications_process_digest_short($account, $events, $subscriptions, $
   $text['footer'] = notifications_message_part('digest', 'footer', $send_method);
 
   // We dont pass a subscription object here, won't be too much use anyway
-  $text = messaging_text_replace($text, array('user' => $account, 'subscription' => NULL));
+  $text = messaging_text_replace($text, array('user' => $account, 'event' => $event, 'subscription' => NULL));
   
   // Compose body. All these lines have been text replaced
   $body = theme('notifications_digest_short_body', $text, $list);
@@ -760,7 +760,7 @@ function notifications_process_digest_long($account, $events, $subscriptions, $s
     // Pass only the first subscription here
     $sid = is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
-    $objects = $event->objects + array('user' => $account, 'subscription' => $subscription);
+    $objects = $event->objects + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
     $body[] = messaging_text_replace($part, $objects);
   }
   

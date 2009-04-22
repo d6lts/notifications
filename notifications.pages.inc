@@ -65,49 +65,52 @@ function notifications_user_overview($form_state, $account) {
 /**
  * Form for creating new subscriptions
  */
-function notifications_add_subscription_form($form_state, $account, $type) {
+function notifications_add_subscription_form($form_state, $account, $type, $destination = NULL) {
+  $destination = $destination ? $destination : 'user/' . $account->uid . '/notifications';
   $info = notifications_subscription_types($type);
   $form['account'] = array('#type' => 'value', '#value' => $account);
   $form['type'] = array('#type' => 'value', '#value' => $type);
 
   // Display general information
   $form['info'] = array(
-    '#type' => 'item',
+    '#type' => 'fieldset',
     '#title' => t('Create @type subscription', array('@type' => $info['title'])),
     '#description' => !empty($info['description']) ? $info['description'] : '',
   );
-
   // Build subscription fields
-
-  $form['fields']['#tree'] = TRUE;
-  
+  $form['info']['fields']['#tree'] = TRUE;  
   foreach ($info['fields'] as $fid => $field_type) {
     $field = notifications_subscription_fields($field_type);
-    $form['fields'][$fid]['type'] = array('#type' => 'value', '#value' => $field_type);
-    $form['fields'][$fid]['value'] = notifications_subscription_form_field($field_type);
-    $form['fields'][$fid]['value'] += array(
+    $form['info']['fields'][$fid]['type'] = array('#type' => 'value', '#value' => $field_type);
+    $form['info']['fields'][$fid]['value'] = notifications_subscription_form_field($field_type);
+    $form['info']['fields'][$fid]['value'] += array(
       '#title' => $field['name'],
       '#required' => TRUE,   
     ); 
   }
-
-  $form['send_interval'] = array(
+  // Add generic subscription information for notifications
+  $form['notifications'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Notifications'),
+    '#description' => t('How often and by which channel do you want to get notifications for this subscription.')
+  );
+  $form['notifications']['send_interval'] = array(
     '#type' => 'select',
     '#title' => t('Send interval'),
     '#options' => _notifications_send_intervals(),
     '#default_value' => notifications_user_setting('send_interval', $account),
   );
   $send_methods = _notifications_send_methods($account);
-  $form['send_method'] = array(
+  $form['notifications']['send_method'] = array(
     '#type' => 'select',
     '#title' => t('Send method'),
     '#options' => $send_methods,
     '#default_value' => notifications_user_setting('send_method', $account),
   );
-
-  $form['buttons']['save'] = array('#type' => 'submit', '#value' => t('Create subscription'));
-  
-  $form['buttons']['delete'] = array('#type' => 'submit', '#value' => t('Cancel'));
+  // Other form parameters and buttons
+  $form['#redirect'] = $destination;
+  $form['buttons']['save'] = array('#type' => 'submit', '#value' => t('Create subscription'));  
+  $form['buttons']['cancel'] = array('#value' => l(t('Cancel'), $destination));
   
   return $form;    
 }
@@ -211,21 +214,12 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
  * Form for subscription confirmation
  */
 function notifications_form_subscribe_confirm($form_state, $subscription, $account) {
-
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
     $form[$field] = array('#type' => 'value', '#value' => $subscription->$field);
   }
-
-  // The names will be added here
-  notifications_module_invoke('names', $subscription);
-
-  $form['info'] = array(
-    '#type' => 'item',
-    '#title' => t('!type subscription to', array('!type' => $subscription->type_name)),
-    '#value' => theme('item_list', $subscription->names),
-  );
-
+  // The subscription description will be added here
+  $form['info'] = notifications_subscription_info_field($subscription); 
   // Additional parameters
   $form['send_interval'] = array(
     '#type' => 'select',
@@ -338,14 +332,8 @@ function notifications_form_unsubscribe_confirm($form_state, $subscription, $acc
   
   if ($subscription) {
     $message = t('Are you sure you want to delete this subscription?');
-    // The names will be added here
-    notifications_module_invoke('names', $subscription);
-  
-    $form['info'] = array(
-      '#type' => 'item',
-      '#title' => t('!type subscription to', array('!type' => $subscription->type_name)),
-      '#value' => theme('item_list', $subscription->names),
-    );    
+    // The subscription description will be added here
+    $form['info'] = notifications_subscription_info_field($subscription);    
   }
   else {
     $message = t('Are you sure you want to remove all your subscriptions on this site?');
@@ -389,18 +377,10 @@ function notifications_form_unsubscribe_confirm_submit($form, &$form_state) {
  * Edit subscription
  */
 function notifications_subscription_form($form_state, $subscription) {
-  // The names will be added here
-  notifications_module_invoke('names', $subscription);
-  $form['info'] = array(
-    '#type' => 'item',
-    '#title' => t('!type subscription to', array('!type' => $subscription->type_name)),
-    '#value' => theme('item_list', $subscription->names),
-  );
-
-  // Subscription values
-  
+  // The subscription description will be added here
+  $form['info'] = notifications_subscription_info_field($subscription);
+  // Subscription values  
   $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
-
   $form['send_interval'] = array(
     '#type' => 'select',
     '#title' => t('Send interval'),
@@ -501,6 +481,46 @@ function notifications_subscription_form_submit($form, $form_state) {
       $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
   }
+}
+
+/**
+ * Subscription information field for several forms
+ */
+function notifications_subscription_info_field($subscription) {
+  $info = notifications_subscription_types($subscription->type);
+  $format = notifications_format_subscription($subscription, 'array');  
+  if (!empty($info['name'])) {
+    // This subscription type already have a name
+    $value = $format['name'];
+  }
+  else if (empty($format['names'])) {
+    // No name, maybe no fields it should be enough with the title
+    $value = '';
+  }
+  elseif (count($format['names']) == 1) {
+    // If the field is unique, we don't need a table nor a name for it
+    $value = array_shift($format['values']);
+  }
+  else {
+    // Multiple fields, format as a table
+    foreach ($format['names'] as $index => $value) {
+      $rows[] = array(
+        $value,
+        $format['values'][$index],
+      );
+    }
+    $value = theme('table', array(), $rows);
+  }
+  // Build a form field
+  $field = array(
+    '#type' => 'item',
+    '#title' => t('!type subscription', array('!type' => $format['type'])),
+    '#value' => $value,
+  );
+  if (!empty($info['description'])) {
+    $field['#description'] = $info['description'];
+  }
+  return $field;
 }
 
 /**

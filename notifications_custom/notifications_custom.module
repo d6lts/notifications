@@ -107,15 +107,18 @@ function notifications_custom_notifications($op) {
     case 'subscription types':
       if ($custom = notifications_custom_list()) {
         foreach ($custom as $subs) {
-          $types[$subs->type] = array(
-            'event_type' => $subs->event_type,
-            'title' => check_plain($subs->name),
+          $type = array(
+            'title' => check_plain($subs->title),
+            'name' => check_plain($subs->name),
+            'description' => check_plain($subs->description),
             'custom' => TRUE,
-            'fields' => array(),       
+            'fields' => array(),
           );
+          // Subscription type fields are just field types, but in this case we have type and value
           foreach ($subs->fields as $field) {
-            $types[$subs->type]['fields'][] = $field['type'];
+            $type['fields'][] = $field['type'];
           }
+          $types[$subs->type] = $type;
         }
         return $types;
       }
@@ -176,7 +179,7 @@ function notifications_custom_form_alter(&$form, $form_state, $form_id) {
     foreach ($custom as $subs) {
       $form['custom']['notifications_custom'][$subs->type] = array(
         '#type' => 'checkbox',
-        '#title' => $subs->title,
+        '#title' => check_plain($subs->name),
         '#default_value' => (bool)notifications_custom_get_subscription($subs->type, $form['account']['#value']->uid),
         '#description' => $subs->explanation,      
       );     
@@ -240,7 +243,7 @@ function notifications_custom_list($params = array()) {
     }
   }
   $sql = "SELECT * FROM {notifications_custom}";
-  if ($where) {
+  if (!empty($where)) {
     $sql .= ' WHERE (' . implode(') AND (', $where) . ')';
   }
   $sql .= " ORDER BY weight";

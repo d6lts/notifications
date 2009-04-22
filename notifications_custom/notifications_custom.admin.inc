@@ -50,12 +50,12 @@ function notifications_custom_form($form_state, $subs) {
   $form['subscription'] = array('#tree' => TRUE);
   $form['subscription']['csid'] = array('#type' => 'value', '#value' => $subs->csid);
   $form['subscription']['type'] = array('#type' => 'value', '#value' => $subs->type);
-  $form['subscription']['name'] = array('#type' => 'textfield',
-    '#title' => t('Name'),
-    '#default_value' => $subs->name,
-    '#description' => t('Name for this subscription, only for administrative pages.'),
+  $form['subscription']['title'] = array('#type' => 'textfield',
+    '#title' => t('Title'),
+    '#default_value' => $subs->title,
+    '#description' => t('User readable name for this subscription type.'),
     '#required' => TRUE,
-    '#weight' => -20,
+    '#weight' => -5,
   );
   // The type will be editable only if its a new subscription type, otherwise will be messy
   $editable = empty($subs->csid);
@@ -66,14 +66,12 @@ function notifications_custom_form($form_state, $subs) {
     '#required' => $editable,
     '#disabled' => !$editable,
     '#description' => t('The machine-readable name of this subscription type. This name must contain only lowercase letters, numbers, and underscores. This name must be unique and once created cannot be changed.'),
-    '#weight' => -10,
   );
-  $form['subscription']['title'] = array('#type' => 'textfield',
-    '#title' => t('Title'),
-    '#default_value' => $subs->title,
+  $form['subscription']['name'] = array('#type' => 'textfield',
+    '#title' => t('Name'),
+    '#default_value' => $subs->name,
     '#description' => t('The title of the new subscription that will be shown to the user along with a subscribe checkbox.'),
     '#required' => TRUE,
-    '#weight' => -5,
   );
   $event_types = notifications_module_information('event objects');
   $form['subscription']['event_type'] = array(
@@ -90,9 +88,9 @@ function notifications_custom_form($form_state, $subs) {
     }
     $form['subscription']['fields'] = array('#type' => 'item', '#title' => t('Fields'), '#value' => theme('table', array(), $rows));
   }
-  $form['subscription']['explanation'] = array('#type' => 'textarea',
+  $form['subscription']['description'] = array('#type' => 'textarea',
     '#title' => t('Explanation'),
-    '#default_value' => $subs->explanation,
+    '#default_value' => $subs->description,
     '#description' => t('An optional explanation to go with the subscription. The explanation will be shown to the user.'),
   );
   $form['subscription']['visibility'] = array('#type' => 'radios',

@@ -102,21 +102,15 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = _notifications_send_intervals();
   while ($sub = db_fetch_object($result)) {
+    $subscriptions[$sub->sid] = '';
+    // Naming for this specific subscription, formatted strings    
+    $form['type'][$sub->sid] = array('#value' => notifications_subscription_types($sub->type, 'title'));
+    // If full loading, load full subscription and add description
     if ($full) {
       $sub = notifications_load_subscription($sub);
-    }
-    $subscriptions[$sub->sid] = '';
-    $name = notifications_subscription_types($sub->type, 'title');
-    $form['type'][$sub->sid] = array('#value' => $name ? $name : $sub->type );
-    // Build description using field formatters
-    if ($full) {
-      $description = array();
-      foreach ($sub->fields as $type => $value) {
-        $format = notifications_format_subscription_field($type, $value, TRUE);
-        $description[] = $format['value'];
-      }
-    }
-    $form['description'][$sub->sid] = array('#value' => implode(', ', $description));
+      $format = notifications_format_subscription($sub, 'array');
+      $form['description'][$sub->sid] = array('#value' => $format['name']);
+    }    
     if (!$account) {
       $form['username'][$sub->sid] = array('#value' => theme('username', $sub));
     }

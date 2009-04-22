@@ -123,7 +123,7 @@ function notifications_menu() {
   // Edit subscription
   $items['notifications/subscription/%notifications_subscription'] = array(
     'type' => MENU_CALLBACK,
-    'title' => 'Subscription',
+    'title' => 'Edit subscription',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_subscription_form', 2),
     'access callback' => 'notifications_subscription_access',
@@ -1695,29 +1695,32 @@ function notifications_subscription_form_field($type, $value = NULL) {
  */
 function notifications_format_subscription($subscription, $format = 'short', $html = TRUE) {
   // Build array and add subscription type name
-  $type_name = notifications_subscription_types($subscription->type, 'title');
+  $info = notifications_subscription_types($subscription->type);
   $names = $values = array();
-
-  // Format every field separately
-  foreach ($subscription->fields as $key => $data) {
-    if (is_array($data)) {
-      $item = notifications_format_subscription_field($data['type'], $data['value'], $html);
+ 
+  // Get field names and values formatting each field
+  if (!empty($subscription->fields)) {
+    foreach (_notifications_fields($subscription->fields) as $field) {
+      $item = notifications_format_subscription_field($field->type, $field->value, $html);
+      $names[] = $item['name'];
+      $values[] = $item['value'];
     }
-    else {
-      $item = notifications_format_subscription_field($key, $data, $html);
-    }
-    $names[$key] = $item['name'];
-    $values[$key] = $item['value'];
   }
-
+  // If this subscription has a name, use it, otherwise build it using fields and values
+  if (!empty($info['name'])) {
+    $value_name = $info['name'];
+  }
+  else {
+    $value_name = implode(', ', $values);
+  }
   // Now do the formatting
   switch ($format) {
     case 'array':
-      return array('type' => $type_name, 'names' => $names, 'values' => $values);
+      return array('type' => $info['title'], 'name' => $value_name, 'names' => $names, 'values' => $values);
     case 'short':
-      return t('@type: !values', array('@type' => $type_name, '!values' => implode(', ', $values)));
+      return t('@type: !values', array('@type' => $info['title'], '!values' => $value_name));
     case 'long':
-      return t('Subscription %id of type %type to: !values', array('%id' => $subscription->sid, '%type' => $type_name, '!values' => implode(', ', $values)));
+      return t('Subscription %id of type %type to: !values', array('%id' => $subscription->sid, '%type' => $info['title'], '!values' => $value_name));
   }
 }
 

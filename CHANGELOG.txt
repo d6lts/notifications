@@ -6,7 +6,13 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
-6.x-1.2-beta3 to ............
+6.x-1.2-beta4 to .............
+-------------------------------
+- Added event information to objects for token replacement in digests, #348722
+- Fixed multiple minor usability and formatting issues in subscriptions form
+- Renamed custom subscriptions field names: explanation -> description.
+
+6.x-1.2-beta3 to 6.x-1.2-beta4
 ------------------------------
 - Fixed bug: double emails, #440168
 - Fixed some notices, variables not initialized.

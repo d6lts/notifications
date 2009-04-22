@@ -30,34 +30,35 @@ function notifications_custom_schema() {
         'not null' => TRUE,
         'description' => 'Primary Key: Unique custom subscription ID.',
       ),
-      'title' => array(
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => FALSE,
-        'description' => 'Title of the field shown to the end user.',
-      ),
       'type' => array(
         'type' => 'varchar',
         'length' => 128,
         'not null' => FALSE,
-        'description' => 'Type of subscription.',
+        'description' => 'Type of subscription, machine readable name.',
+      ),      
+      'title' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Name of the subscription type, shown to the end user.',
       ),
       'module' => array(
         'description' => 'Module that defines this custom subscription.',
         'type' => 'varchar',
         'length' => 255,
-        'not null' => TRUE),
+        'not null' => TRUE
+      ),
       'name' => array(
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
-        'description' => 'Internal name of the field used in the form HTML and URLs.',
+        'description' => 'Name of the subscription to display on user forms.',
       ),
-      'explanation' => array(
+      'description' => array(
         'type' => 'text',
         'not null' => FALSE,
-        'description' => 'Explanation of the subscription to end users.',
+        'description' => 'Explanation of the subscription to end users, long description.',
       ),
       'event_type' => array(
         'type' => 'varchar',
@@ -110,4 +111,13 @@ function notifications_custom_schema() {
     'primary key' => array('csid'),
   );
   return $schema;
+}
+
+/**
+ * Change explanation by description
+ */
+function notifications_custom_update_6000() {
+  $ret = array();
+  db_change_field($ret, 'notifications_custom', 'explanation', 'description', array('type' => 'text', 'not null' => FALSE));
+  return $ret;
 }
