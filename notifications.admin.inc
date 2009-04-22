@@ -329,7 +329,7 @@ function notifications_admin_queue_summary() {
   $send_intervals = _notifications_send_intervals();
   $header = array(t('Send interval'), t('Number'));
   $count = 0;
-  $result = db_query("SELECT send_interval, count(*) AS count FROM {notifications_queue} GROUP BY send_interval");    
+  $result = db_query("SELECT send_interval, count(*) AS count FROM {notifications_queue} WHERE cron = 1 GROUP BY send_interval");    
   $rows = array();
   while ($stype = db_fetch_object($result)) {
     $rows[] = array($send_intervals[$stype->send_interval], $stype->count);
@@ -415,6 +415,12 @@ function notifications_queue_operations() {
       'callback' => 'notifications_process_rows',
       'callback arguments' => array(array('cron' => 1, 'send_interval' => 0)),
     ),
+    'clean' => array(
+      'label' => t('Clean queue'),
+      'description' => t('Delete all logs, processed rows and related data in queue.'),
+      'callback' => 'notifications_admin_queue_process',
+      'callback arguments' => array('clean queue'),
+    ),
     'reset' => array(
       'label' => t('Reset queue'),
       'description' => t('Delete all notifications in queue.'),
@@ -445,6 +451,10 @@ function notifications_admin_queue_process($op) {
       notifications_process('option', 'test', TRUE);
       notifications_process_run(FALSE);
       break;
+    case 'clean queue':
+      // Delete logs and clean up events
+      notifications_queue_clean(array('cron' => 0));
+      break;      
   }
 }
 
