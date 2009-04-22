@@ -1,7 +1,0 @@
-; $Id$
-name = FeedAPI Subscriptions
-description = Allows users to subscribe to feeds and be notified when they are updated
-package = "Notifications"
-dependencies[] = notifications
-dependencies[] = feedapi
-core = 6.x
