@@ -2,11 +2,14 @@
 
 5.x-1.2 to .........
 -----------------------------
+- Fixed: notifications sent for unpublished nodes, #369633
+- Added Spanish translation, by rayvaughn, #440532
+- Fixed wrong event author for node/comment events, #436498
 - Added Italian translation, by Drein, #338513
+- Backport, fix: Duplicate emails on comments, #340082
 
 5.x-1.1 to 5.x-1.2
 ------------------------------
-- Backport, fix: Duplicate emails on comments, #340082
 - Backported help text for Inmediate sending, #330786
 - Digesting options per interval and support for digesting plug-ins.
 - New digest format, 'Long', to print out the whole event.

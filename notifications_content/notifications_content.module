@@ -444,27 +444,23 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
   global $user;
   switch ($op) {
     case 'update':
-      if ($node->status == '0') { // unpublished
-        break; // don't notify
-      }
       // If inmediate sending is active, need to reset the node cache so we don't send old versions of the node
-      if (variable_get('notifications_send_immediate', 0)) {
+      if ($node->status && variable_get('notifications_send_immediate', 0)) {
         node_load(0, NULL, TRUE);
       }
-
       // else, fall through
-
     case 'insert':
-      $event = array(
-        'module' => 'node',
-        'uid' => $node->uid,
-        'oid' => $node->nid,
-        'type' => 'node',
-        'action' => $op,
-        'node' => $node,
-        'params' => array('nid' => $node->nid),      
-      );
-      notifications_event($event);
+      if ($node->status) {
+        $event = array(
+          'module' => 'node',
+          'oid' => $node->nid,
+          'type' => 'node',
+          'action' => $op,
+          'node' => $node,
+          'params' => array('nid' => $node->nid),      
+        );
+        notifications_event($event);
+      }
       break;
     case 'delete':
       // Remove all subscriptions for this node
@@ -482,7 +478,6 @@ function notifications_content_comment($comment, $op) {
   if (!isset($comment['nomail']) && $comment['status'] == 0 && ($op == 'insert' || $op == 'publish')) {
     $event = array(
       'module' => 'node',
-      'uid' => $comment['uid'],
       'type' => 'node',
       'action' => 'comment', // $op,
       'node' => node_load($comment['nid']),
