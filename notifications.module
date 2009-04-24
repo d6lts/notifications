@@ -446,7 +446,7 @@ function notifications_queue($event) {
       $query['where args'][] = $event->uid;
     }    
     // Some group by fields are not really needed but added for pgsql compatibility
-    $query['group'] = array('s.uid', 's.sid', 's.module', 's.send_interval', 's.send_method', 's.cron', 's.conditions');
+    $query['group'] = array('s.uid', 's.destination', 's.sid', 's.module', 's.send_interval', 's.send_method', 's.cron', 's.conditions');
     
     // We throw in all the conditions and check the number of matching conditions
     // that must be equal to the subscription conditions number    
@@ -999,10 +999,10 @@ function notifications_info(&$data, $type = NULL, $field = NULL) {
  * @return array()
  *   Ditest information for that interval, or all the information if no interval
  */
-function notifications_digest_method($send_interval = NULL) {
+function notifications_digest_method($send_interval = NULL, $refresh = FALSE) {
   static $digest_methods, $intervals;
   
-  if (!isset($digest_methods)) {
+  if (!isset($digest_methods) || $refresh) {
     // Method information
     foreach (notifications_module_information('digest methods') as $method) {
       $digest_methods[$method['type']] = $method;
@@ -1113,6 +1113,7 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
             'subject' => t('Subject'),
             'header' =>  t('Header'),
             'main' => t('Line for digested events'),
+            'closing' => t('Group closing'),
             'footer' => t('Footer'),
           );
       }
@@ -1138,6 +1139,7 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
           'subject' => t('[site-name] subscription update for [user]'),
           'header' => t("Greetings, [user].\n\nThese are your messages"),
           'main' => t("A [type] has been updated: [title]\n\n[event_list]"),
+          'closing' => '...',
           'footer' => array(
             t('This is an automatic message from [site-name]'),
             t('To manage your subscriptions, browse to [subscriptions-manage]'),
@@ -1224,7 +1226,18 @@ function notifications_event_types($type = NULL, $action = NULL) {
     drupal_alter('notifications_event_types', $info);
   }
   if ($action) {
-    return isset($info[$type][$action]) ? $info[$type][$action] : array();
+    if (isset($info[$type][$action])) {
+      // The event provides a proper action defined
+      return $info[$type][$action];
+    }
+    elseif (isset($info[$type]['default'])) {
+      // The event provides a default action, go for it
+      return $info[$type]['default'];
+    }
+    else {
+      // We better make the code break, than return an empty array()
+      return NULL; 
+    }
   }
   elseif ($type) {
     return isset($info[$type]) ? $info[$type] : array();
@@ -1519,8 +1532,8 @@ function _notifications_fields($source) {
    $args = func_get_args();
    $module = array_shift($args);
    $function = array_shift($args);
-   if ($module && function_exists($module .'_'. $function)) {
-     $callback = $module .'_'. $function;
+   if ($module && function_exists($module .'_notifications_'. $function)) {
+     $callback = $module .'_notifications_'. $function;
    }
    else {
      $callback = 'notifications_'. $function;
@@ -1851,17 +1864,4 @@ function _notifications_log_format($log) {
   }
 
   return '<strong> '. $type .'</strong>: '. $string;
-}
-
-// For PHP4 compatibility
-if (!function_exists('array_combine')) {
-  function array_combine($arr1, $arr2) {
-    $out = array();
-    $arr1 = array_values($arr1);
-    $arr2 = array_values($arr2);
-    foreach ($arr1 as $key1 => $value1) {
-      $out[(string)$value1] = $arr2[$key1];
-    }
-    return $out;
-  }
 }

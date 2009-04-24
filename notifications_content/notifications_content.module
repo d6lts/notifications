@@ -479,7 +479,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
         case 'notifications-digest-node-nid':
         case 'notifications-digest-node-type':
           $parts['title'] = t('Group title');
-          $parts['footer'] = t('Group footer');
+          $parts['closing'] = t('Group footer');
           return $parts;
       }
       break;
@@ -526,14 +526,16 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
             ),
           );
         case 'notifications-digest-node-nid':
+          // Define only group title and group footer (closing)
+          // The 'closing' statement is typically a 'read more' link
           return array(
             'title' => t('Updates for [type-name]: [title]'),
-            'footer' => t('Read more [node-url]'),
+            'closing' => t('Read more [node-url]'),
           );
         case 'notifications-digest-node-type':
           return array(
             'title' => t('New content of type [type-name] has been submitted'),
-            'footer' => '<none>',
+            'closing' => '<none>',
           );       
       }
       break;

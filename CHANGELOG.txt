@@ -8,6 +8,13 @@ TO DO
 
 6.x-1.2-beta4 to .............
 -------------------------------
+- Fixed: notification subscription error in postgreSQL, #442852
+- Fixed: notifications lite messages were not digested properly
+- Renamed template parts for group footer: 'footer' => 'closing' to avoid overlap
+- Fixed: Event for token replacement was not properly set in short digests
+- Fixed: notifications_process_rows() not returning the right number of rows in queue
+- Added some tests a base test clase, some utility function, etc...
+- Improved queue status report and new clean option, #441342
 - Added event information to objects for token replacement in digests, #348722
 - Fixed multiple minor usability and formatting issues in subscriptions form
 - Renamed custom subscriptions field names: explanation -> description.
