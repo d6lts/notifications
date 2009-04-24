@@ -6,7 +6,13 @@ TO DO
 * Support for persistent notifications that will be triggered with a given interval until the user takes some action. Look into the subscription system to see whether this is currently possible with a plug-in or we need some api extensions.
 * Support for notifications in multiple languages, depending on user language
 
-6.x-1.2-beta4 to .............
+6.x-1.2-beta5 to .............
+-------------------------------
+- Fixed inconsistent fieldset for 'Skip notifications' in node and comment form.
+- Added comment about Immediate notifications not working with AJAX forms, #444010
+- Fixed wrong names for sending methods on subscriptions form, #443802
+
+6.x-1.2-beta4 to 6.x-1.2-beta5
 -------------------------------
 - Fixed: notification subscription error in postgreSQL, #442852
 - Fixed: notifications lite messages were not digested properly

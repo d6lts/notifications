@@ -222,7 +222,7 @@ function notifications_subscriptions_filters() {
 
   $filters['send_method'] = array(
     'title' => t('method'), 
-    'options' => messaging_method_info(NULL, 'title')
+    'options' => _notifications_send_methods(),
   );
   
   $filters['send_interval'] = array(
@@ -266,7 +266,7 @@ function notifications_subscriptions_operations($account = NULL) {
   }
   // Sending methods
   $parent = t('Change send method to');
-  foreach (messaging_method_list($account) as $key => $name) {
+  foreach (_notifications_send_methods($account) as $key => $name) {
     $operations['send_method-' . $key] = array(
       'label' => $name,
       'parent' => $parent,

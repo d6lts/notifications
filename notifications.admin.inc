@@ -20,7 +20,7 @@ function notifications_settings_form() {
     '#title' => t('Immediate sending'),
     '#type' => 'checkbox',
     '#default_value' => variable_get('notifications_send_immediate', 0),
-    '#description' => t('Notifications are usually queued to be sent on cron process later. Checking this option will cause immediate notifications to be sent right away, instead of being queued. This will produce more timely notifications for sites with a small number of users. Not recommended for sites with a large number of users.'),
+    '#description' => t('Notifications are usually queued to be sent on cron process later. Checking this option will cause immediate notifications to be sent right away, instead of being queued. This will produce more timely notifications for sites with a small number of users. Not recommended for sites with a large number of users. This may not work for AJAX forms and notifications will be queued anyway.'),
   );
   $form['general']['notifications_sender'] = array(
     '#title' => t('Notifications Sender'),

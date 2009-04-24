@@ -108,12 +108,7 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       // Load the node which is possibly cached to get the node type
       $node = node_load($form['nid']['#value']);
       if (notifications_content_type_enabled($node->type)) {    
-        $form['notifications']['notifications_content_disable'] = array(
-          '#type'          => 'checkbox',
-          '#title'         => t('Do not send notifications for this comment.'),
-          '#default_value' => 0,
-          '#access' => user_access('skip notifications'),
-        );
+        _notifications_content_add_disable_field($form);
         // If editing the comment, add values to remember
         if (!empty($form['cid']['#value']) && !empty($form['admin']['status'])) {
           $form['notifications_comment_status'] = array('#type' => 'value', '#value' => $form['admin']['status']['#default_value']);
@@ -150,25 +145,26 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       if (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
         $types = notifications_content_types(NULL);
         if (notifications_content_type_enabled($form['#node']->type)) {
-          $noprevious = !isset($form['notifications']);
-          $form['notifications']['#type'] = 'fieldset';
-          $form['notifications']['#title'] = t('Notifications');
-          $form['notifications']['#collapsible'] = TRUE;
-          $form['notifications']['#weight'] = 1;
-          //don't want to hide/change access on modules that already used the notifications fieldset for something
-          if ($noprevious) {
-            $form['notifications']['#collapsed']   = TRUE;
-            $form['notifications']['#access'] = user_access('skip notifications');
-          }
-          $form['notifications']['notifications_content_disable'] = array(
-            '#type'          => 'checkbox',
-            '#title'         => t('Do not send notifications for this update.'),
-            '#default_value' => 0,
-            '#access' => user_access('skip notifications'),
-          );
+          _notifications_content_add_disable_field($form);
         }
       }
   }
+}
+
+/**
+ * Add disable (skip notifications) field set
+ */
+function _notifications_content_add_disable_field(&$form) {
+  // Add fieldset without affecting any other elements there
+  $form['notifications']['#type'] = 'fieldset';
+  $form['notifications']['#title'] = t('Notifications');
+  $form['notifications']['#collapsible'] = TRUE;  
+  $form['notifications']['notifications_content_disable'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Do not send notifications for this update.'),
+    '#default_value' => 0,
+    '#access' => user_access('skip notifications'),
+  );  
 }
 
 /**
