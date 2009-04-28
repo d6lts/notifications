@@ -106,7 +106,7 @@ function _notifications_node_references($string, $match = 'contains', $types = a
     'starts_with' => "LIKE '%s%%'",
   );
   if ($types) {
-    $where[] = 'n.type IN (' . db_placeholders($types, 'string') . ') ';
+    $where[] = 'n.type IN (' . db_placeholders($types, 'char') . ') ';
     $args = $types;
   }
   $where[] = 'n.title '. (isset($match_operators[$match]) ? $match_operators[$match] : $match_operators['contains']);

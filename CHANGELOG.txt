@@ -8,6 +8,9 @@ TO DO
 
 6.x-1.2-beta5 to .............
 -------------------------------
+- Added content type subscription update when content type name changes, #429296
+- Fixed wrong db_placehoder type for node autocomplete callback
+
 - Fixed inconsistent fieldset for 'Skip notifications' in node and comment form.
 - Added comment about Immediate notifications not working with AJAX forms, #444010
 - Fixed wrong names for sending methods on subscriptions form, #443802

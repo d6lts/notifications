@@ -719,9 +719,17 @@ function notifications_content_comment($comment, $op) {
  * Implementation of hook node_type
  */
 function notifications_content_node_type($op, $info) {
-  if ($op == 'delete') {
-    // Remove all subscriptions for this node type
-    notifications_delete_subscriptions(array('event_type' => 'node'), array('type' => $info->type));
+  switch ($op) {
+    case 'delete':
+      // Remove all subscriptions for this node type
+      notifications_delete_subscriptions(array('event_type' => 'node'), array('type' => $info->type));
+      break;
+    case 'update':
+      // When changing node type machine name, update all subscriptions
+      if (!empty($info->old_type) && $info->old_type != $info->type) {
+        db_query("UPDATE {notifications_fields} SET value = '%s' WHERE field = 'type' AND value = '%s'", $info->type, $info->old_type);
+      }
+      break;
   }
 }
 
