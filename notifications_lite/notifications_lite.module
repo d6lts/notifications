@@ -117,6 +117,16 @@ function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         notifications_lite_queue_event($event);
       }
       break;
+    case 'event types':
+      // We just define event type 'lite', action 'default'
+      $types[] = array(
+        'type' => 'lite',
+        'action' => 'default',
+        'name' => t('Message for [user]'),
+        'digest' => NULL, // This means grouping by: event type, event action
+        'description' => t('Notifications lite message'),
+      );
+      return $types;
 
   }
 }

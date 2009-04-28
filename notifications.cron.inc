@@ -483,11 +483,20 @@ function notifications_process_digest_long($account, $events, $subscriptions, $s
  */
 function nofitications_digest_event_info($event) {
   $info = notifications_event_types($event->type, $event->action);
-  $type = $info['digest'][0];
-  $field = $info['digest'][1];
-  // Check object and values
-  $object = !empty($event->objects[$type]) ? $event->objects[$type] : NULL;
-  $value = $object && isset($object->$field) ? $object->$field : 0;
+  if (!empty($info['digest'])) {
+    $type = $info['digest'][0];
+    $field = $info['digest'][1];
+    // Check object and values
+    $object = !empty($event->objects[$type]) ? $event->objects[$type] : NULL;
+    $value = $object && isset($object->$field) ? $object->$field : 0;
+  }
+  else {
+    // No digest info for this event /action so we use event and action itselves.
+    $type = $event->type;
+    $field = $event->action;
+    $value = 0;
+    $object = NULL;    
+  }
   return array('type' => $type, 'field' => $field, 'value' => $value, 'object' => $object);  
 }
 

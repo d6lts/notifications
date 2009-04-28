@@ -2,6 +2,7 @@
 
 5.x-1.2 to .........
 -----------------------------
+- Fixed: added event information for notifications_lite for proper digesting
 - Fixed: send interval for notifications_lite will be always 'Inmediate', see #434826
 - Fixed: notifications sent for unpublished nodes, #369633
 - Added Spanish translation, by rayvaughn, #440532
