@@ -37,7 +37,9 @@
  *   Optional array of additional parameters to be stored with the event. For example, one could store the sender
  *   of a message, as otherwise this information might not be easily retrievable during message sending on cron.
  *   Only available when the full notification system is used and not just the messaging module.
- *   
+ * 
+ * Note: Even when notifications module is enabled, the 'send interval' will be always immediate (0) for this
+ * kind of messages.
  */
 function notifications_lite_send($uid, $subject, $body = '', $action = 'default', $params = array()) {
   if (module_exists('notifications')) {
@@ -125,7 +127,8 @@ function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
 function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
   $account = user_load(array('uid' => $uid));
-  $send_interval = notifications_user_setting('send_interval', $account);
+  // Just inmediate sending for 5.x, diggest support in 6.x
+  $send_interval = 0;
   $send_method = notifications_user_setting('send_method', $account);
   $sql = 'INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions) ';
   $sql .= " VALUES(%d, 0, 'notifications', %d, %d, '%s', 1,  %d, 0) ";

@@ -2,6 +2,7 @@
 
 5.x-1.2 to .........
 -----------------------------
+- Fixed: send interval for notifications_lite will be always 'Inmediate', see #434826
 - Fixed: notifications sent for unpublished nodes, #369633
 - Added Spanish translation, by rayvaughn, #440532
 - Fixed wrong event author for node/comment events, #436498
