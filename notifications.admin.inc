@@ -352,7 +352,7 @@ function notifications_admin_queue($op = 'status', $param = NULL) {
 
   // Display logs from last process
   if (!empty($_SESSION['notifications_logs'])) {
-    $output .= theme('box', t('Process log'), theme('item_list', $_SESSION['notifications_logs']));
+    $output .= theme('box', t('Process log'), messaging_log_format($_SESSION['notifications_logs']));
     unset($_SESSION['notifications_logs']);
   }
   return $output;

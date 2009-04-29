@@ -1811,57 +1811,12 @@ function notifications_theme() {
  * Short hand for info logs
  */
 function notifications_log($message = NULL, $variables = NULL) {
-  return _notifications_log('info', $message, $variables);
+  return messaging_log($message, $variables);
 }
 
 /**
- * Quick logging for debugging and manual queue processing
+ * Short hand for debug logs
  */
-function _notifications_log($type, $message = NULL, $variables = NULL, $severity = WATCHDOG_NOTICE) {
-  static $logs;
-  
-  if ($message) {
-    $logs[] = array($type, $message, $variables, $severity);
-  }
-  else {
-    return $logs ? array_map('_notifications_log_format', $logs) : '';
-  }
-}
-
-/**
- * Format notifications log
- */
-function _notifications_log_format($log) {
-  list($type, $string, $args, $severity) = $log;
- 
-  if ($args) {
-    // Transform arguments before inserting them.
-    $append = array();
-    foreach ($args as $key => $value) {      
-      if (is_array($value) || is_object($value)) {
-        $value = print_r($value, TRUE);
-      }
-      switch ($key[0]) {
-        case '@':
-          // Escaped only.
-          $args[$key] = check_plain($value);
-          break;
-        case '%':
-          $args[$key] = theme('placeholder', $value);
-          break;
-        case '!':
-          // Pass-through.
-          $args[$key] = $value;
-          break;
-        default:
-          // Append to string a key value pair, different from watchdog format
-          $append[] = ' <strong>'. $key .'</strong>= '. check_plain($value);
-          break;
-      }
-    }
-    $string = strtr($string, $args);
-    $append ? $string .= ' '. implode(', ', $append) : NULL;
-  }
-
-  return '<strong> '. $type .'</strong>: '. $string;
+function notifications_debug($message = NULL, $variables = NULL) {
+  return messaging_debug($message, $variables);
 }

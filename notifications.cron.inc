@@ -213,8 +213,9 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
       if ($account && $events && $subscriptions) {        
         $messages = notifications_callback($module, 'process_compose', $account, $events, $subscriptions, $send_method, $send_interval);
         notifications_log('Composed messages', array('number' => count($messages), 'send_method' => $send_method));
-        if (!$test) {
-          notifications_callback($module, 'process_send', $account, $messages, $send_method);
+        // Note that we pass the testing parameter to notifications_process_send
+        notifications_callback($module, 'process_send', $account, $messages, $send_method, $test);
+        if (!$test) {          
           notifications_update_sent($account, $send_method, $send_interval, time());
         }
       }
@@ -437,12 +438,16 @@ function notifications_process_compose($account, $events, $subscriptions, $send_
  * 
  * @param $account
  *   User account to send to, may be an anonymous user account with destination
+ * @param $messages
+ *   Array of messages prepared for sending
+ * @param $test
+ *   Optional just test composition and formating but do not send
  */
-function notifications_process_send($account, $messages, $send_method) {  
+function notifications_process_send($account, $messages, $send_method, $test = FALSE) {  
   foreach ($messages as $message) {
     notifications_process('count', 'send');
-    notifications_log('Sending out', array('method' => $send_method, 'message' => $message));
-    notifications_message_send($account, $message, $send_method);
+    notifications_debug('Sending out notification', array('method' => $send_method, 'message' => $message));
+    notifications_message_send($account, $message, $send_method, $test);
   }
   return $messages;
 }
@@ -560,10 +565,25 @@ function notifications_message_part($type, $key, $method, $param = NULL, $module
 }
 
 /**
- * Message sending
+ * Message sending, pass the message to Messaging back end
+ * 
+ * @param $account
+ *   User account to send the message to
+ * @param $message
+ *   Message array, will be converted to object
+ * @param $send_method
+ *   Send method
+ * @param $test
+ *   Optional, set to TRUE if doing a test run (messages not to be actually sent)
+ * 
+ * @return boolean
+ *   TRUE if sending was successfull
  */
-function notifications_message_send($account, &$message, $send_method) {
-  $message['type'] = 'notifications';
+function notifications_message_send($account, $message, $send_method, $test = FALSE) {
+  notifications_debug('Preparing user notification for messaging', array('message' => $message, 'account' => $account));
+  $message = (object)$message;
+  $message->type = 'notifications';
+  $message->test = $test;
   notifications_process('count', 'message');
   messaging_message_send_user($account, $message, $send_method);
 }
