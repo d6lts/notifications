@@ -2,6 +2,19 @@
 // $Id$
 
 /**
+ * Implementation of hook_install()
+ * 
+ * Set up some variables so basic options are enabled out of the box
+ */
+function notifications_ui_install() {
+  variable_set('notifications_ui_user', array('page' => 'page', 'create' => 'create'));
+  variable_set('notifications_ui_node', array('links' => 'links', 'teaserlinks' => 'teaserlinks', 'block' => 'block'));
+  variable_set('notifications_ui_account_options', array('links' => 'links', 'block' => 'block'));
+  // The most common options for notifications_content: thread, nodetype, author
+  variable_set('notifications_ui_types', array('thread' => 'thread', 'nodetype' => 'nodetype', 'author' => 'author'));
+}
+
+/**
  * Implementation of hook_uninstall()
  */
 function notifications_ui_uninstall() {
