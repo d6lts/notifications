@@ -20,8 +20,8 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     $this->drupalVariableSet('messaging_debug', 0);    
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
 
-    // Set fake site name for comparison after token replacement
-    $this->drupalVariableSet('site_name', 'Test Site');
+    // Get site name to use in comparison
+    $site_name = variable_get('site_name', 'Drupal');
     
     // Build some fake objects
     $node1 = (object)array('nid' => 1, 'uid' => 0, 'type' => 'story', 'title' => 'Title 1', 'body' => 'Body 1');
@@ -35,7 +35,7 @@ class Notifications_Templates_Tests extends DrupalTestCase {
         
     // Basic api, text parts and info functions
     $this->drupalVariableSet('notifications_digest_methods', array(1 => 'short', 2 => 'long'));  
-    $digest = notifications_digest_method(1);
+    $digest = notifications_digest_method(1, TRUE);
     $this->assertEqual($digest['type'], 'short', 'Get information about intervals and digest methods.');
     
     $info = notifications_event_types($event1->type, $event1->action);
@@ -72,7 +72,7 @@ class Notifications_Templates_Tests extends DrupalTestCase {
       'body' => array(
         'header' => 'Update for Story Title 1', 
         'event' => 'The body is Body 1',
-        'footer' => 'My site is Test Site',
+        'footer' => 'My site is ' . $site_name,
         )
     );
     $event1->text = $event2->text = $text;
@@ -93,7 +93,7 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     $event_list = array(1 => $event1, 2 => $event2, 3 => $event3, 4 => $event4);
     
     // This should produce a short digest, build the target to compare
-    $test_line = '[type-name] [title] Test Site';
+    $test_line = '[type-name] [title] ' . $site_name;
 
     $body_common = array(
       'header' => 'digest header ' . $test_line,
@@ -102,8 +102,8 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     $lines = array();
     $lines['node']['story'] = array(
       'group' => array(
-        'title' => 'digest title Story Title 1 Test Site',
-        'footer' => 'digest footer Story Title 1 Test Site'
+        'title' => 'digest title Story Title 1 ' . $site_name,
+        'footer' => 'digest footer Story Title 1 ' . $site_name,
       ),
       'line' => array(
         1 => 'Digest line Title 1',
@@ -112,8 +112,8 @@ class Notifications_Templates_Tests extends DrupalTestCase {
     );
     $lines['node'][2] = array(
       'group' => array(
-        'title' => 'digest title Page Title 2 Test Site',
-        'footer' => 'digest footer Page Title 2 Test Site'
+        'title' => 'digest title Page Title 2 ' . $site_name,
+        'footer' => 'digest footer Page Title 2 ' . $site_name,
       ),
       'line' => array(
         1 => 'Digest line Title 2',
@@ -138,15 +138,15 @@ class Notifications_Templates_Tests extends DrupalTestCase {
       'The body is Body 2',
     );
     $target = array(
-      'subject' => 'digest subject [type-name] [title] Test Site',
+      'subject' => 'digest subject [type-name] [title] ' . $site_name,
       'body' => theme('notifications_digest_long_body', $body_common['header'], $body, $body_common['footer']),
     );
 
     $digest = notifications_process_send(NULL, $event_list, array(), 'test', 2);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
-    //$this->printObject('Digest target', $target);
-    //$this->printObject('Digest actual', $message);
+    //$this->printObject('Digest target', $target['body']['content']);
+    //$this->printObject('Digest actual', $message['body']['content']);
   }
   
   // Helper function to diff two text arrays

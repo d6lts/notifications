@@ -1024,10 +1024,10 @@ function _notifications_send_intervals() {
  * @return array()
  *   Ditest information for that interval, or all the information if no interval
  */
-function notifications_digest_method($send_interval = NULL) {
+function notifications_digest_method($send_interval = NULL, $refresh = FALSE) {
   static $digest_methods, $intervals;
   
-  if (!isset($digest_methods)) {
+  if (!isset($digest_methods) || $refresh) {
     // Method information
     foreach (notifications_module_information('digest methods') as $method) {
       $digest_methods[$method['type']] = $method;

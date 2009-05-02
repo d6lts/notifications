@@ -1,7 +1,8 @@
 // $Id$
 
-5.x-1.2 to .........
+5.x-1.2 to 5.x-1.3
 -----------------------------
+- Added refresh option to notifications_digest_method(), cached variables were breaking tests.
 - Fixed: added event information for notifications_lite for proper digesting
 - Fixed: send interval for notifications_lite will be always 'Inmediate', see #434826
 - Fixed: notifications sent for unpublished nodes, #369633
