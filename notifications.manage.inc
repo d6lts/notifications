@@ -54,8 +54,8 @@ function notifications_manage_subscriptions_access($sids) {
   }
   else {
     $params = array_merge(array($user->uid), array_values($sids));
-    $count = db_query("SELECT COUNT(*) FROM {notifications} WHERE uid = %d AND sid IN (" . db_placeholders($sids) . ')', $params);
-    return $count === count($sids);
+    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE uid = %d AND sid IN (" . db_placeholders($sids) . ')', $params));
+    return $count == count($sids);
   }
 } 
 

@@ -2,6 +2,7 @@
 
 6.x-2.0 to .......
 -------------------------------
+- Fixed wrong permission checking for user managing subscriptions, by ozzin, #455160
 - Fixed: Empty Notifications fieldset, #453578
 - Fixed: Do not send notifications field value not kept for node preview, #455648
 
