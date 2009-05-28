@@ -306,6 +306,7 @@ function notifications_admin_status_page() {
   // Summary by sending method
   $header = array(t('Method'), t('Number'));
   $result = db_query("SELECT send_method, count(*) AS count FROM {notifications} GROUP BY send_method");
+  $rows = array();
   while ($subs = db_fetch_object($result)) {
     $name = messaging_method_info($subs->send_method, 'title');
     $rows[] = array(
