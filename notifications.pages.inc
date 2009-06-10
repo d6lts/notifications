@@ -53,7 +53,7 @@ function notifications_user_overview($form_state, $account) {
       $tips['enable'] = l(t('Enable all your subscriptions'), "$path/notifications/update/enable");
     }    
   }
-  $link = notifications_get_link('unsubscribe', array('uid' => $account->uid));
+  $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'destination' => TRUE));
   $tips['cancel'] = l(t('Cancel all your subscriptions'), $link['href'], $link['options']);
   
   //$output .= theme('item_list', $tips, t('You can'));

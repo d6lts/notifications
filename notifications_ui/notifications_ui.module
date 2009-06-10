@@ -351,17 +351,19 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
  *   Prefix to use for the link indexes
  */
 function notifications_ui_build_links($options, $prefix = 'notifications_') {
+  global $user;
+
   $links = array();  
   foreach ($options as $index => $option) {
     if (!empty($option['subscription'])) {
       // Unsubscribe link
       $title = t('Unsubscribe from: !name', array('!name' => $option['name']));
-      $props = notifications_get_link('unsubscribe', array('sid' => $option['subscription']->sid));
+      $props = notifications_get_link('unsubscribe', array('sid' => $option['subscription']->sid, 'destination' => $_GET['q']));
     }
     else {
       // Subscribe link
       $title = t('Subscribe to: !name', array('!name' => $option['name']));
-      $props = notifications_get_link('subscribe', array('type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields']));
+      $props = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => $_GET['q']));
     }
     $links[$prefix . $index] = array(
       'title' => $title,
