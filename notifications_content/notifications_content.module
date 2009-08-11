@@ -260,7 +260,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'field' => 'author',
         'type' => 'int',
         'autocomplete path' => 'user/autocomplete',
-        'autocomplete callback' => 'notifications_content_author_name',
+        'autocomplete callback' => 'notifications_content_author_name_callback',
         'format callback' => 'notifications_content_author_name',
         'value callback' => 'notifications_content_author_uid',
       );
@@ -268,7 +268,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('Node type'),
         'field' => 'type',
         'type' => 'string',
-        'options callback' => 'notifications_content_types',
+        'options callback' => 'notifications_content_types_callback',
       );
       return $fields;
 
@@ -387,6 +387,18 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       return array($access);      
       break;
   }
+}
+
+/**
+ * Wrapper for author autocomplete callback.
+ *
+ * @param $uid
+ *   uid of the author for which to return the name.
+ * @param $subs_type
+ *   Optional type of subscription for which to find allowed content types. Defaults to nodetype, can be any subscription type with event-type=node for which notifications_content handles content type settings.
+ */
+function notifications_content_author_name_callback($uid, $subs_type = '') {
+  return notifications_content_author_name($uid);
 }
 
 /**
@@ -747,6 +759,16 @@ function notifications_content_comment_load($cid) {
     $cache[$cid] = $comment;
   }
   return $cache[$cid];
+}
+
+/**
+ * Wrapper for options callback based on subscription type.
+ *
+ * @param $subs_type
+ *   Optional type of subscription for which to find allowed content types. Defaults to nodetype, can be any subscription type with event-type=node for which notifications_content handles content type settings.
+ */
+function notifications_content_types_callback($subs_type = 'nodetype') {
+  return notifications_content_types('name', $subs_type);
 }
 
 /**
