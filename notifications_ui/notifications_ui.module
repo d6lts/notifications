@@ -198,7 +198,7 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
       break;
        
     default: 
-      if (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && notifications_ui_node_options($form['type']['#value'], 'form')) {
+      if (isset($form['type']['#value']) && $form['type']['#value'] .'_node_form' == $form_id && notifications_ui_node_options($form['type']['#value'], 'form')) {
         //  Add node forms.
         $node = $form['#node'];
         $form[] = notifications_ui_node_subform($node);

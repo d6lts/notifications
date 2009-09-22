@@ -220,7 +220,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
 function notifications_form_subscribe_confirm($form_state, $subscription, $account) {
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
-    $form[$field] = array('#type' => 'value', '#value' => $subscription->$field);
+    $form[$field] = array('#type' => 'value', '#value' => isset($subscription->$field) ? $subscription->$field : '');
   }
   // The subscription description will be added here
   $form['info'] = notifications_subscription_info_field($subscription); 

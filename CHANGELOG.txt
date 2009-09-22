@@ -1,6 +1,14 @@
 // $Id$
 
-6.x-2.0 to .......
+6.x-2.1 to .......
+------------------------------
+- Fixed: node autocomplete filtering issues, by DeFr, #519746
+- Removed php undefined variable notices, by eMPee584, #552788
+- Fixed: Wrong result with notifications_content_type_enabled('type'), #456424
+- Fixed: Content-type subscription settings inconsistencies, by David Goode, #520438
+- Fixed: notifications_views fixes to broken handlers, by David Goode
+
+6.x-2.0 to 6.x-2.1
 -------------------------------
 - Extended field value and formatting callbacks (cck support), by David Goode, #329516
 - Fixed word "undisclose" and other string issues, #451932, #452102

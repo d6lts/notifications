@@ -116,7 +116,7 @@ function _notifications_node_references($string, $match = 'contains', $types = a
   $references = array();
   while ($node = db_fetch_object($result)) {
     $references[$node->nid] = array(
-      'title' => check_plain($node->title),
+      'title' => $node->title,
       'rendered' => check_plain($node->title),
     );
   }

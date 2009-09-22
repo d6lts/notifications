@@ -97,7 +97,7 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
 
   $event  = notifications_event($event);
 
-  // Store row in notifications queue and for inmediate sending
+  // Store row in notifications queue and for immediate sending
   notifications_lite_queue_event($event);
   notifications_module_invoke('event queued', $event);
   notifications_send_immediate($event->eid);

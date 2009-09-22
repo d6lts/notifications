@@ -549,7 +549,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
       }
       break;
     case 'tokens':
-      $type = explode('-', $arg1);
+      $type = explode('-', $arg1) + array(2 => '', 3 => '');
       $tokens = array();
       // These are the token groups that will be used for this module's messages
       if ($type[0] == 'notifications' && $type[2] == 'node') {
@@ -798,9 +798,11 @@ function notifications_content_types($field = 'name', $subs_type = 'nodetype') {
 
 /**
  * Get subscription options for this content type
- *
+ * 
+ * PHP Note: We need to use strict checking for in_array(), http://es.php.net/manual/en/function.in-array.php#91911
+ * 
  * @param $type
- *   Optional content type to return info for, defaults to global notifications defaults.
+ *   Optional content type to return info for, global notifications defaults if none.
  * @param $option
  *   Optional option to return for the given content type or the defaults, defaults to returning all settings for the type.
  */
@@ -815,7 +817,8 @@ function notifications_content_type_enabled($type = NULL, $option = NULL) {
     return in_array($option, $settings, TRUE);
   }
   else {
-    return $settings;
+    // We filter the array to return an empty one when no option enabled
+    return array_filter($settings);
   }
 }
 
@@ -846,11 +849,11 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
   switch ($type) {
     case 'node':
       if ($node = $object) {
-        $values['node-teaser'] = $node->teaser ? check_markup($node->teaser, $node->format, FALSE) : '';
-        $values['node-body'] = $node->body ? check_markup($node->body, $node->format, FALSE) : '';
+        $values['node-teaser'] = !empty($node->teaser) ? check_markup($node->teaser, $node->format, FALSE) : '';
+        $values['node-body'] = !empty($node->body) ? check_markup($node->body, $node->format, FALSE) : '';
         $values['node-url'] = url('node/'. $node->nid, array('absolute' => TRUE));
-        $values['node-teaser-raw'] = $node->teaser ? $node->teaser : '';
-        $values['node-body-raw'] = $node->body ? $node->body : '';
+        $values['node-teaser-raw'] = !empty($node->teaser) ? $node->teaser : '';
+        $values['node-body-raw'] = !empty($node->body) ? $node->body : '';
         return $values;
       }
       break;
