@@ -601,17 +601,31 @@ function notifications_event_text($event) {
 /**
  * Get users with static caching for existing users
  * 
- * Build anonymous fake user (with destination, send_method) for anonymous users
+ * If not uid passed it will return an anonymous fake user (with destination, send_method)
  * We need to pass the send method to produce the right tokens later
+ * 
+ * This provides some API support for user-less subscriptions, i.e. when we've got just
+ * an email address but no user associated. The idea is that these fake users will be properly 
+ * handled by messaging module
+ * 
+ * @todo Possibly all this should be handled by messaging layer
+ * 
+ * @param $uid
+ *   Uid of the user account to load, none to use anonymous user
+ * @param $destination
+ *   Messaging destination (mail, sms number, etc..), just for anonymous users
+ * @param $send_method
+ *   Messaging send method key (mail, sms, xmpp, etc..), just for anonymous users
  */
 function notifications_load_user($uid, $destination = NULL, $send_method = NULL) {
   if ($uid) {
     return messaging_load_user($uid);
   }
-  elseif ($destination) {
+  else {
     $account = drupal_anonymous_user();
     $account->destination = $destination;
-    $account->send_method = $send_methor;
+    $account->send_method = $send_method;
+    return $account;
   }
 }
 

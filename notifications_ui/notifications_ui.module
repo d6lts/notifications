@@ -151,6 +151,20 @@ function notifications_ui_subscription_types($type = NULL, $field = NULL) {
 }
 
 /**
+ * Implementation of hook_forms()
+ */
+function notifications_ui_forms($form_id) {
+  $forms = array();
+  if (strpos($form_id, 'notifications_ui_options_form_') === 0) {
+    $forms[$form_id] = array(
+      'callback' => 'notifications_ui_options_form',
+    );
+  }
+  return $forms;
+
+}
+
+/**
  * Implementation of hook_form_alter()
  * 
  */
@@ -270,6 +284,7 @@ function notifications_ui_options_form($form_state, $subscriptions, $fieldset = 
     $form['subscriptions']['submit'] = array('#type' => 'submit', '#value' => t('Update'));
     // If full form, redirect so the full page which may have subscription links is updated
     $form['#redirect'] = $_GET['q'];
+    $form['#submit'] = array('notifications_ui_options_form_submit');
   }
   
   return $form;
@@ -381,10 +396,13 @@ function notifications_ui_build_links($options, $prefix = 'notifications_') {
  */
 function notifications_ui_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   global $user;
+  
+  static $form_instance_id = 0;
 
   if ($op == 'alter' && notifications_ui_node_options($node->type, 'subform')) {
     if (($options = notifications_ui_subscribe_options($user, 'node', $node)) ) {
-      $node->body .= drupal_get_form('notifications_ui_options_form', $options, TRUE, TRUE);
+      $node->body .= drupal_get_form('notifications_ui_options_form_'.$form_instance_id, $options, TRUE, TRUE);
+      $form_instance_id++;
     }
   }
 }

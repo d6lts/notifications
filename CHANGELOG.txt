@@ -2,6 +2,8 @@
 
 6.x-2.1 to .......
 ------------------------------
+- Notifications UI: Added support for multiple forms in the same page, by bdurbin, #526924
+- Fixed: Bug (typo) in notifications_load_user(), by markus_petrux, #586174
 - Fixed: node autocomplete filtering issues, by DeFr, #519746
 - Removed php undefined variable notices, by eMPee584, #552788
 - Fixed: Wrong result with notifications_content_type_enabled('type'), #456424
