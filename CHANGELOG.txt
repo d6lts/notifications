@@ -2,6 +2,7 @@
 
 6.x-2.1 to .......
 ------------------------------
+- Added wrapper for i18n custom string translations, by aufumy, #606862
 - Notifications UI: Added support for multiple forms in the same page, by bdurbin, #526924
 - Fixed: Bug (typo) in notifications_load_user(), by markus_petrux, #586174
 - Fixed: node autocomplete filtering issues, by DeFr, #519746

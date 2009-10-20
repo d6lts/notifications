@@ -1850,3 +1850,30 @@ function notifications_log($message = NULL, $variables = NULL) {
 function notifications_debug($message = NULL, $variables = NULL) {
   return messaging_debug($message, $variables);
 }
+
+/**   
+ * Wrapper function for tt() if i18nstrings enabled.   
+ */   
+function notifications_tt($name, $string, $langcode = NULL, $update = FALSE) {
+  if (module_exists('18nstrings')) {
+    return tt($name, $string, $langcode, $update);
+  }
+  else {
+    return $string;
+  }
+}
+
+/**
+ * Implementation of hook_locale().
+ */
+function notifications_locale($op = 'groups', $group = NULL) {
+  switch ($op) {
+    case 'groups':
+      return array('notifications' => t('Notifications'));
+
+    case 'refresh':
+      if ($group == 'notifications') {
+        // @todo: Re-create all strings, to be implemented
+      }
+  }
+}
