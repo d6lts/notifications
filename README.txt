@@ -18,7 +18,12 @@ Read online handbook at http://drupal.org/node/252592
 
 Dependencies:
 - Tokens module, http://drupal.org/project/tokens
-- Messaging module
+- Messaging module, http://drupal.org/project/messaging
+
+SimpleTest:
+-----------
+Tests for this module will run on SimpleTest 6.x-2.8 (old version).
+About this see http://drupal.org/node/584596
 
 This module was originally based on the subscriptions module, http://drupal.org/project/subscriptions
 The code has been used as an starting point but the framework has been completely rewritten.

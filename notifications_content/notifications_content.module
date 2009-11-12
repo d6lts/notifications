@@ -108,7 +108,9 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       // Load the node which is possibly cached to get the node type
       $node = node_load($form['nid']['#value']);
       if (notifications_content_type_enabled($node->type)) {    
-        _notifications_content_add_disable_field($form);
+        if (notifications_event_enabled('node', 'comment')) {
+          _notifications_content_add_disable_field($form);
+        }
         // If editing the comment, add values to remember
         if (!empty($form['cid']['#value']) && !empty($form['admin']['status'])) {
           $form['notifications_comment_status'] = array('#type' => 'value', '#value' => $form['admin']['status']['#default_value']);
@@ -144,8 +146,10 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
       // Node form. Option to disable notifications
       if (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
         $types = notifications_content_types(NULL);
-        if (notifications_content_type_enabled($form['#node']->type)) {
-          _notifications_content_add_disable_field($form, !empty($form['#node']->notifications_content_disable));
+        $node = $form['#node'];
+        // Do not add if content type disabled, creating and create events disabled, updating and update events disabled
+        if (notifications_content_type_enabled($node->type) && (empty($node->nid) && notifications_event_enabled('node', 'insert') || !empty($node->nid) && notifications_event_enabled('node', 'update'))) {
+          _notifications_content_add_disable_field($form, !empty($node->notifications_content_disable));
         }
       }
   }
@@ -751,11 +755,14 @@ function notifications_content_node_type($op, $info) {
  * @ TODO See if this may be some use, or drop
  */
 function notifications_content_comment_load($cid) {
-  static $cache;
-  if (!isset($cache[$cid])) {
+  static $cache = array();
+
+  if (!array_key_exists($cid, $cache)) {
     $comment = db_fetch_object(db_query('SELECT c.*, u.uid, u.name AS registered_name, u.data FROM {comments} c INNER JOIN {users} u ON c.uid = u.uid WHERE c.cid = %d', $cid));
-    $comment = drupal_unpack($comment);
-    $comment->name = $comment->uid ? $comment->registered_name : $comment->name;
+    if ($comment) {
+      $comment = drupal_unpack($comment);
+      $comment->name = $comment->uid ? $comment->registered_name : $comment->name;
+    }
     $cache[$cid] = $comment;
   }
   return $cache[$cid];

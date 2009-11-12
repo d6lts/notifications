@@ -377,20 +377,12 @@ function notifications_event($event) {
   );
   
   // Check whether we have to save and queue this event, defaults to yes if not set
-  $info = variable_get('notifications_events', array());
-  if (isset($info[$event['type']][$event['action']]) && !$info[$event['type']][$event['action']]) {
-    // Do not store nor queue this event, can be changed by plug-in modules
-    $event += array(
-      'save' => FALSE,
-      'queue' => FALSE,
-    );
-  }
-  else {
-    $event += array(
-      'save' => TRUE, 
-      'queue' => TRUE,
-    );   
-  }
+  // If not enabled, do not store nor queue this event, can be changed by plug-in modules
+  $enabled = notifications_event_enabled($event['type'], $event['action']);
+  $event += array(
+    'save' => $enabled,
+    'queue' => $enabled,
+  );
 
   $event = (object)$event;
 
@@ -408,6 +400,15 @@ function notifications_event($event) {
   }
   
   return $event;
+}
+
+/**
+ * Check whether we have enabled events of this type
+ */
+function notifications_event_enabled($type, $action) {
+  $info = variable_get('notifications_events', array());
+  // Defaults to TRUE if not set
+  return (boolean)(!isset($info[$type][$action]) || $info[$type][$action]); 
 }
 
 /**

@@ -1,7 +1,9 @@
 // $Id$
 
-6.x-2.1 to .......
+6.x-2.1 to 6.x-2.2
 ------------------------------
+- Fixed: Checkbox for skip notifications showing up for disabled events, #626708
+- Fixed: Notifications sent for deleted comments, by Scott Reynolds, #593218
 - Added wrapper for i18n custom string translations, by aufumy, #606862
 - Notifications UI: Added support for multiple forms in the same page, by bdurbin, #526924
 - Fixed: Bug (typo) in notifications_load_user(), by markus_petrux, #586174
