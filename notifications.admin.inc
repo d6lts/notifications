@@ -199,6 +199,13 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
     variable_set('notifications_digest_methods', $digest);
   }
   drupal_set_message(t('The time intervals for your subscriptions have been updated'));
+  // Update orphaned notifications with invalid send interval
+  $valid = array_keys($intervals);
+  $params = array_merge(array(variable_get('notifications_default_send_interval', 0)), $valid);
+  db_query('UPDATE {notifications} SET send_interval = %d WHERE send_interval NOT IN (' . db_placeholders($valid) . ')', $params);
+  if ($updated = db_affected_rows()) {
+    drupal_set_message(format_plural($updated, 'Updated a subscription with invalid interval.', 'Updated @count subscriptions with invalid intervals.'));
+  }
 }
 
 /**

@@ -2,6 +2,8 @@
 
 6.x-2.1 to 6.x-2.2
 ------------------------------
+- Fixed: Orphaned subscriptions not updated when deleting send intervals, #483488
+- Fixed: Performance issue with user threads page, left over CAST, #517966
 - Fixed: Checkbox for skip notifications showing up for disabled events, #626708
 - Fixed: Notifications sent for deleted comments, by Scott Reynolds, #593218
 - Added wrapper for i18n custom string translations, by aufumy, #606862
