@@ -262,7 +262,7 @@ function notifications_ui_options_form($form_state, $subscriptions, $fieldset = 
   if ($fieldset) {
     $form['subscriptions'] = array(
       '#type' => 'fieldset',
-      '#title' => t('Subscriptions (%number)', array('%number' => $number)),
+      '#title' => t('Subscriptions (@number)', array('@number' => $number)),
       '#collapsible' => TRUE,
       '#collapsed' => TRUE,
       '#tree' => TRUE,
