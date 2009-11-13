@@ -944,20 +944,30 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
  *   String, the subscriptions type OPTIONAL
  * @param $field
  *   String, a specific field to retrieve info from OPTIONAL
- *
- * @return
+ * @param $check_access
+ *   Whether to check user access and filter out disabled types
+ *   
  *   Information for a given field and type
  *   or information for a given field for all types
  */
-function notifications_subscription_types($type = NULL, $field = NULL) {
+function notifications_subscription_types($type = NULL, $field = NULL, $check_access = FALSE) {
   static $types;
   
   if (!isset($types)) {
     $types = notifications_module_information('subscription types');
     drupal_alter('notifications_subscription_types', $types);
   }
-  
-  return notifications_info($types, $type, $field);
+
+  $result = $types;
+  if ($check_access) {
+    foreach ($types as $key => $info) {
+      if (!empty($info['disabled']) || (!empty($info['access']) && !user_access($info['access']))) {
+        unset($result[$key]);
+      }
+    }
+  }
+
+  return notifications_info($result, $type, $field);
 }
 
 /**
@@ -1427,6 +1437,9 @@ function _notifications_send_intervals() {
 
 /**
  * List of send methods
+ * 
+ * @param $account
+ *   Optional user account, for checking permissions against this account
  */
 function _notifications_send_methods($account = NULL) {
   return variable_get('notifications_send_methods', messaging_method_list($account));
@@ -1803,7 +1816,7 @@ function notifications_theme() {
       'arguments' => array('element' => NULL),
       'file' => 'notifications.admin.inc',
     ),
-    'notifications_send_intervals' => array(
+    'notifications_send_intervals_form' => array(
       'arguments' => array('element' => NULL),
       'file' => 'notifications.admin.inc',
     ),

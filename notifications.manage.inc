@@ -14,7 +14,7 @@ function notifications_manage_admin_subscriptions($form_state) {
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
     return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
   }
-  $form = notifications_subscriptions_filter_form();
+  $form = notifications_subscriptions_filter_form(TRUE);
 
   $form['#theme'] = 'notifications_subscriptions_filter_form';
   $form['admin']  = notifications_manage_subscriptions_form();
@@ -33,7 +33,8 @@ function notifications_manage_user_subscriptions($form_state, $account) {
   }
   $form = notifications_subscriptions_filter_form();
   $form['filters']['#title'] = t('Filter');
-  $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => TRUE);
+  // Display collapsed only when no filters set
+  $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => empty($_SESSION['subscriptions_overview_filter']));
   $form['#theme'] = 'notifications_subscriptions_filter_form';
   $form['admin']  = notifications_manage_subscriptions_form($account);
 
@@ -207,29 +208,37 @@ function notifications_subscriptions_build_filter_query($account = NULL) {
 
 /**
  * List node administration filters that can be applied.
+ * 
+ * @param $admin
+ *   Whether this is for the site admin page, will display more options
  */
-function notifications_subscriptions_filters() {
-  // Regular filters
+function notifications_subscriptions_filters($admin = FALSE) {
+  global $user;
+
   $filters['status'] = array(
     'title' => t('status'),
     'options' => _notifications_subscription_status(),
   );
-
   $filters['type'] = array(
-    'title' => t('type'), 
-    'options' => notifications_subscription_types(NULL, 'title')
+    'title' => t('type'),
+    // If not admin page, check access to each type
+    'options' => notifications_subscription_types(NULL, 'title', !$admin),
   );
-
   $filters['send_method'] = array(
-    'title' => t('method'), 
-    'options' => _notifications_send_methods(),
+    'title' => t('method'),
+    // If not admin mode, filter for current user
+    'options' => _notifications_send_methods($admin ? NULL : $user),
   );
-  
   $filters['send_interval'] = array(
     'title' => t('interval'), 
     'options' => _notifications_send_intervals(),
   );
-  
+  // Take out the filters when only one option
+  foreach ($filters as $key => $data) {
+    if (empty($data['options']) || count($data['options']) == 1) {
+      unset($filters[$key]);
+    }
+  }
   return $filters;
 }
 
@@ -376,11 +385,14 @@ function notifications_multiple_delete_confirm_submit($form, &$form_state) {
 
 /**
  * Return form for node administration filters.
+ * 
+ * @param $admin
+ *   Whether this is for the site admin page, will display more options
  */
-function notifications_subscriptions_filter_form() {
+function notifications_subscriptions_filter_form($admin = FALSE) {
   $session = &$_SESSION['subscriptions_overview_filter'];
   $session = is_array($session) ? $session : array();
-  $filters = notifications_subscriptions_filters();
+  $filters = notifications_subscriptions_filters($admin);
 
   $i = 0;
   $form['filters'] = array(

@@ -206,6 +206,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       break;
 
     case 'subscription types':
+      // Some types may be globally disabled (for all content types), mark as such
+      $disabled = !variable_get('notifications_content_per_type', 0);
       $types['thread'] = array(
         'event_type' => 'node',
         'title' => t('Thread'),
@@ -213,7 +215,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'page callback' => 'notifications_content_page_thread',
         'user page' => 'user/%user/notifications/thread',
         'fields' => array('nid'),
-        'description' => t('Subscribe to all changes and comments for a thread.')
+        'description' => t('Subscribe to all changes and comments for a thread.'),
+        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'thread'),
       );
       $types['nodetype'] = array(
         'event_type' => 'node',
@@ -222,7 +225,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'page callback' => 'notifications_content_page_nodetype',
         'user page' => 'user/%user/notifications/nodetype',
         'fields' => array('type'),
-        'description' => t('Subscribe to all content of a given type.')
+        'description' => t('Subscribe to all content of a given type.'),
+        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'nodetype'),
       );
       $types['author'] = array(
         'event_type' => 'node',
@@ -231,7 +235,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'page callback' => 'notifications_content_page_author',
         'user page' => 'user/%user/notifications/author',
         'fields' => array('author'),
-        'description' => t('Subscribe to all content submitted by a user.')
+        'description' => t('Subscribe to all content submitted by a user.'),
+        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'author'),
       );
       // This is a complex type, combining two fields
       $types['typeauthor'] = array(
@@ -240,7 +245,8 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'access' => 'subscribe to content type and author',
         //'page callback' => 'notifications_content_page_author',
         'fields' => array('author', 'type'),
-        'description' => t('Subscribe to all content of a given type submitted by a user.')
+        'description' => t('Subscribe to all content of a given type submitted by a user.'),
+        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'typeauthor'),
       );      
       return $types;
 
