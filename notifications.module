@@ -438,7 +438,8 @@ function notifications_queue($event) {
     $query['select'] = array('s.uid', 's.destination', 's.sid', 's.module', '%d', 's.send_interval', 's.send_method', 's.cron', '%d', 's.conditions');
     $query['from'] = array('{notifications} s');
     $query['select args'] = array($event->eid, $event->created);
-    $query['join'] = array('INNER JOIN {notifications_fields} f ON s.sid = f.sid');
+    // We do a left join instead of inner join to allow subscriptions with no fields to work
+    $query['join'] = array('LEFT JOIN {notifications_fields} f ON s.sid = f.sid');
     $query['where'] = array('s.status = 1', "s.event_type = '%s'", 's.send_interval >= 0');
     $query['where args'] = array($event->type);
     // Add one more condition if we don't send notifications on own posts

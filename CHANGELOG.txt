@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-2.2 to .......
+------------------------------
+- Added support (at query level) for subscriptions with no fields.
+
 6.x-2.1 to 6.x-2.2
 ------------------------------
 - Fixed: Wrong placeholders in subscriptions fieldset title, #513854
