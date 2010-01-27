@@ -65,7 +65,6 @@ function notifications_manage_subscriptions_access($sids) {
  */
 function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) {
   $filter = notifications_subscriptions_build_filter_query($account);
-  
   if ($account) {
     $result = pager_query('SELECT n.* FROM {notifications} n '. $filter['join'] . $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   } else {
@@ -118,10 +117,19 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     $form['send_method'][$sub->sid] = array('#value' => !empty($send_methods[$sub->send_method]) ? $send_methods[$sub->send_method] : $sub->send_method);
     $form['send_interval'][$sub->sid] = array('#value' => !empty($send_intervals[$sub->send_interval]) ? $send_intervals[$sub->send_interval] : $sub->send_interval);  
     $form['status'][$sub->sid] =  array('#value' => $status[$sub->status]);
-    $operations = array(
-      l(t('edit'), 'notifications/subscription/' . $sub->sid, array('query' => $destination)),
-      l(t('drop'), 'notifications/unsubscribe/sid/' . $sub->sid, array('query' => $destination)),
-    );
+    // These links will be different depending on whether we are under admin or user account
+    if ($account) {
+      $operations = array(
+        l(t('edit'), 'user/'. $account->uid .'/notifications/subscriptions/edit/' . $sub->sid, array('query' => $destination)),
+        l(t('drop'), 'user/'. $account->uid .'/notifications/subscriptions/delete/' . $sub->sid, array('query' => $destination)),
+      );
+    }
+    else {
+      $operations = array(
+        l(t('edit'), 'notifications/subscription/' . $sub->sid, array('query' => $destination)),
+        l(t('drop'), 'notifications/unsubscribe/sid/' . $sub->sid, array('query' => $destination)),
+      );
+    }
     $form['operations'][$sub->sid] = array('#value' => implode(', ', $operations));
   }
   $form['subscriptions'] = array('#type' => 'checkboxes', '#options' => $subscriptions);

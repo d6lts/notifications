@@ -2,6 +2,8 @@
 
 6.x-2.2 to .......
 ------------------------------
+- Added tabs for edit / delete under user account subscriptions, by greggles, #669222
+- Fixed missing messaging module in test, by Owen Barton, #657790
 - Added support (at query level) for subscriptions with no fields.
 
 6.x-2.1 to 6.x-2.2

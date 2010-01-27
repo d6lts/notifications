@@ -120,7 +120,7 @@ function notifications_menu() {
     'access callback' => TRUE,
     'file' => 'notifications.pages.inc',
   );
-  // Edit subscription
+  // Edit subscription, stand alone page
   $items['notifications/subscription/%notifications_subscription'] = array(
     'type' => MENU_CALLBACK,
     'title' => 'Edit subscription',
@@ -154,6 +154,26 @@ function notifications_menu() {
     'access callback' => 'notifications_access_user',
     'access arguments' => array(1, 'manage'),
     'file' => 'notifications.manage.inc',
+  );
+  // Edit subscription under subscriptions tab
+  $items['user/%user/notifications/subscriptions/edit/%notifications_subscription'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Edit subscription',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_subscription_form', 5),
+    'access callback' => 'notifications_subscription_access',
+    'access arguments' => array('edit', 5),
+    'file' => 'notifications.pages.inc',
+  );
+  // Delete subscription under subscriptions tab
+  $items['user/%user/notifications/subscriptions/delete/%notifications_subscription'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Delete subscription',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_form_unsubscribe_confirm', 5),
+    'access callback' => 'notifications_subscription_access',
+    'access arguments' => array('unsubscribe', 5),
+    'file' => 'notifications.pages.inc',
   );
   $items['user/%user/notifications/update/%'] = array(
     'type' => MENU_CALLBACK,
@@ -1871,7 +1891,7 @@ function notifications_debug($message = NULL, $variables = NULL) {
  */   
 function notifications_tt($name, $string, $langcode = NULL, $update = FALSE) {
   if (module_exists('18nstrings')) {
-    return tt($name, $string, $langcode, $update);
+    return i18nstrings($name, $string, $langcode, $update);
   }
   else {
     return $string;
