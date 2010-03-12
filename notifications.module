@@ -1285,8 +1285,10 @@ function notifications_event_types($type = NULL, $action = NULL) {
  * Implementation of hook_cron()
  */
 function notifications_cron() {
-  include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-  notifications_process_run();
+  if (variable_get('notifications_process_on_cron', TRUE)) {
+    include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_process_run();
+  }
 }
 
 /**

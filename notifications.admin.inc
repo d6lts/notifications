@@ -60,8 +60,14 @@ function notifications_settings_form() {
     '#type' => 'fieldset',
     '#title' => t('Limits for queue processing'),
     '#tree' => TRUE,
-    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+    '#description' => t('These are the limits for each run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
     '#collapsible' => TRUE, '#collapsed' => TRUE,
+  );
+  $form['notifications_process_on_cron'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Process on cron'),
+    '#default_value' => variable_get('notifications_process_on_cron', TRUE),
+    '#description' => t('If disabled you must use code elsewhere to actually send your e-mails such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
   );
   $form['notifications_process_limit']['row'] = array(
     '#title' => t('Number of rows'),

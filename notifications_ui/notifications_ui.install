@@ -39,3 +39,13 @@ function notifications_ui_update_6000() {
   drupal_set_message(t('Please, check all your Notifications UI settings and note the new options.'));
   return array();
 }
+
+/**
+ * Disable cache in subscription block
+ */
+function notifications_ui_update_6001() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {blocks} SET cache = ". BLOCK_NO_CACHE ." WHERE module = 'notifications_ui'");
+  $ret[] = update_sql("DELETE FROM {cache_block} WHERE cid LIKE 'notifications_ui:%'");
+  return $ret;
+}

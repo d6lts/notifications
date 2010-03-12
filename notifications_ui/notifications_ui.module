@@ -497,6 +497,7 @@ function notifications_ui_block($op = 'list', $delta = 0) {
   
   if ($op == 'list') {
     $blocks[0]['info'] = t('Subscriptions');
+    $blocks[0]['cache'] = BLOCK_NO_CACHE;
     return $blocks;
   }
   else if ($op == 'view') {
