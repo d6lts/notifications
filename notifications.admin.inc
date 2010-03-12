@@ -231,6 +231,10 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
   if ($updated = db_affected_rows()) {
     drupal_set_message(format_plural($updated, 'Updated a subscription with invalid interval.', 'Updated @count subscriptions with invalid intervals.'));
   }
+  // Refresh strings after update if translation enabled
+  if (module_exists('i18nstrings')) {
+    notifications_locale_refresh();
+  }
 }
 
 /**

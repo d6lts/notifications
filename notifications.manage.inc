@@ -100,7 +100,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   $subscriptions = array();
   $status = _notifications_subscription_status();
   $send_methods = messaging_method_info(NULL, 'name');
-  $send_intervals = _notifications_send_intervals();
+  $send_intervals = notifications_send_intervals();
   while ($sub = db_fetch_object($result)) {
     $subscriptions[$sub->sid] = '';
     // Naming for this specific subscription, formatted strings    
@@ -239,7 +239,7 @@ function notifications_subscriptions_filters($admin = FALSE) {
   );
   $filters['send_interval'] = array(
     'title' => t('interval'), 
-    'options' => _notifications_send_intervals(),
+    'options' => notifications_send_intervals(),
   );
   // Take out the filters when only one option
   foreach ($filters as $key => $data) {
@@ -292,7 +292,7 @@ function notifications_subscriptions_operations($account = NULL) {
     );
   }
   $parent = t('Change send interval to');
-  foreach (_notifications_send_intervals() as $key => $name) {
+  foreach (notifications_send_intervals() as $key => $name) {
     $operations['send_method-' . $key] = array(
       'label' => $name,
       'parent' => $parent,

@@ -183,7 +183,7 @@ function notifications_content_form($account, $subscriptions, $list, $field, $fi
     );
     $form['subscriptions']['send_interval'][$key] = array(
       '#type' => 'select',
-      '#options' => _notifications_send_intervals(),
+      '#options' => notifications_send_intervals(),
       '#default_value' => $rowdefaults['send_interval'],
     );
     $form['subscriptions']['send_method'][$key] = array(

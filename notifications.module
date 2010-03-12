@@ -337,7 +337,7 @@ function notifications_form_alter(&$form, $form_state, $form_id) {
     case 'user_profile_form':
       if ($form['_category']['#value'] == 'account' && (user_access('maintain own subscriptions') || user_access('administer notifications'))) {
         $form['messaging']['#title'] = t('Messaging and Notifications settings');
-        $send_intervals = _notifications_send_intervals();
+        $send_intervals = notifications_send_intervals();
         $form['messaging']['notifications_send_interval'] = array(
           '#type' => 'select',
           '#title' => t('Default send interval'),
@@ -1444,8 +1444,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
  * List of send intervals. These may be overriden in a variable.
  */
 function _notifications_send_intervals() {
-  return variable_get('notifications_send_intervals',
-    array(
+  return variable_get('notifications_send_intervals', array(
       // -1 => t('Never'),
       0 => t('Immediately'),
       3600 => t('Every hour'),
@@ -1454,6 +1453,20 @@ function _notifications_send_intervals() {
       604800 => t('Weekly'),  
     )
   );
+}
+
+/**
+ * List of send intervals, translated.
+ */
+function notifications_send_intervals() {
+  if ($intervals = variable_get('notifications_send_intervals', FALSE)) {
+    foreach ($intervals as $key => $name) {
+      $intervals[$key] = notifications_translate("send_interval:$key:name", $name);
+    }
+  }
+  else {
+    return _notifications_send_intervals();
+  }
 }
 
 /**
@@ -1637,7 +1650,7 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
     '#theme' => 'notifications_form_table',
     '#header' => $header,
   );
-
+  $send_intervals = notifications_send_intervals();
   foreach ($list as $key => $title) {
     $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
     $rowdefaults += $rowdefaults;
@@ -1650,7 +1663,7 @@ function notifications_user_form($form_state, $account, $type, $subscriptions, $
     );
     $form['subscriptions']['send_interval'][$key] = array(
       '#type' => 'select',
-      '#options' => _notifications_send_intervals(),
+      '#options' => $send_intervals,
       '#default_value' => $rowdefaults['send_interval'],
     );
     // Hide send methods if only one available
@@ -1887,28 +1900,34 @@ function notifications_debug($message = NULL, $variables = NULL) {
 }
 
 /**   
- * Wrapper function for tt() if i18nstrings enabled.   
+ * Wrapper function for 1i8nstrings() if i18nstrings enabled.   
  */   
-function notifications_tt($name, $string, $langcode = NULL, $update = FALSE) {
-  if (module_exists('18nstrings')) {
-    return i18nstrings($name, $string, $langcode, $update);
-  }
-  else {
-    return $string;
-  }
+function notifications_translate($name, $string, $langcode = NULL, $textgroup = 'notifications') {
+  return function_exists('i18nstrings') ? i18nstrings($textgroup . ':' . $name, $string, $langcode) : $string;  
 }
 
 /**
  * Implementation of hook_locale().
  */
-function notifications_locale($op = 'groups', $group = NULL) {
+function notifications_locale($op = 'groups') {
   switch ($op) {
     case 'groups':
       return array('notifications' => t('Notifications'));
-
-    case 'refresh':
-      if ($group == 'notifications') {
-        // @todo: Re-create all strings, to be implemented
-      }
+    case 'info':
+      $info['notifications']['refresh callback'] = 'notifications_locale_refresh';
+      $info['notifications']['format'] = FALSE; // Strings have no format
+      return $info;
   }
+}
+
+/**
+ * Refresh notifications strings
+ */
+function notifications_locale_refresh() {
+  if ($intervals = variable_get('notifications_send_intervals', FALSE)) {
+    foreach ($intervals as $key => $name) {
+      i18nstrings_update("notifications:send_interval:$key:name", $name);
+    }
+  }
+  return TRUE;
 }

@@ -194,7 +194,7 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       if ($subs->event_type == 'node') {
         $subs->type_name = t('Content');
         if (!empty($subs->fields['type'])) {
-          $subs->names['type'] = t('Content type: @type', array('@type' => notifications_tt('nodetype:type:'. $subs->fields['type'] .':name', node_get_types('name', $subs->fields['type']))));
+          $subs->names['type'] = t('Content type: @type', array('@type' => notifications_tt('type:'. $subs->fields['type'] .':name', node_get_types('name', $subs->fields['type']), NULL, 'nodetype')));
         }
         if (!empty($subs->fields['author']) && ($author = user_load(array('uid' => $subs->fields['author'])))) {
           $subs->names['author'] = t('Author: @name', array('@name' => $author->name));
@@ -601,7 +601,7 @@ function _notifications_content_node_options($account, $node) {
   // Content type
   if (notifications_content_type_enabled($node->type, 'nodetype')) { 
     $options[] = array(
-      'name' => t('Posts of type @type', array('@type' => notifications_tt("nodetype:type:$node->type:name", node_get_types('name', $node->type)))),
+      'name' => t('Posts of type @type', array('@type' => notifications_tt("type:$node->type:name", node_get_types('name', $node->type), NULL, 'nodetype'))),
       'type' => 'nodetype',
       'fields' => array('type' => $node->type),
     );

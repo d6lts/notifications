@@ -290,7 +290,7 @@ function notifications_tags_user_form($form_state, $account) {
       );
       $form['subscriptions'][$vid]['send_interval'][$key] = array(
         '#type' => 'select',
-        '#options' => _notifications_send_intervals(),
+        '#options' => notifications_send_intervals(),
         '#default_value' => $rowdefaults['send_interval'],
       );
       
