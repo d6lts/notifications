@@ -390,9 +390,8 @@ function notifications_admin_queue($op = 'status', $param = NULL) {
   $output .= notifications_admin_queue_summary();
 
   // Display logs from last process
-  if (!empty($_SESSION['notifications_logs'])) {
-    $output .= theme('box', t('Process log'), messaging_log_format($_SESSION['notifications_logs']));
-    unset($_SESSION['notifications_logs']);
+  if ($logs = messaging_log_get()) {
+    $output .= theme('box', t('Process log'), messaging_log_format($logs));
   }
   return $output;
 }
@@ -424,7 +423,8 @@ function notifications_admin_queue_operations() {
  */
 function notifications_admin_queue_operations_submit($form, $form_state) {
   include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
-
+  // Enable messaging & notifications logs
+  messaging_log_start();
   foreach (notifications_queue_operations() as $op => $data) {
     if ($form_state['values']['op'] == $data['label']) {
       $callback = $data['callback'];
@@ -433,8 +433,6 @@ function notifications_admin_queue_operations_submit($form, $form_state) {
       break;
     }  
   }
-  // Store logs to render on next page redirect
-  $_SESSION['notifications_logs'] = notifications_log();
 }
 
 /**
