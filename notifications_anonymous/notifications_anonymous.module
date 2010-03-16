@@ -1,0 +1,289 @@
+<?php
+// $Id$
+/**
+ * @file
+ *   Notifications for anonymous users
+ */
+
+/**
+ * Implementation of hook_menu()
+ */
+function notifications_anonymous_menu() {
+    // Subscribe links. For this items access will be checked later in the page
+  $items['notifications/subscribe/anonymous'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => 'notifications_anonymous_page_subscribe',
+    'access callback' => 'notifications_anonymous_access',
+    //'access arguments' => array('create anonymous subscriptions'),
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Present unsubscribe page
+  $items['notifications/destination'] = array (
+    'title' => 'Manage subscriptions',
+    'page callback' => 'notifications_anonymous_overview_page',
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Change subscriptions for a destination
+  $items['notifications/destination/%messaging_destination/manage'] = array (
+    'title' => 'Manage subscriptions',
+    'page callback' => 'notifications_anonymous_destination_page',
+    'page arguments' => array(2),
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Unsubscribe all for a destination
+  $items['notifications/destination/%messaging_destination/unsubscribe'] = array (
+    'title' => 'Delete subscriptions',
+    'page callback' => 'notifications_anonymous_destination_page',
+    'page arguments' => array(2),
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Confirm destination for subscriptions
+  $items['notifications/destination/%messaging_destination/subscribe'] = array (
+    'title' => 'Confirm subscription',
+    'page callback' => 'notifications_anonymous_destination_page',
+    'page arguments' => array(2),
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Settings page
+  $items['admin/messaging/notifications/anonymous'] = array(
+    'title' => 'Anonymous',
+    'description' => 'Settings for anonymous subscriptions',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_anonymous_settings_form'),
+    'access arguments' => array('administer notifications'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  return $items;
+}
+
+/**
+ * Menu access callback
+ */
+function notifications_anonymous_access() {
+  return user_access('create anonymous subscriptions') && notifications_anonymous_methods();
+}
+/**
+ * Destination form
+ */
+function notifications_anonymous_destination_form(&$form_state, $destination, $account) {
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+  $form['destination'] = array('#type' => 'value', '#value' => $destination);
+  $send_methods = notifications_anonymous_methods();
+  $form['method'] = array(
+    '#type' => 'select',
+    '#title' => t('Send method'),
+    '#options' => $send_methods,
+    '#default_value' => $destination->method,
+    '#disabled' => count($send_methods) < 2,
+  );
+  $form['address'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Address'),
+    '#required' => TRUE,
+  );
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
+}
+
+/**
+ * Implementation of hook_link()
+ * 
+ * Add subscriptions links to nodes
+ */
+function notifications_anonymous_link($type, $node = NULL, $teaser = FALSE) {
+  global $user;
+
+  if ($type == 'node' && !$user->uid && notifications_anonymous_access() && 
+    (notifications_ui_node_options($node->type, 'teaserlinks') && $teaser || notifications_ui_node_options($node->type, 'links') && !$teaser)
+     && ($options = notifications_ui_subscribe_options($user, 'node', $node))) {
+      // Now we have the array of allowed options ready, build single links 
+      return notifications_anonymous_build_links($options);
+  }
+}
+
+/**
+ * Build subscription options as an array of links
+ * 
+ * These links can be added as node link elements or rendered some other way
+ * 
+ * @param $options
+ *   Array of subscription options, like the one produced by notifications_ui_subscribe_options()
+ * @param $prefix
+ *   Prefix to use for the link indexes
+ */
+function notifications_anonymous_build_links($options, $prefix = 'notifications_anonymous_') {
+  $links = array();  
+  foreach ($options as $index => $option) {
+    // Subscribe link
+    $title = t('Subscribe to: !name', array('!name' => $option['name']));
+    $props = notifications_get_link('subscribe', array('uid' => 'anonymous', 'type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => $_GET['q']));
+    $links[$prefix . $index] = array(
+      'title' => $title,
+      'html' => TRUE,
+      'href' => $props['href'],
+    ) + $props['options'];      
+  }
+  return $links;  
+}
+/**
+ * Get available sending methods for anonymous users
+ */
+function notifications_anonymous_methods() {
+  $list = &messaging_static(__FUNCTION__);
+  if (!isset($list)) {
+    $allowed = variable_get('notifications_anonymous_send_methods', array());
+    foreach (messaging_method_list() as $method => $name) {
+      if (in_array($method, $allowed)) {
+        $list[$method] = $name;
+      }
+    }
+  }
+  return $list;
+}
+
+/**
+ * Implementation of hook_perm()
+ */
+function notifications_anonymous_perm() {
+  return array('create anonymous subscriptions');
+}
+
+/**
+ * Subform with method and address
+ */
+function notifications_anonymous_subform($destination = NULL, $account = NULL) {
+  $send_methods = notifications_anonymous_methods();
+  $form['send_method'] = array(
+    '#type' => 'select',
+    '#title' => t('Send method'),
+    '#options' => $send_methods,
+    '#default_value' => $destination ? $destination->method : '',
+    '#disabled' => count($send_methods) < 2,
+  );
+  $form['address'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Address'),
+    '#width' => 20,
+    '#required' => TRUE,
+  );
+  return $form;
+}
+/**
+ * Destination form submitted
+ */
+function notifications_anonymous_destination_form_submit(&$form, &$form_state) {
+  $account = $form_state['values']['account'];
+  $method = $form_state['values']['method'];
+  $address = $form_state['values']['address'];
+  $destination = messaging_destination_get(array('method' => $method, 'address' => $address));
+  if ($destination) {
+    if ($account && $account->uid && $destination->uid = $account->uid) {
+      // The address belongs to the current user, so go for it
+      notifications_delete_destination($destination->mdid);
+      drupal_set_message(t('All the subscriptions for that address have been deleted.'));
+      return;
+    }
+    else {
+      // Will ask for confirmation if enabled always or if it belongs to a user
+      $confirm = variable_get('notifications_anonymous_unsubscribe_confirm', 1);
+      notifications_anonymous_message('unsubscribe', $destination, $confirm || $destination->uid);
+    }
+  }
+  // We print out a message without undisclosing any information about whether the address exists or not
+  drupal_set_message(t('If your address is found on this system, a message will be sent with a link to delete all subscriptions.'));
+}
+
+/**
+ * Implementation of hook_form_alter()
+ */
+function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
+  switch ($form_id) {
+    case 'notifications_ui_options_form':
+      $account = $form['subscriptions']['account'];
+      if (!$account->uid) {
+        $form['destination'] = notifications_anonymous_subform(NULL, $account);
+        $form['destination']['#weight'] = -10;
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_token_values()
+ * 
+ * Provide user-like tokens for anonymous users
+ */
+function notifications_anonymous_token_values($type, $object = NULL, $options = array()) {
+  switch ($type) {
+    case 'user':
+      $values = array();
+      // Object should have no uid but a valid mdid
+      if (($account = $object) && !$object->uid && $object->mdid) {
+        // We have a real user, so we produce full links
+        $values['subscriptions-manage'] = notifications_anonymous_url("notifications/destination/$account->mdid/manage");
+        $values['unsubscribe-url-global'] =  notifications_anonymous_url("notifications/destination/$account->mdid/unsubscribe");
+      }
+      return $values;
+  }
+}
+
+/**
+ * Create signed URLs for all pages
+ */
+function notifications_anonymous_url($url, $options = array()) {
+  $elements = explode('/' . $url);
+  $options += array('absolute' => TRUE);
+  $options['query']['signature'] =  _notifications_signature($elements);
+  return url($url, $options);
+}
+
+/**
+ * Implementation of notifications_hook()
+ * 
+ * Check access permissions to subscriptions
+ */
+function notifications_anonymous_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+  global $user;
+
+  switch ($op) {
+    case 'access':
+      if (!$user->uid && $arg0 == 'subscription') {
+        $account = $arg1;
+        $subscription = $arg2;
+        // Check flood control
+        if (!flood_is_allowed('notifications_anonymous', variable_get('notifications_anonymous_hourly_threshold', 3))) {
+          drupal_set_message(t("You cannot create more than %number subscriptions per hour. Please try again later.", array('%number' => variable_get('notifications_anonymous_hourly_threshold', 3))), 'warning');
+          return array(FALSE);
+        }      
+      }
+      break;   
+  } 
+}
+
+/**
+ * Send unsubscribe message
+ */
+function notifications_anonymous_message($type , $destination, $confirm = TRUE) {
+  $message = new Stdclass();
+  switch ($type) {
+    case 'unsubscribe':
+      $message->subject = t('Unsubscribe from !site_name', array('!site_name' => variable_get('site_name', 'Drupal')));
+      if ($confirm) {
+        $message->body = array(
+          t('Click on this link or copy and paste it on your browser to confirm you want to unsubscribe.'),
+          notifications_anonymous_url("notifications/destination/$destination->mdid/unsubscribe"),
+        );
+      }
+      else {
+        $message->body = t('You have been unsubscribed.');
+      }
+      break;
+    case 'subscribe':
+      $message->subject = t('Subscribe to !site_name', array('!site_name' => variable_get('site_name', 'Drupal')));
+      $message->body = array(
+        t('Click on this link or copy and paste it on your browser to confirm your subscription.'),
+        notifications_anonymous_url("notifications/destination/$destination->mdid/subscribe"),
+      );
+  }
+  return messaging_message_send_out($destination->address, $message, $destination->method);
+}
