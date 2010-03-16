@@ -761,9 +761,8 @@ function notifications_content_node_type($op, $info) {
  * @ TODO See if this may be some use, or drop
  */
 function notifications_content_comment_load($cid) {
-  static $cache = array();
-
-  if (!array_key_exists($cid, $cache)) {
+  $cache = &messaging_static(__FUNCTION__);
+  if (!$cache || !array_key_exists($cid, $cache)) {
     $comment = db_fetch_object(db_query('SELECT c.*, u.uid, u.name AS registered_name, u.data FROM {comments} c INNER JOIN {users} u ON c.uid = u.uid WHERE c.cid = %d', $cid));
     if ($comment) {
       $comment = drupal_unpack($comment);

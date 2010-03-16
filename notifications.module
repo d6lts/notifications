@@ -432,6 +432,20 @@ function notifications_event_enabled($type, $action) {
 }
 
 /**
+ * Process URL arguments and return an array of field/value pairs
+ * 
+ * @param $fields
+ *   Field names separated by commas.
+ * @param $values
+ *   Values separated by commas
+ */
+function notifications_field_args($fields, $values) {
+  $names = explode(',', $fields);
+  $params = explode(',', $values);
+  return array_combine($names, $params);  
+}
+
+/**
  * Queue events for notifications adding query conditions from plug-ins
  * 
  * This is an example of the resulting query
@@ -452,10 +466,10 @@ function notifications_queue($event) {
   // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
   // If no arguments retrieved, skip this step
   if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
-    $query['insert'] = array('uid', 'destination', 'sid', 'module', 'eid', 'send_interval', 'send_method', 'cron', 'created', 'conditions');
+    $query['insert'] = array('uid', 'mdid', 'sid', 'module', 'eid', 'send_interval', 'cron', 'created', 'conditions');
     $query['into'] = '{notifications_queue}';
     $query['distinct'] = TRUE;
-    $query['select'] = array('s.uid', 's.destination', 's.sid', 's.module', '%d', 's.send_interval', 's.send_method', 's.cron', '%d', 's.conditions');
+    $query['select'] = array('s.uid', 's.mdid', 's.sid', 's.module', '%d', 's.send_interval', 's.cron', '%d', 's.conditions');
     $query['from'] = array('{notifications} s');
     $query['select args'] = array($event->eid, $event->created);
     // We do a left join instead of inner join to allow subscriptions with no fields to work
@@ -709,6 +723,28 @@ function notifications_save_subscription(&$subscription) {
       $subscription->$field = $value;
     }
   }
+  // Handle destination object
+  if (!empty($subscription->destination) && is_object($subscription->destination)) {
+    $subscription->mdid = $subscription->destination->mdid;
+    $subscription->send_method = $subscription->destination->method;
+    $subscription->destination = $subscription->destination->address;
+  }
+  // Fill in destination id if not set
+  if (empty($subscription->mdid)) {
+    if ($account->uid) {
+      $destination = messaging_destination_build($subscription->send_method, $subscription->destination, $account->uid);
+    }
+    elseif ($subscription->send_method && $subscription->destination) {
+      $destination = messaging_destination_build($subscription->send_method, $subscription->destination, 0);
+    }
+    if ($destination) {
+      $subscription->mdid = $destination->mdid;
+    }
+    else {
+      // Cannot create destination, something is wrong
+      return FALSE;
+    }
+  }
   // Fill in event type if not set
   if (empty($subscription->event_type)) {
     $subscription->event_type = notifications_subscription_types($subscription->type, 'event_type');
@@ -840,6 +876,14 @@ function notifications_delete_subscriptions($params, $conditions = array(), $lim
       db_query('DELETE FROM {' . $table . '} WHERE sid IN (' . $placeholders . ')', $delete);
     }
   }
+}
+
+/**
+ * Shorthand function for deleting everything related to a destination
+ */
+function notifications_delete_destination($mdid) {
+  notifications_delete_subscriptions(array('mdid' => $mdid));
+  messaging_destination_delete($mdid);  
 }
 
 /**
@@ -1001,6 +1045,47 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
     drupal_alter('notifications_subscription_fields', $fields);
   }
   return notifications_info($fields, $type, $property);
+}
+
+
+/**
+ * Subscription information field for several forms
+ */
+function notifications_subscription_info_field($subscription) {
+  $info = notifications_subscription_types($subscription->type);
+  $format = notifications_format_subscription($subscription, 'array');  
+  if (!empty($info['name'])) {
+    // This subscription type already have a name
+    $value = $format['name'];
+  }
+  else if (empty($format['names'])) {
+    // No name, maybe no fields it should be enough with the title
+    $value = '';
+  }
+  elseif (count($format['names']) == 1) {
+    // If the field is unique, we don't need a table nor a name for it
+    $value = array_shift($format['values']);
+  }
+  else {
+    // Multiple fields, format as a table
+    foreach ($format['names'] as $index => $value) {
+      $rows[] = array(
+        $value,
+        $format['values'][$index],
+      );
+    }
+    $value = theme('table', array(), $rows);
+  }
+  // Build a form field
+  $field = array(
+    '#type' => 'item',
+    '#title' => t('!type subscription', array('!type' => $format['type'])),
+    '#value' => $value,
+  );
+  if (!empty($info['description'])) {
+    $field['#description'] = $info['description'];
+  }
+  return $field;
 }
 
 /**
@@ -1216,7 +1301,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       return $values;
     case 'user':
       $values = array();
-      if (($account = $object) && !empty($object->uid)) { 
+      if (($account = $object) && $object->uid) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE));
         $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'signed' => TRUE, 'absolute' => TRUE));

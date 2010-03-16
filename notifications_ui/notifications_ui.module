@@ -605,6 +605,9 @@ function notifications_ui_account_options($option = NULL) {
   }
 }
 
+/**
+ * Implementation of hook_user().
+ */
 function notifications_ui_user($op, &$edit, &$account, $category = NULL) {
   global $user;
 

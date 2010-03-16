@@ -199,10 +199,11 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
   $count = 0;
 
   // Build query and fetch rows from queue
-  $query = notifications_queue_query($conditions);
-  $sql = "SELECT * FROM {notifications_queue} ";
+  $query = notifications_queue_query($conditions, 'q');
+  $sql = "SELECT q.sqid, q.sid, q.eid, q.type, q.send_interval, q.module, q.language, m.uid, m.method, m.address ";
+  $sql .= " FROM {notifications_queue} q INNER JOIN {messaging_destination} m ON q.mdid = m.mdid";
   $sql .= " WHERE ". implode(' AND ', $query['where']);
-  $sql .= " ORDER BY module, uid, destination, send_method, send_interval";
+  $sql .= " ORDER BY q.module, q.mdid, q.send_interval";
   if ($limit) {
     $result = db_query_range($sql, $query['args'], 0, $limit);
   }
@@ -214,7 +215,7 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
   // This loop has to run a final time after all rows have been fetched
   while (($queue = db_fetch_object($result)) || $processed) {
     notifications_process('count', 'row');
-    if (!$account || !$queue || ($queue->module != $module) || ($queue->uid != $account->uid) || ($queue->destination != $destination) || $queue->send_method != $send_method || $queue->send_interval != $send_interval) {
+    if (!$account || !$queue || ($queue->module != $module) || ($queue->did != $account->did) || ($queue->destination != $destination) || $queue->method != $send_method || $queue->send_interval != $send_interval) {
       // New user or sending method or destination, send if not the first row and reset
       if ($account && $events && $subscriptions) {        
         $messages = notifications_callback($module, 'process_compose', $account, $events, $subscriptions, $send_method, $send_interval);
@@ -232,13 +233,14 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
       
       // Keep track of parameters that will trigger a sending when changing
       if ($queue) {
-        $send_method = $queue->send_method;
+        $send_method = $queue->method;
         $send_interval = $queue->send_interval;
-        $destination = $queue->destination;
+        $destination = $queue->address;
         $module = $queue->module;
         // Users may be handled by a different module implementing the _load_user callback. 
         // I.e. for anonymous users it may load the name from somewhere
-        $account = notifications_callback($module, 'load_user', $queue->uid, $destination, $send_method);
+        $account = notifications_callback($queue->module, 'load_user', $queue->uid, $destination, $send_method);
+        $account->mdid = $queue->mdid;
       }
     }
     // For every row in queue, compile everyting that will be available for sending
@@ -309,17 +311,16 @@ function notifications_process_queue($send_interval, $max_sqid) {
   // Get users to process messages for, with this time interval and ordered by squid
   // Order by last sent for this send interval
   // Note: If we get the users with more messages pending first this may save some time
-  $sql = "SELECT q.uid, q.destination, q.module, q.send_method, count(*) AS count_rows FROM {notifications_queue} q ";
-  $sql .= " LEFT JOIN {notifications_sent} su ON q.uid = su.uid AND q.send_interval = su.send_interval AND q.send_method = su.send_method ";
+  $sql = "SELECT q.mdid, q.module, COUNT(q.sqid) AS count_rows FROM {notifications_queue} q ";
+  $sql .= " LEFT JOIN {notifications_sent} su ON q.mdid = su.mdid AND q.send_interval = su.send_interval ";
   $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
-  $sql .= " AND (su.uid IS NULL OR su.sent < %d) ";
+  $sql .= " AND (su.mdid IS NULL OR su.sent < %d) ";
   // Note: the group by su.sent seems to be needed by pgsql
-  $sql .= " GROUP BY q.uid, q.destination, q.module, q.send_method, su.sent ORDER BY su.sent";
+  $sql .= " GROUP BY q.mdid, q.module, su.sent ORDER BY su.sent";
   $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, $step_users);
 
-  // We create a bach for each user, destination method and handle it to notifications_process_rows()
+  // We create a bach for each mdid (user, destination, method) and handle it to notifications_process_rows()
   while (($queue = db_fetch_object($result)) && notifications_process('check')) {
-    notifications_log('Queue processing', array('user' => $queue->uid , 'rows' => $queue->count_rows, 'send method' => $queue->send_method));
     $module = $queue->module;
     $events = $subscriptions = $processed = array();    
     // Process all rows for this user. With some hard limit to prevent process lock ups.
@@ -334,10 +335,11 @@ function notifications_process_queue($send_interval, $max_sqid) {
     }
     
     $batch = array(
-      'uid' => $queue->uid, 'destination' => $queue->destination, 'module' => $queue->module,
-      'send_method' => $queue->send_method, 'send_interval' => $send_interval, 
+      'mdid' => $queue->mdid, 'module' => $queue->module,
+      'send_interval' => $send_interval, 
       'cron' => 1, 'max_sqid' => $max_sqid,
     );
+    notifications_log('Queue processing', $batch);
     // These rows may be processed by a different module. Defaults to notifications_process_rows()
     $processed = notifications_callback($queue->module, 'process_rows', $batch, $limit, $update);
     $count += $processed;
@@ -395,10 +397,10 @@ function notifications_event_tracker($op, $event = NULL) {
 /**
  * Update user last time sent for each sending method / interval
  */
-function notifications_update_sent($account, $method, $interval, $time) {
-  db_query("UPDATE {notifications_sent} SET sent = %d WHERE uid = %d AND send_interval = '%d' AND send_method = '%s'", $time, $account->uid, $interval, $method);
+function notifications_update_sent($mdid, $interval, $time) {
+  db_query("UPDATE {notifications_sent} SET sent = %d WHERE mdid = %d AND send_interval = '%d'", $time, $mdid, $interval);
   if (!db_affected_rows()) {
-    db_query("INSERT INTO {notifications_sent}(uid, send_interval, send_method, sent) VALUES(%d, '%d', '%s', %d)", $account->uid, $interval, $method, $time);
+    db_query("INSERT INTO {notifications_sent}(mdid, send_interval, sent) VALUES(%d, '%d', %d)", $mdid, $interval, $time);
   }
 }
 
@@ -720,17 +722,17 @@ function notifications_queue_delete($params) {
  * @return
  *   Array with 'where' and 'args' elements. Each of them is an array
  */
-function notifications_queue_query($params) {
+function notifications_queue_query($params, $table_alias = NULL) {
   $where = $args = array();
   
   // Special condition max_sqid
   if (isset($params['max_sqid'])) {
-    $where[] = "sqid <= %d";
+    $where[] = $table_alias ? "$table_alias.sqid <= %d" : "sqid <= %d";
     $args[] = $params['max_sqid'];
     unset ($params['max_sqid']);
   }
   // User generic query builder for the rest of fields
-  $values =  _messaging_query_conditions('notifications_queue', $params);  
+  $values =  _messaging_query_conditions('notifications_queue', $params, $table_alias);  
   $where = array_merge($where, $values['conditions']);
   $args = array_merge($args, $values['args']);
  

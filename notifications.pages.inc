@@ -264,15 +264,6 @@ function notifications_form_subscribe_confirm_submit($form, &$form_state) {
 }
 
 /**
- * Process arguments and return an array of field/value pairs
- */
-function notifications_field_args($fields, $values) {
-  $names = explode(',', $fields);
-  $params = explode(',', $values);
-  return array_combine($names, $params);  
-}
-
-/**
  * Menu callback for unsubscribe page
  * 
  * @param $type
@@ -410,11 +401,8 @@ function notifications_subscription_form($form_state, $subscription) {
     '#default_value' => $subscription->status,
     '#description' => t('You can temporarily disable this subscription for not getting notifications.')
   );
-
-  $form['save'] = array('#type' => 'submit', '#value' => t('Save'));
-  
-  $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
-  
+  $form['save'] = array('#type' => 'submit', '#value' => t('Save'));  
+  $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));  
   return $form;  
 }
 
@@ -485,46 +473,6 @@ function notifications_subscription_form_submit($form, $form_state) {
       $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
   }
-}
-
-/**
- * Subscription information field for several forms
- */
-function notifications_subscription_info_field($subscription) {
-  $info = notifications_subscription_types($subscription->type);
-  $format = notifications_format_subscription($subscription, 'array');  
-  if (!empty($info['name'])) {
-    // This subscription type already have a name
-    $value = $format['name'];
-  }
-  else if (empty($format['names'])) {
-    // No name, maybe no fields it should be enough with the title
-    $value = '';
-  }
-  elseif (count($format['names']) == 1) {
-    // If the field is unique, we don't need a table nor a name for it
-    $value = array_shift($format['values']);
-  }
-  else {
-    // Multiple fields, format as a table
-    foreach ($format['names'] as $index => $value) {
-      $rows[] = array(
-        $value,
-        $format['values'][$index],
-      );
-    }
-    $value = theme('table', array(), $rows);
-  }
-  // Build a form field
-  $field = array(
-    '#type' => 'item',
-    '#title' => t('!type subscription', array('!type' => $format['type'])),
-    '#value' => $value,
-  );
-  if (!empty($info['description'])) {
-    $field['#description'] = $info['description'];
-  }
-  return $field;
 }
 
 /**

@@ -52,6 +52,10 @@ function notifications_schema() {
         'description' => 'Alternate destination field for anonymous subscriptions, may be an email',
         'type' => 'varchar', 'length' => '255', 'not null' => FALSE
       ),
+      'mdid'    => array(      
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
+        'description' => 'Unique destination id.',
+      ),
     ),
     'primary key' => array('sid'),
   );
@@ -182,6 +186,10 @@ function notifications_schema() {
         'description' => 'Optional destination for anonymous subscriptions.',
         'type' => 'varchar', 'length' => '255', 'not null' => FALSE,
       ),
+      'mdid'    => array(      
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
+        'description' => 'Unique destination id.',
+      ),
     ),
     'primary key' => array('sqid'),
   );
@@ -189,6 +197,10 @@ function notifications_schema() {
   $schema['notifications_sent'] = array(
     'description' => 'Keeps track of when the last notification was sent for a user, method, interval.',
     'fields' => array(
+      'mdid'    => array(      
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
+        'description' => 'Unique destination id.',
+      ),
       'uid' => array(
         'description' => 'The {user}.uid this row belongs to.',
         'type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
@@ -206,7 +218,7 @@ function notifications_schema() {
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'
       ),
     ),
-    'primary key' => array('uid', 'send_interval', 'send_method'),
+    'primary key' => array('mdid', 'send_interval'),
   );
   return $schema;  
 }
@@ -374,3 +386,53 @@ function notifications_update_6004() {
   drupal_get_schema(NULL, TRUE);
   return array();
 }
+
+/**
+ * Migrate to messaging_destination mdid
+ * 
+ * Split into multiple updates so individual batch steps are smaller
+ */
+function notifications_update_6005() {
+  $ret = array();
+  // Add fields to tables, allow null till it's populated
+  $field_mdid = array('type' => 'int', 'unsigned' => TRUE, 'not null' => FALSE);
+  db_add_field($ret, 'notifications', 'mdid', $field_mdid);
+  db_add_field($ret, 'notifications_queue', 'mdid', $field_mdid); 
+  db_add_field($ret, 'notifications_sent', 'mdid', $field_mdid);
+  db_drop_primary_key($ret, 'notifications_sent');
+  return $ret;
+}
+
+/**
+ * Populate messaging_destination table
+ */
+function notifications_update_6006() {
+  $ret[] = update_sql("INSERT INTO {messaging_destination} (uid, method, address) SELECT DISTINCT uid, send_method, destination FROM {notifications}");
+  return $ret; 
+}
+
+/**
+ * Update notifications_queue table
+ */
+function notifications_update_6007() {
+  $ret[] = update_sql("UPDATE {notifications} n SET n.mdid = (SELECT d.mdid FROM {messaging_destination} d WHERE d.uid = n.uid AND d.method = n.send_method AND d.address = n.destination)");
+  return $ret; 
+}
+
+/**
+ * Update notifications_sent table
+ */
+function notifications_update_6008() {
+  $ret[] = update_sql("UPDATE {notifications_queue} q SET q.mdid = (SELECT n.mdid FROM {notifications} n WHERE n.sid = q.sid)");
+  return $ret; 
+}
+
+/**
+ * Update notifications table
+ */
+function notifications_update_6009() {
+  $ret[] = update_sql("UPDATE {notifications_sent} n SET n.mdid = (SELECT d.mdid FROM {messaging_destination} d WHERE d.uid = n.uid AND d.method = n.send_method)");
+  db_add_primary_key($ret, 'notifications_sent', array('mdid', 'send_interval'));  
+  return $ret; 
+}
+// Pending update, for next version, drop fields replaced by mdid
