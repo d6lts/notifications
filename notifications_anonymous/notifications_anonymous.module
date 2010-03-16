@@ -10,7 +10,7 @@
  */
 function notifications_anonymous_menu() {
     // Subscribe links. For this items access will be checked later in the page
-  $items['notifications/subscribe/anonymous'] = array(
+  $items['notifications/anonymous/subscribe'] = array(
     'type' => MENU_CALLBACK,
     'page callback' => 'notifications_anonymous_page_subscribe',
     'access callback' => 'notifications_anonymous_access',
@@ -70,30 +70,50 @@ function notifications_anonymous_destination_form(&$form_state, $destination, $a
   $form['account'] = array('#type' => 'value', '#value' => $account);
   $form['destination'] = array('#type' => 'value', '#value' => $destination);
   $send_methods = notifications_anonymous_methods();
-  $form['method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => $send_methods,
-    '#default_value' => $destination->method,
-    '#disabled' => count($send_methods) < 2,
-  );
-  $form['address'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Address'),
-    '#required' => TRUE,
-  );
+  $form += _notifications_anonymous_address_subform($send_methods);
   $form['submit'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
+}
+
+/**
+ * Displays a destination field for each method
+ * 
+ * @param $send_methods
+ *   Array method => name
+ * @param $destination
+ *   Destination object to populate one of the addresses
+ */
+function _notifications_anonymous_address_subform($send_methods = NULL, $destination = NULL) {
+  $send_methods = isset($send_methods) ? $send_methods : notifications_anonymous_methods();
+  $form['destination_address'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Destination'),
+    '#tree' => TRUE,
+  );
+  if (count($send_methods) > 1) {
+    $form['destination_address']['#description'] = t('Enter just a destination address.');
+  }
+  foreach ($send_methods as $key => $method_name) {
+    // We use method name if we don't have address name
+    $name = messaging_method_info($key, 'address_name', $method_name);
+    $form['destination_address'][$key] = array(
+      '#title' => $name,
+      '#type' => 'textfield',
+      '#size' => 40,
+      '#default_value' => $destination && $destination->method == $key ? $destination->address : '',
+    );
+  }
+  return $form;
 }
 
 /**
  * Implementation of hook_link()
  * 
- * Add subscriptions links to nodes
+ * Add subscriptions links to nodes. Depends on notifications_ui enabled.
  */
 function notifications_anonymous_link($type, $node = NULL, $teaser = FALSE) {
   global $user;
 
-  if ($type == 'node' && !$user->uid && notifications_anonymous_access() && 
+  if ($type == 'node' && !$user->uid && notifications_anonymous_access() && module_exists('notifications_ui') &&
     (notifications_ui_node_options($node->type, 'teaserlinks') && $teaser || notifications_ui_node_options($node->type, 'links') && !$teaser)
      && ($options = notifications_ui_subscribe_options($user, 'node', $node))) {
       // Now we have the array of allowed options ready, build single links 
@@ -115,8 +135,8 @@ function notifications_anonymous_build_links($options, $prefix = 'notifications_
   $links = array();  
   foreach ($options as $index => $option) {
     // Subscribe link
-    $title = t('Subscribe to: !name', array('!name' => $option['name']));
-    $props = notifications_get_link('subscribe', array('uid' => 'anonymous', 'type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => $_GET['q']));
+    $title = t('Subscribe to: @name', array('@name' => $option['name']));
+    $props = notifications_anonymous_get_link('subscribe', array('type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => TRUE));
     $links[$prefix . $index] = array(
       'title' => $title,
       'html' => TRUE,
@@ -151,7 +171,7 @@ function notifications_anonymous_perm() {
 /**
  * Subform with method and address
  */
-function notifications_anonymous_subform($destination = NULL, $account = NULL) {
+function _notifications_anonymous_method_subform($destination = NULL, $account = NULL) {
   $send_methods = notifications_anonymous_methods();
   $form['send_method'] = array(
     '#type' => 'select',
@@ -163,7 +183,7 @@ function notifications_anonymous_subform($destination = NULL, $account = NULL) {
   $form['address'] = array(
     '#type' => 'textfield',
     '#title' => t('Address'),
-    '#width' => 20,
+    '#size' => 40,
     '#required' => TRUE,
   );
   return $form;
@@ -201,8 +221,8 @@ function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
     case 'notifications_ui_options_form':
       $account = $form['subscriptions']['account'];
       if (!$account->uid) {
-        $form['destination'] = notifications_anonymous_subform(NULL, $account);
-        $form['destination']['#weight'] = -10;
+        $form = _notifications_anonymous_address_subform(NULL);
+        //$form['destination']['#weight'] = -10;
       }
       break;
   }
@@ -225,6 +245,43 @@ function notifications_anonymous_token_values($type, $object = NULL, $options = 
       }
       return $values;
   }
+}
+
+/**
+ * Get link for anonymous subscriptions
+ */
+function notifications_anonymous_get_link($type, $params) {
+  $params += array(
+    'absolute' => TRUE,
+  );
+  switch ($type) {
+    case 'subscribe':
+      $elements = array(
+        'anonymous',
+        'subscribe',
+        $params['type'],
+        implode(',', array_keys($params['fields'])),
+        implode(',', $params['fields'])     
+      );
+      break;
+    case 'unsubscribe':
+      // Mandatory destination id parameter      
+      $elements = array(
+        'destination',
+        $params['mdid'],
+        'unsubscribe',
+      );
+      break;
+    case 'manage':
+      $elements = array(
+        'destination',
+        $params['mdid'].
+        'manage',
+      );
+      break;
+      
+  }
+  return _notifications_get_link($elements, $params);
 }
 
 /**

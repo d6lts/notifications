@@ -1391,16 +1391,7 @@ function notifications_cron() {
  */
 function notifications_get_link($type, $params) {
   // Add some default values
-  $params += array(
-    'uid' => 0,
-    'confirm' => TRUE,
-    'signed' => FALSE,
-    'destination' => FALSE,
-    'query' => array(),
-  );
-  if ($params['destination'] === TRUE) {
-    $params['destination'] = $_GET['q'];
-  }
+  $params += array('uid' => 0);
   $elements = array();
 
   switch ($type) {
@@ -1426,6 +1417,23 @@ function notifications_get_link($type, $params) {
       }
       break;
   }
+  return _notifications_get_link($elements, $params);
+}
+
+/**
+ * Get notifications link from elements and params
+ */
+function _notifications_get_link($elements, $params = array()) {
+  // Add some default values
+  $params += array(
+    'confirm' => TRUE,
+    'signed' => FALSE,
+    'destination' => FALSE,
+    'query' => array(),
+  );
+  if ($params['destination'] === TRUE) {
+    $params['destination'] = $_GET['q'];
+  }
   // Build query string using named parameters
   $query = $params['query'];
   if ($params['destination']) {
@@ -1450,7 +1458,7 @@ function notifications_get_link($type, $params) {
   return array(
     'href' => 'notifications/'. implode('/', $elements),
     'options' => $options,
-  );
+  );  
 }
 
 /**

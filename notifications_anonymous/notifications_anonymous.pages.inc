@@ -52,8 +52,7 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
     '#options' => notifications_send_intervals(),
     '#default_value' => $subscription->send_interval,
   );
-  $send_methods = notifications_anonymous_methods();
-  $form += notifications_anonymous_subform();
+  $form += _notifications_anonymous_address_subform();
   $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
   $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
   return $form;
@@ -63,9 +62,19 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
  * Subscription form validation
  */
 function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
-  $method = $form_state['values']['send_method'];
-  $address = $form_state['values']['address'];
-  if ($method && $address && ($destination = Messaging_Destination::build($method, $address, 0))) {
+  // Get destination from form
+  $destination = $form_state['values']['destination_address'];
+  if (is_array($destination)) {
+    $destination = array_filter($destination);
+    if ($destination && count($destination) == 1) {
+      $method = key($destination);
+      $address = current($destination);
+    }
+  }
+  if (empty($method) || empty($address)) {
+    form_set_error('destination_address', t('You need exactly one destination address.'));
+  }
+  elseif ($destination = Messaging_Destination::build($method, $address, 0)) {
     $form_state['values']['destination'] = $destination;
     $form_state['values']['mdid'] = $destination->mdid;
   }
@@ -97,15 +106,14 @@ function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
  * Page callback
  */
 function notifications_anonymous_overview_page() {
-  global $user;
-  return drupal_get_form('notifications_anonymous_destination_form', NULL, $user);
+
 }
 
 /**
  * Page callback
  */
 function notifications_anonymous_destination_page($destination) {
-  
+
 }
 
 /**
