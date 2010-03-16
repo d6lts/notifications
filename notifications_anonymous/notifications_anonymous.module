@@ -175,9 +175,9 @@ function notifications_anonymous_destination_form_submit(&$form, &$form_state) {
   $account = $form_state['values']['account'];
   $method = $form_state['values']['method'];
   $address = $form_state['values']['address'];
-  $destination = messaging_destination_get(array('method' => $method, 'address' => $address));
+  $destination = Messaging_Destination::get(array('method' => $method, 'address' => $address));
   if ($destination) {
-    if ($account && $account->uid && $destination->uid = $account->uid) {
+    if ($account && $account->uid && $destination->uid == $account->uid) {
       // The address belongs to the current user, so go for it
       notifications_delete_destination($destination->mdid);
       drupal_set_message(t('All the subscriptions for that address have been deleted.'));

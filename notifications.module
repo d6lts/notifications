@@ -732,10 +732,10 @@ function notifications_save_subscription(&$subscription) {
   // Fill in destination id if not set
   if (empty($subscription->mdid)) {
     if ($account->uid) {
-      $destination = messaging_destination_build($subscription->send_method, $subscription->destination, $account->uid);
+      $destination = Messaging_Destination::build($subscription->send_method, $subscription->destination, $account->uid);
     }
     elseif ($subscription->send_method && $subscription->destination) {
-      $destination = messaging_destination_build($subscription->send_method, $subscription->destination, 0);
+      $destination = Messaging_Destination::build($subscription->send_method, $subscription->destination, 0);
     }
     if ($destination) {
       $subscription->mdid = $destination->mdid;
@@ -883,7 +883,7 @@ function notifications_delete_subscriptions($params, $conditions = array(), $lim
  */
 function notifications_delete_destination($mdid) {
   notifications_delete_subscriptions(array('mdid' => $mdid));
-  messaging_destination_delete($mdid);  
+  Messaging_Destination::delete_multiple(array('mdid' => $mdid));
 }
 
 /**

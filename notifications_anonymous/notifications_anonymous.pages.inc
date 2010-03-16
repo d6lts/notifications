@@ -65,7 +65,7 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
 function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
   $method = $form_state['values']['send_method'];
   $address = $form_state['values']['address'];
-  if ($method && $address && ($destination = messaging_destination_build($method, $address, 0))) {
+  if ($method && $address && ($destination = Messaging_Destination::build($method, $address, 0))) {
     $form_state['values']['destination'] = $destination;
     $form_state['values']['mdid'] = $destination->mdid;
   }
