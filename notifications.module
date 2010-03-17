@@ -672,19 +672,23 @@ function notifications_query_sql($query) {
  * @return
  *   Array of subscriptions for this user and object indexed by sid 
  */
-function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL, $refresh = FALSE) {
-  static $subscriptions;
+function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL) {
+  $subscriptions = &messaging_static(__FUNCTION__);
+  // No subscriptions for anonymous
+  if (!$uid) return;
 
-  if ($refresh || !isset($subscriptions[$uid][$event_type][$oid])) {
+  if (!isset($subscriptions[$uid][$event_type][$oid])) {
     $subscriptions[$uid][$event_type][$oid] = array();
     $query_args = notifications_module_information('query', 'user', $event_type, $object);
     // Base query
     $query = array(
-      'select' => array('s.*', 'f.*'),
+      'select' => array('s.sid', 's.conditions'),
       'from' => array('{notifications} s'),
       'join' => array('INNER JOIN {notifications_fields} f ON s.sid = f.sid'),
       'where' => array('s.uid = %d', "s.event_type = '%s'"),
       'where args' => array($uid, $event_type),
+      'having' => array('s.conditions = count(f.sid)'),
+      'group' => array('s.sid', 's.conditions'),
     );
     foreach ($query_args as $query_params) {
       $query = notifications_query_build($query_params, $query);
@@ -694,14 +698,10 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
     list($sql, $args) = notifications_query_sql($query);  
     $result = db_query($sql, $args);
 
-    while ($sub = db_fetch_object($result)) {
-      if (!isset($subscriptions[$uid][$event_type][$oid][$sub->sid])) {
-        $subscriptions[$uid][$event_type][$oid][$sub->sid] = $sub;
-      }
-      $subscriptions[$uid][$event_type][$oid][$sub->sid]->fields[$sub->field] = $sub->value;
+    while ($subs = db_fetch_object($result)) {
+      $subscriptions[$uid][$event_type][$oid][$sub->sid] = notifications_load_subscription($subs->sid);
     }
   }
-
   return $subscriptions[$uid][$event_type][$oid];
 }
 
@@ -761,7 +761,7 @@ function notifications_save_subscription(&$subscription) {
     $op = 'update';
     $result = drupal_write_record('notifications', $subscription, 'sid');
   }
-  elseif ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_method' => $subscription->send_method, 'send_interval' => $subscription->send_interval), $subscription->fields, TRUE)) {
+  elseif ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->fields, TRUE)) {
     // We've found duplicates, resolve conflict updating first, deleting the rest
     // It is possible that we had a disabled one, this updating will fix it
     $update = array_shift($duplicate);
@@ -816,7 +816,7 @@ function notifications_save_subscription(&$subscription) {
  *   Subscriptions object.
  */
 function notifications_load_subscription($subs, $refresh = FALSE) {
-  static $cache = array();
+  $cache = &messaging_static(__FUNCTION__);
   if (is_object($subs)) {
     $sid = $subs->sid;
     $subscription = $subs;
@@ -824,7 +824,7 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
   else {
     $sid = $subs;
   }
-  if ($refresh || !array_key_exists($sid, $cache)) {
+  if ($refresh || !$cache || !array_key_exists($sid, $cache)) {
     if (!isset($subscription)) {
       $subscription = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid));
     }

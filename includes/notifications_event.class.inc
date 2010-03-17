@@ -26,7 +26,7 @@ class Notifications_Event {
   // Notifications in queue linked to this event
   public $counter = 0;
   // Loaded objects for this event
-  public $objects;
+  public $objects = array();
   // Processing options, not saved
   public $save = TRUE;
   public $queue = TRUE;
