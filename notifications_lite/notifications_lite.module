@@ -153,18 +153,22 @@ function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
 function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
   $account = user_load(array('uid' => $uid));
-  $queue = array(
-    'uid' => $uid,
-    'sid' => 0,
-    'module' => 'notifications',
-    'eid' => $event->eid,
-    'send_interval' => notifications_user_setting('send_interval', $account),
-    'send_method' => notifications_user_setting('send_method', $account),
-    'cron' => 1,
-    'created' => time(),
-    'conditions' => 0,
-  );
-  return drupal_write_record('notifications_queue', $queue);
+  if ($destination = messaging_account_build_destination($account)) {
+    $queue = array(
+      'mdid' => $destination->mdid,
+      'uid' => $uid,
+      'sid' => 0,
+      'module' => 'notifications',
+      'eid' => $event->eid,
+      'send_interval' => notifications_user_setting('send_interval', $account),
+      'send_method' => $destination->method,
+      'destination' => $destination->address,
+      'cron' => 1,
+      'created' => time(),
+      'conditions' => 0,
+    );
+    return drupal_write_record('notifications_queue', $queue);
+  }
 }
 
 /**

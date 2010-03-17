@@ -369,24 +369,25 @@ function notifications_process_queue($send_interval, $max_sqid) {
  *   event object to track
  */
 function notifications_event_tracker($op, $event = NULL) {
-  static $events = array();
-  
+  $events = &messaging_static(__FUNCTION__);
   switch ($op) {
     case 'count':
-      $events[$event->eid] = array_key_exists($event->eid, $events) ? $events[$event->eid] + 1 : 1;
+      $events[$event->eid] = $events && array_key_exists($event->eid, $events) ? $events[$event->eid] + 1 : 1;
       break;
     case 'delete':
       // Delete event and all related rows. For events no longer available, deleted nodes, comments, etc..
       foreach (array('notifications_queue', 'notifications_event') as $table) {
         db_query('DELETE FROM {' . $table . '} WHERE eid = %d', $event->eid);
       }
-      if (array_key_exists($event->eid, $events)) {
+      if ($events && array_key_exists($event->eid, $events)) {
         unset($events[$event->eid]);
       }
       break;
     case 'update':
-      foreach ($events as $eid => $count) {
-        db_query('UPDATE {notifications_event} SET counter = counter - %d WHERE eid = %d', $count, $eid);
+      if ($events) {
+        foreach ($events as $eid => $count) {
+          db_query('UPDATE {notifications_event} SET counter = counter - %d WHERE eid = %d', $count, $eid);
+        }
       }
       // Intentional no break (update will also reset)
     case 'reset':
@@ -650,14 +651,9 @@ function notifications_load_user($uid, $destination = NULL, $send_method = NULL)
  * Get events with static caching. Handle event deletion if not available anymore
  */
 function notifications_load_event($id) {
-  static $cache = array();
-
-  if (!array_key_exists($id, $cache)) {
-    $event = db_fetch_object(db_query("SELECT * FROM {notifications_event} WHERE eid = %d", $id));
-    $event->params = unserialize($event->params);
-    // Load aditional objects for the event
-    $event->objects = array();
-    notifications_module_invoke('event load', $event);
+  $cache = &messaging_static(__FUNCTION__);
+  if (!$cache || !array_key_exists($id, $cache)) {
+    $event = Notifications_Event::load($id);
     // Check event status, it may need deletion if objects are not available
     if (!empty($event->delete)) {
       notifications_event_tracker('delete', $event);
@@ -665,7 +661,6 @@ function notifications_load_event($id) {
     }
     $cache[$id] = $event;
   }
-
   return $cache[$id];
 }
 

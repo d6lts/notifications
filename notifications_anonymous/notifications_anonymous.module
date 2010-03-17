@@ -217,10 +217,12 @@ function notifications_anonymous_destination_form_submit(&$form, &$form_state) {
  * Implementation of hook_form_alter()
  */
 function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
+  global $user;
+  
   switch ($form_id) {
     case 'notifications_ui_options_form':
       $account = $form['subscriptions']['account'];
-      if (!$account->uid) {
+      if (!$account->uid && !$user->uid) {
         $form = _notifications_anonymous_address_subform(NULL);
         //$form['destination']['#weight'] = -10;
       }

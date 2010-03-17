@@ -696,13 +696,27 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
             node_load(0, NULL, TRUE);
           }
         }
-        notifications_event($event);
+        notifications_content_event($event);
       }
       break;
     case 'delete':
       // Remove all subscriptions for this node
       notifications_delete_subscriptions(array('event_type' => 'node'), array('nid' => $node->nid), FALSE);
   }
+}
+
+/**
+ * Throw notifications content event
+ */
+function notifications_content_event($event) {
+  // Normalize event objects so they're always on the objects array
+  if (!empty($event['node'])) {
+    $event['objects']['node'] = $event['node'];
+  }
+  if (!empty($event['comment'])) {
+    $event['objects']['comment'] = $event['comment'];
+  }
+  return notifications_event($event);
 }
 
 /**
@@ -733,7 +747,7 @@ function notifications_content_comment($comment, $op) {
         'comment' => $comment,
         'params' => array('nid' => $comment->nid, 'cid' => $comment->cid),
       );
-      notifications_event($event);
+      notifications_content_event($event);
     }    
   }
 }

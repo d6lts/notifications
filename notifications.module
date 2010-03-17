@@ -28,6 +28,14 @@ define('NOTIFICATIONS_SUBSCRIPTION_ACTIVE', 1);
 define('NOTIFICATIONS_SUBSCRIPTION_INACTIVE', 2);
 
 /**
+ * Implementation of hook_autoload_info().
+ */
+function notifications_autoload_info() {
+  return array(
+    'Notifications_Event' => array('file' => 'includes/notifications_event.class.inc'),
+  ); 
+}
+/**
  * Implementation of hook_menu().
  */
 function notifications_menu() {
@@ -404,7 +412,7 @@ function notifications_event($event) {
     'queue' => $enabled,
   );
 
-  $event = (object)$event;
+  $event = new Notifications_Event($event);
 
   // Notify other modules we are about to trigger some subscriptions event
   // Modules can do cleanup operations or modify event properties
@@ -412,7 +420,7 @@ function notifications_event($event) {
   
   // Store event, unles marked not to be saved 
   if ($event->save) {
-    drupal_write_record('notifications_event', $event);
+    $event->save();
   }
   // Send event to queue for subscriptions, unless marked not to
   if ($event->queue) {
@@ -482,7 +490,7 @@ function notifications_queue($event) {
       $query['where args'][] = $event->uid;
     }    
     // Some group by fields are not really needed but added for pgsql compatibility
-    $query['group'] = array('s.uid', 's.destination', 's.sid', 's.module', 's.send_interval', 's.send_method', 's.cron', 's.conditions');
+    $query['group'] = array('s.uid', 's.mdid', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions');
     
     // We throw in all the conditions and check the number of matching conditions
     // that must be equal to the subscription conditions number    
