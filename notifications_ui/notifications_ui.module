@@ -500,7 +500,7 @@ function notifications_ui_block($op = 'list', $delta = 0) {
     $blocks[0]['cache'] = BLOCK_NO_CACHE;
     return $blocks;
   }
-  else if ($op == 'view') {
+  else if ($op == 'view' && $user->uid) {
     if ((arg(0) == 'node') && is_numeric(arg(1)) && ($node = node_load(arg(1))) && notifications_ui_node_options($node->type, 'block')) {
       // Only display if we have something for the form
       if ($node_options = notifications_ui_subscribe_options($user, 'node', $node)) {

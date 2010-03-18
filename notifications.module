@@ -138,6 +138,25 @@ function notifications_menu() {
     'access arguments' => array('edit', 2),
     'file' => 'notifications.pages.inc',
   );
+  // Manage destinations
+  $items['notifications/destination/%messaging_destination/edit'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Edit destination',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_edit_destination_form', 2),
+    'access callback' => 'notifications_destination_access',
+    'access arguments' => array('edit', 2),
+    'file' => 'notifications.manage.inc',
+  );
+  $items['notifications/destination/%messaging_destination/manage'] = array(
+    'type' => MENU_CALLBACK,
+    'title' => 'Manage destination',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_manage_destination_form', 2),
+    'access callback' => 'notifications_destination_access',
+    'access arguments' => array('manage', 2),
+    'file' => 'notifications.manage.inc',
+  );
   $items['user/%user/notifications'] = array(
     'type' => MENU_LOCAL_TASK,
     'title' => 'Notifications',
@@ -251,6 +270,23 @@ function notifications_access_user_add($account = NULL, $type = NULL) {
 }
 
 /**
+ * Check signature
+ * 
+ * @param $params
+ *   Optional array of path elements. If not specified the current URL will be used
+ * @param $prefix
+ *   When using the path this must match the first part of it, which is not used in the signature
+ */
+function notifications_check_signature($params = NULL, $prefix = 'notifications') {
+  // If not parameters passed, get them from path, discard the first one that must match $prefix
+  if (!$args && arg(0) == $prefix) {
+    $params = arg();
+    array_shift($params);
+  }
+  return $params && !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));  
+}
+
+/**
  * Menu access callback for subscribe links
  * 
  * More access checking depending on subscription type will be done at the destination page
@@ -287,6 +323,17 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
   }
 
   return FALSE;
+}
+
+/**
+ * Menu access callback for destinations
+ */
+function notifications_destination_access($op, $destination) {  
+  global $user;
+  // Access will be granted only to administrator for now
+  if (user_access('administer notifications')) {
+    return TRUE;
+  }
 }
 
 /**
@@ -1561,15 +1608,22 @@ function _notifications_send_intervals() {
 /**
  * List of send intervals, translated.
  */
-function notifications_send_intervals() {
-  if ($intervals = variable_get('notifications_send_intervals', FALSE)) {
-    foreach ($intervals as $key => $name) {
-      $intervals[$key] = notifications_translate("send_interval:$key:name", $name);
+function notifications_send_intervals($account = NULL) {
+  $list = &messaging_static(__FUNCTION__);
+  if ($account && !$account->uid && function_exists('notifications_anonymous_send_intervals')) {
+    return notifications_anonymous_send_intervals();
+  }
+  if (!isset($intervals)) {
+    if ($intervals = variable_get('notifications_send_intervals', FALSE)) {
+      foreach ($intervals as $key => $name) {
+        $list[$key] = notifications_translate("send_interval:$key:name", $name);
+      }
+    }
+    else {
+      $list = _notifications_send_intervals();
     }
   }
-  else {
-    return _notifications_send_intervals();
-  }
+  return $list;
 }
 
 /**
@@ -1580,6 +1634,18 @@ function notifications_send_intervals() {
  */
 function _notifications_send_methods($account = NULL) {
   return variable_get('notifications_send_methods', messaging_method_list($account));
+}
+
+/**
+ * Get list of send methods for user or anonymous account
+ */
+function notifications_send_methods($account) {
+  if (empty($account->uid) && function_exists('notifications_anonymous_send_methods')) {
+    return notifications_anonymous_send_methods();
+  }
+  else {
+    return _notifications_send_methods($account);
+  }
 }
 
 /**
@@ -2033,4 +2099,15 @@ function notifications_locale_refresh() {
     }
   }
   return TRUE;
+}
+
+/**
+ * Include notifications .inc files as necessary.
+ */
+function notifications_include($file) {
+  static $used = array();
+  if (!isset($used[$file])) {
+    require_once './' . drupal_get_path('module', 'notifications') . "/includes/$file.inc";
+  }
+  $used[$file] = TRUE;
 }

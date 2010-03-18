@@ -13,35 +13,51 @@ function notifications_anonymous_menu() {
   $items['notifications/anonymous/subscribe'] = array(
     'type' => MENU_CALLBACK,
     'page callback' => 'notifications_anonymous_page_subscribe',
-    'access callback' => 'notifications_anonymous_access',
-    //'access arguments' => array('create anonymous subscriptions'),
+    'access callback' => 'notifications_anonymous_subscription_access',
+    'access arguments' => array('create'),
     'file' => 'notifications_anonymous.pages.inc',
   );
   // Present unsubscribe page
-  $items['notifications/destination'] = array (
+  $items['notifications/anonymous/destination'] = array (
     'title' => 'Manage subscriptions',
     'page callback' => 'notifications_anonymous_overview_page',
+    'access callback' => TRUE,
     'file' => 'notifications_anonymous.pages.inc',
   );
   // Change subscriptions for a destination
-  $items['notifications/destination/%messaging_destination/manage'] = array (
+  $items['notifications/anonymous/destination/%messaging_destination'] = array (
     'title' => 'Manage subscriptions',
     'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(2),
+    'page arguments' => array(3),
+    'access callback' => 'notifications_anonymous_destination_access',
+    'access arguments' => array('manage', 3),
     'file' => 'notifications_anonymous.pages.inc',
   );
   // Unsubscribe all for a destination
-  $items['notifications/destination/%messaging_destination/unsubscribe'] = array (
+  $items['notifications/anonymous/destination/%messaging_destination/unsubscribe'] = array (
     'title' => 'Delete subscriptions',
     'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(2),
+    'page arguments' => array(3, 4),
+    'access callback' => 'notifications_anonymous_destination_access',
+    'access arguments' => array('unsubscribe', 3),
+    'file' => 'notifications_anonymous.pages.inc',
+  );
+  // Unsubscribe all for a destination
+  $items['notifications/anonymous/destination/%messaging_destination/manage'] = array (
+    'title' => 'Delete subscriptions',
+    'page callback' => 'notifications_anonymous_destination_page',
+    'page arguments' => array(3, 4),
+    'access callback' => 'notifications_anonymous_destination_access',
+    'access arguments' => array('manage', 3),
     'file' => 'notifications_anonymous.pages.inc',
   );
   // Confirm destination for subscriptions
-  $items['notifications/destination/%messaging_destination/subscribe'] = array (
+  $items['notifications/anonymous/destination/%messaging_destination/subscribe'] = array (
     'title' => 'Confirm subscription',
     'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(2),
+    'page arguments' => array(2, 3),
+    'access callback' => 'notifications_anonymous_destination_access',
+    'access arguments' => array('confirm', 2),
     'file' => 'notifications_anonymous.pages.inc',
   );
   // Settings page
@@ -58,62 +74,108 @@ function notifications_anonymous_menu() {
 }
 
 /**
- * Menu access callback
+ * Menu access callback for subscriptions
  */
-function notifications_anonymous_access() {
-  return user_access('create anonymous subscriptions') && notifications_anonymous_methods();
-}
-/**
- * Destination form
- */
-function notifications_anonymous_destination_form(&$form_state, $destination, $account) {
-  $form['account'] = array('#type' => 'value', '#value' => $account);
-  $form['destination'] = array('#type' => 'value', '#value' => $destination);
-  $send_methods = notifications_anonymous_methods();
-  $form += _notifications_anonymous_address_subform($send_methods);
-  $form['submit'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
+function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL) {  
+  switch ($op) {
+    case 'create':
+      return user_access('create anonymous subscriptions') && notifications_anonymous_send_methods();
+  }
 }
 
 /**
- * Displays a destination field for each method
- * 
- * @param $send_methods
- *   Array method => name
- * @param $destination
- *   Destination object to populate one of the addresses
+ * Menu access callback for destinations
  */
-function _notifications_anonymous_address_subform($send_methods = NULL, $destination = NULL) {
-  $send_methods = isset($send_methods) ? $send_methods : notifications_anonymous_methods();
-  $form['destination_address'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Destination'),
-    '#tree' => TRUE,
-  );
-  if (count($send_methods) > 1) {
-    $form['destination_address']['#description'] = t('Enter just a destination address.');
+function notifications_anonymous_destination_access($op, $destination) {  
+  // Access will be granted if anonymous destination or administrator
+  if (user_access('administer notifications')) {
+    return TRUE;
   }
-  foreach ($send_methods as $key => $method_name) {
-    // We use method name if we don't have address name
-    $name = messaging_method_info($key, 'address_name', $method_name);
-    $form['destination_address'][$key] = array(
-      '#title' => $name,
-      '#type' => 'textfield',
-      '#size' => 40,
-      '#default_value' => $destination && $destination->method == $key ? $destination->address : '',
-    );
+  elseif (!$destination->uid) {
+    $account = drupal_anonymous_user();
+    switch ($op) {
+      case 'manage':
+        return user_access('manage own subscriptions', $account);
+      case 'subscribe': 
+      case 'unsubscribe':
+        return TRUE;
+    }
   }
-  return $form;
+}
+
+/**
+ * Implementation of hook_block()
+ */
+function notifications_anonymous_block($op = 'list', $delta = 0) {
+  global $user;
+  
+  if ($op == 'list') {
+    $blocks[0]['info'] = t('Anonymous subscription links');
+    $blocks[0]['cache'] = BLOCK_NO_CACHE;
+    return $blocks;
+  }
+  else if ($op == 'view' && !$user->uid) {
+    if ((arg(0) == 'node') && is_numeric(arg(1)) && ($node = node_load(arg(1))) && notifications_ui_node_options($node->type, 'block')) {
+      // Only display if we have something for the form
+      if ($node_options = notifications_ui_subscribe_options($user, 'node', $node)) {
+        $block['subject'] = t('Subscribe to');
+        $block['content'] = drupal_get_form('notifications_ui_options_form', $node_options, FALSE);
+        return $block;
+      }      
+    }
+    elseif (arg(0) == 'user' && is_numeric(arg(1)) && notifications_ui_account_options('block')) {
+      // Only display if we have something for the form
+      if (($account = user_load(arg(1))) && ($options = notifications_ui_subscribe_options($user, 'user', $account))) {
+        $block['subject'] = t('Subscribe to');
+        $block['content'] = drupal_get_form('notifications_ui_options_form', $options, FALSE);
+        return $block;
+      }       
+    }
+  }  
+}
+
+/**
+ * Get list of possible and existing subscriptions for anonymous user
+ * 
+ * @param $type
+ *   Subscription type to get options: 'user', 'node'
+ * @param $object
+ *   The object to subscribe. It may be $node or $user
+ * 
+ * @return
+ *   Array of subscription options
+ *   The enabled ones will have a 'subscriptions' element loaded
+ */
+function notifications_anonymous_subscribe_options($type, $object) {
+  $account = drupal_anonymous_user();
+  // Get allowed node options and current subscriptions
+  $subscribe_options = notifications_module_information("$type options", $account, $object);
+  $allowed_options = array();
+  // Get subscription types checking for user access
+  $allowed_types = notifications_subscription_types(NULL, NULL, TRUE);
+  // We also keep track of event types for each subscription type
+  $event_types = array('node' => TRUE);
+  foreach ($subscribe_options as $index => $option) {
+    if (isset($allowed_types[$option['type']]) && notifications_user_allowed('subscription', $account, (object)$option)) {
+      $allowed_options[] = $option;
+      // We add the event type to our list
+      $event_types[$allowed_types[$option['type']]['event_type']] = TRUE;
+    }
+  }
+  return $allowed_options;
 }
 
 /**
  * Implementation of hook_link()
  * 
  * Add subscriptions links to nodes. Depends on notifications_ui enabled.
+ * 
+ * @todo Remove dependency on notifications_ui
  */
 function notifications_anonymous_link($type, $node = NULL, $teaser = FALSE) {
   global $user;
 
-  if ($type == 'node' && !$user->uid && notifications_anonymous_access() && module_exists('notifications_ui') &&
+  if ($type == 'node' && !$user->uid && notifications_anonymous_subscription_access() && module_exists('notifications_ui') &&
     (notifications_ui_node_options($node->type, 'teaserlinks') && $teaser || notifications_ui_node_options($node->type, 'links') && !$teaser)
      && ($options = notifications_ui_subscribe_options($user, 'node', $node))) {
       // Now we have the array of allowed options ready, build single links 
@@ -145,16 +207,35 @@ function notifications_anonymous_build_links($options, $prefix = 'notifications_
   }
   return $links;  
 }
+
 /**
  * Get available sending methods for anonymous users
  */
-function notifications_anonymous_methods() {
+function notifications_anonymous_send_methods() {
   $list = &messaging_static(__FUNCTION__);
   if (!isset($list)) {
+    $list = array();
     $allowed = variable_get('notifications_anonymous_send_methods', array());
     foreach (messaging_method_list() as $method => $name) {
       if (in_array($method, $allowed)) {
         $list[$method] = $name;
+      }
+    }
+  }
+  return $list;
+}
+
+/**
+ * Get available send intervals for anonymous users
+ */
+function notifications_anonymous_send_intervals() {
+  $list = &messaging_static(__FUNCTION__);
+  if (!isset($list)) {
+    $list = array();
+    $allowed = variable_get('notifications_anonymous_send_intervals', array());
+    foreach (notifications_send_intervals() as $interval => $name) {
+      if (in_array($interval, $allowed)) {
+        $list[$interval] = $name;
       }
     }
   }
@@ -168,26 +249,6 @@ function notifications_anonymous_perm() {
   return array('create anonymous subscriptions');
 }
 
-/**
- * Subform with method and address
- */
-function _notifications_anonymous_method_subform($destination = NULL, $account = NULL) {
-  $send_methods = notifications_anonymous_methods();
-  $form['send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => $send_methods,
-    '#default_value' => $destination ? $destination->method : '',
-    '#disabled' => count($send_methods) < 2,
-  );
-  $form['address'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Address'),
-    '#size' => 40,
-    '#required' => TRUE,
-  );
-  return $form;
-}
 /**
  * Destination form submitted
  */
@@ -223,7 +284,8 @@ function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
     case 'notifications_ui_options_form':
       $account = $form['subscriptions']['account'];
       if (!$account->uid && !$user->uid) {
-        $form = _notifications_anonymous_address_subform(NULL);
+        notifications_include('destination');
+        $form += notifications_destination_address_subform($account);
         //$form['destination']['#weight'] = -10;
       }
       break;
@@ -269,6 +331,7 @@ function notifications_anonymous_get_link($type, $params) {
     case 'unsubscribe':
       // Mandatory destination id parameter      
       $elements = array(
+        'anonymous',
         'destination',
         $params['mdid'],
         'unsubscribe',
@@ -276,16 +339,58 @@ function notifications_anonymous_get_link($type, $params) {
       break;
     case 'manage':
       $elements = array(
+        'anonymous',
         'destination',
-        $params['mdid'].
+        $params['mdid'],
         'manage',
       );
       break;
-      
+    case 'edit':
+      $elements = array(
+        'anonymous',
+        'destination',
+        $params['mdid'],
+        'edit',
+      );
+      break;
   }
   return _notifications_get_link($elements, $params);
 }
 
+/**
+ * Get raw links to manage destination
+ */
+function notifications_anonymous_manage_links($destination) {
+  $params = array(
+    'mdid' => $destination->mdid,
+    'absolute' => TRUE,
+    'signed' => TRUE,
+  );
+  $links = array();
+  $link_types = array(
+    'unsubscribe' => t('Unsubscribe'),
+    'manage' => t('Manage'),
+    'edit' => t('Edit'),
+  );
+  foreach ($link_types as $type => $name) {
+    if (notifications_anonymous_destination_access($type, $destination)) {
+      $links[$type] = notifications_anonymous_get_link($type, $params);
+      $links[$type]['title'] = $name;
+    }
+  }
+  return $links;
+}
+
+/**
+ * Get formatted links to manage destination
+ */
+function notifications_anonymous_destination_links($destination) {
+  $items = array();
+  foreach (notifications_anonymous_manage_links($destination) as $link) {
+    $items[] = l($link['title'], $link['href'], $link['options']);
+  }
+  return $items;
+}
 /**
  * Create signed URLs for all pages
  */

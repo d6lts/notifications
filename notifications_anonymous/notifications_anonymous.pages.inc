@@ -39,6 +39,8 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
  * Form for subscription confirmation
  */
 function notifications_anonymous_form_subscribe($form_state, $subscription, $account) {
+  $account = $account ? $account : drupal_anonymous_user();
+  notifications_include('destination');
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
     $form[$field] = array('#type' => 'value', '#value' => isset($subscription->$field) ? $subscription->$field : '');
@@ -46,13 +48,26 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
   // The subscription description will be added here
   $form['info'] = notifications_subscription_info_field($subscription); 
   // Additional parameters
-  $form['send_interval'] = array(
-    '#type' => 'select',
-    '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals(),
-    '#default_value' => $subscription->send_interval,
-  );
-  $form += _notifications_anonymous_address_subform();
+  if ($send_intervals = notifications_send_intervals($account)) {
+    if (count($send_intervals) == 1) {
+      $form['send_interval'] = array('#type' => 'value', '#value' => key($send_intervals));
+    }
+    else {
+      $form['send_interval'] = array(
+        '#type' => 'select',
+        '#title' => t('Send interval'),
+        '#options' => notifications_send_intervals($account),
+        '#default_value' => $subscription->send_interval,
+      );      
+    }
+  }
+  else {
+    drupal_set_message(t('No send intervals enabled.'), 'error');
+    return $form;
+  }
+
+  $destination = !empty($subscription->mdid) ? Messaging_Destination::load($subscription->mdid) : NULL;
+  $form += notifications_destination_address_subform($account, $destination);
   $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
   $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
   return $form;
@@ -62,15 +77,10 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
  * Subscription form validation
  */
 function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
+  notifications_include('destination');
   // Get destination from form
-  $destination = $form_state['values']['destination_address'];
-  if (is_array($destination)) {
-    $destination = array_filter($destination);
-    if ($destination && count($destination) == 1) {
-      $method = key($destination);
-      $address = current($destination);
-    }
-  }
+  list($method, $address) = notifications_destination_parse_submitted($form_state['values']);
+
   if (empty($method) || empty($address)) {
     form_set_error('destination_address', t('You need exactly one destination address.'));
   }
@@ -103,24 +113,35 @@ function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
 }
 
 /**
- * Page callback
+ * Page callback. Provide a form to request to edit a destination
  */
 function notifications_anonymous_overview_page() {
-
+  return 'Not implemented';
 }
 
 /**
- * Page callback
+ * Page callback. Manage destinations.
  */
-function notifications_anonymous_destination_page($destination) {
-
-}
-
-/**
- * Page callback, unsubscribe
- */
-function notifications_anonymous_unsubscribe_page($destination) {
-  
+function notifications_anonymous_destination_page($destination, $op = 'unsubscribe') {
+  notifications_include('destination');
+  // If destination has user, it has been checked by the menu system
+  if ($destination->uid || !user_access('administer notifications') && !notifications_check_signature()) {
+    drupal_access_denied();
+    exit(0);
+  }
+  drupal_set_title(t('Subscriptions for @name', array('@name' => $destination->address_name())));
+  //$output = '<p>' . t('Options for the @name: %address', array('%address' => $destination->address, '@name' => $destination->address_name())) . '</p>';
+  $options = notifications_anonymous_destination_links($destination);
+  $account = drupal_anonymous_user();
+  switch ($op) {
+    case 'unsubscribe':
+      $output .= drupal_get_form('notifications_destination_unsubscribe_form', $destination, $options);
+      break;
+    case 'manage':
+      $output .= drupal_get_form('notifications_destination_manage_form', $destination, $account, $options);
+      break;
+  }
+  return $output;
 }
 
 /**
@@ -133,6 +154,13 @@ function notifications_anonymous_settings_form() {
     '#options' => messaging_method_list(),
     '#default_value' => variable_get('notifications_anonymous_send_methods', array()),
   );
-  $form['array_filter'] = array('#type' => 'value', '#value' => TRUE);
+  $form['notifications_anonymous_send_intervals'] = array(
+    '#title' => t('Allowed send intervals'),
+    '#type' => 'checkboxes',
+    '#options' => _notifications_send_intervals(),
+    '#default_value' => variable_get('notifications_anonymous_send_intervals', array()),  
+  );
+  // We cannot use form filter because of inmediate send interval is always filtered out
+  //$form['array_filter'] = array('#type' => 'value', '#value' => TRUE);
   return system_settings_form($form);
 }

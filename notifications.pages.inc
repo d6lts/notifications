@@ -172,6 +172,17 @@ function notifications_add_subscription_form_submit($form, &$form_state) {
 }
 
 /**
+ * Manage destination form. Edit subscriptions for a destination
+ */
+function notifications_edit_destination_form($form_state, $destination) {
+  notifications_include('destination');
+  $account = !empty($destination->uid) ? messaging_load_user($destination->uid) : drupal_anonymous_user();
+  $form = notifications_destination_view_subform($destination);
+  
+  return $form;
+}
+
+/**
  * Menu callback add subscription
  * 
  * Presents confirmation page or not depending on confirm parameter
