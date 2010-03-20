@@ -435,4 +435,16 @@ function notifications_update_6009() {
   db_add_primary_key($ret, 'notifications_sent', array('mdid', 'send_interval'));  
   return $ret; 
 }
+/**
+ * Set type to destinations
+ */
+function notifications_update_6010() {
+  $ret = array();
+  foreach (messaging_method_info() as $method => $info) {
+    if (isset($info['group'])) {
+      $ret[] = update_sql("UPDATE {messaging_destination} SET type ='" . $info['group'] . "' WHERE method = '$method'");
+    }
+  }
+  return $ret;
+}
 // Pending update, for next version, drop fields replaced by mdid

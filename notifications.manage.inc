@@ -205,7 +205,7 @@ function notifications_manage_destination_form($form_state, $destination) {
     return $form;
   }
   //$form = notifications_destination_view_subform($destination);
-  $form['description'] = notifications_destination_view_subform($destination);
+  $form['description'] = notifications_destination_subform($destination);
   $form['admin'] = notifications_destination_manage_subform($destination);
   $form['admin'] += notifications_manage_subscriptions_form_options($destination);
   $form['extra'] = notifications_manage_destination_extra($destination); 
@@ -217,7 +217,7 @@ function notifications_manage_destination_form($form_state, $destination) {
  */
 function notifications_manage_destination_extra($destination) {
   if (user_access('administer notifications') && function_exists('notifications_anonymous_manage_links')) {
-    foreach (notifications_anonymous_manage_links($destination) as $link) {
+    foreach (_notifications_anonymous_manage_links('destination', $destination) as $link) {
       $url = url($link['href'], $link['options']);
       $rows[] = array(
         $link['title'],

@@ -331,11 +331,9 @@ function notifications_page_unsubscribe($type, $id) {
  * It works for both single subscription or account (all subscriptions)
  */
 function notifications_form_unsubscribe_confirm($form_state, $subscription, $account = NULL) {
-
   // Pass on subscription values
   $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
   $form['account'] = array('#type' => 'value', '#value' => $account);
-  
   if ($subscription) {
     $message = t('Are you sure you want to delete this subscription?');
     // The subscription description will be added here
@@ -380,9 +378,27 @@ function notifications_form_unsubscribe_confirm_submit($form, &$form_state) {
 }
 
 /**
+ * Edit subscription page that can be accessed with signed link
+ */
+function notifications_subscription_edit_page($subscription) {
+  global $user;
+
+  // Aditional checks for anonymous subscriptions so not everybody can access them
+  if (!$subscription->uid && !user_access('administer notifications') && !user_access('manage subscriptions') && !notifications_check_signature()) {
+    drupal_access_denied(); 
+  }
+  else {
+    return drupal_get_form('notifications_subscription_form', $subscription);
+  }
+}
+
+/**
  * Edit subscription
+ * 
+ * @todo Improve for handling anonymous subscriptions
  */
 function notifications_subscription_form($form_state, $subscription) {
+  $account = notifications_load_user($subscription->uid);
   // The subscription description will be added here
   $form['info'] = notifications_subscription_info_field($subscription);
   // Subscription values  
@@ -390,10 +406,10 @@ function notifications_subscription_form($form_state, $subscription) {
   $form['send_interval'] = array(
     '#type' => 'select',
     '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals(),
+    '#options' => notifications_send_intervals($account),
     '#default_value' => $subscription->send_interval,
   );
-  $send_methods = _notifications_send_methods();
+  $send_methods = notifications_send_methods($account);
   $form['send_method'] = array(
     '#type' => 'select',
     '#title' => t('Send method'),

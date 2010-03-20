@@ -33,6 +33,7 @@ define('NOTIFICATIONS_SUBSCRIPTION_INACTIVE', 2);
 function notifications_autoload_info() {
   return array(
     'Notifications_Event' => array('file' => 'includes/notifications_event.class.inc'),
+    'Notifications_Subscription' => array('file' => 'includes/notifications_subscription.class.inc'),
   ); 
 }
 /**
@@ -132,8 +133,8 @@ function notifications_menu() {
   $items['notifications/subscription/%notifications_subscription'] = array(
     'type' => MENU_CALLBACK,
     'title' => 'Edit subscription',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('notifications_subscription_form', 2),
+    'page callback' => 'notifications_subscription_edit_page',
+    'page arguments' => array(2),
     'access callback' => 'notifications_subscription_access',
     'access arguments' => array('edit', 2),
     'file' => 'notifications.pages.inc',
@@ -311,17 +312,16 @@ function notifications_subscription_load($sid) {
  */
 function notifications_subscription_access($op, $subscription, $account = NULL) {
   global $user;
-  
-  $account = $account ? $account : $user;
-  
-  if (user_access('administer notifications') || user_access('manage all subscriptions')) return TRUE;
-  
+
+  $account = $account ? $account : $user;  
+  if (user_access('administer notifications') || user_access('manage all subscriptions')) {
+    return TRUE;
+  } 
   switch ($op) {
     case 'edit':
     case 'unsubscribe':
-      return $account->uid && ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
+      return $subscription->uid && ($subscription->uid == $account->uid) && user_access('maintain own subscriptions');
   }
-
   return FALSE;
 }
 
@@ -888,6 +888,37 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
 }
 
 /**
+ * Get users with static caching for existing users
+ * 
+ * If not uid passed it will return an anonymous fake user (with destination, send_method)
+ * We need to pass the send method to produce the right tokens later
+ * 
+ * This provides some API support for user-less subscriptions, i.e. when we've got just
+ * an email address but no user associated. The idea is that these fake users will be properly 
+ * handled by messaging module
+ * 
+ * @todo Possibly all this should be handled by messaging layer
+ * 
+ * @param $uid
+ *   Uid of the user account to load, none to use anonymous user
+ * @param $destination
+ *   Messaging destination (mail, sms number, etc..), just for anonymous users
+ * @param $send_method
+ *   Messaging send method key (mail, sms, xmpp, etc..), just for anonymous users
+ */
+function notifications_load_user($uid, $destination = NULL, $send_method = NULL) {
+  if ($uid) {
+    return messaging_load_user($uid);
+  }
+  else {
+    $account = drupal_anonymous_user();
+    $account->destination = $destination;
+    $account->send_method = $send_method;
+    return $account;
+  }
+}
+
+/**
  * Delete subscription and clean up related data.
  * 
  * It also removes pending notifications related to that subscription 
@@ -1071,7 +1102,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
  *   or information for a given field for all types
  */
 function notifications_subscription_types($type = NULL, $field = NULL, $check_access = FALSE) {
-  static $types;
+  $types = &messaging_static(__FUNCTION__);
   
   if (!isset($types)) {
     $types = notifications_module_information('subscription types');
@@ -1443,8 +1474,10 @@ function notifications_cron() {
  *   - destination, form destination or TRUE to use current path
  *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
  *   - Other subscription parameters: type, fields...
+ * @param $format
+ *   Whether to return a formatted link instead of a raw one (array)
  */
-function notifications_get_link($type, $params) {
+function notifications_get_link($type, $params, $format = FALSE) {
   // Add some default values
   $params += array('uid' => 0);
   $elements = array();
@@ -1458,6 +1491,7 @@ function notifications_get_link($type, $params) {
         implode(',', array_keys($params['fields'])),
         implode(',', $params['fields'])
       );
+      $title = t('subscribe');
       break;
     case 'unsubscribe':
       $elements[] = 'unsubscribe';
@@ -1470,9 +1504,18 @@ function notifications_get_link($type, $params) {
         $elements[] = 'uid';
         $elements[] = $params['uid'];
       }
+      $title = t('unsubscribe');
       break;
+    case 'edit': // Edit subscription
+      $elements[] = 'subscription';
+      $elements[] = $params['sid'];
+      $elements[] = 'edit';
+      $title = t('edit');
+      break;  
   }
-  return _notifications_get_link($elements, $params);
+  $params += array('title' => $title);
+  $link =  _notifications_get_link($elements, $params);
+  return $format ? l($params['title'], $link['href'], $link['options']) : $link;
 }
 
 /**
@@ -1640,7 +1683,8 @@ function _notifications_send_methods($account = NULL) {
  * Get list of send methods for user or anonymous account
  */
 function notifications_send_methods($account) {
-  if (empty($account->uid) && function_exists('notifications_anonymous_send_methods')) {
+  // We restrict send methods for anonymous accounts when edited by regular users
+  if (empty($account->uid) && !user_access('administer notifications') && function_exists('notifications_anonymous_send_methods')) {
     return notifications_anonymous_send_methods();
   }
   else {

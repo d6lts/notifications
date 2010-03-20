@@ -17,55 +17,44 @@ function notifications_anonymous_menu() {
     'access arguments' => array('create'),
     'file' => 'notifications_anonymous.pages.inc',
   );
-  // Present unsubscribe page
-  $items['notifications/anonymous/destination'] = array (
+  // Present form to request subscriptions
+  $items['notifications/anonymous/request'] = array (
     'title' => 'Manage subscriptions',
-    'page callback' => 'notifications_anonymous_overview_page',
+    'page callback' => 'notifications_anonymous_request_page',
     'access callback' => TRUE,
     'file' => 'notifications_anonymous.pages.inc',
+    'type' => MENU_CALLBACK,
   );
-  // Change subscriptions for a destination
-  $items['notifications/anonymous/destination/%messaging_destination'] = array (
-    'title' => 'Manage subscriptions',
-    'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(3),
-    'access callback' => 'notifications_anonymous_destination_access',
-    'access arguments' => array('manage', 3),
-    'file' => 'notifications_anonymous.pages.inc',
-  );
-  // Unsubscribe all for a destination
-  $items['notifications/anonymous/destination/%messaging_destination/unsubscribe'] = array (
-    'title' => 'Delete subscriptions',
-    'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(3, 4),
-    'access callback' => 'notifications_anonymous_destination_access',
-    'access arguments' => array('unsubscribe', 3),
-    'file' => 'notifications_anonymous.pages.inc',
-  );
-  // Unsubscribe all for a destination
-  $items['notifications/anonymous/destination/%messaging_destination/manage'] = array (
-    'title' => 'Delete subscriptions',
-    'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(3, 4),
-    'access callback' => 'notifications_anonymous_destination_access',
-    'access arguments' => array('manage', 3),
-    'file' => 'notifications_anonymous.pages.inc',
-  );
-  // Confirm destination for subscriptions
-  $items['notifications/anonymous/destination/%messaging_destination/subscribe'] = array (
-    'title' => 'Confirm subscription',
-    'page callback' => 'notifications_anonymous_destination_page',
-    'page arguments' => array(2, 3),
-    'access callback' => 'notifications_anonymous_destination_access',
-    'access arguments' => array('confirm', 2),
-    'file' => 'notifications_anonymous.pages.inc',
-  );
-  // Settings page
+  // Destination operations
+  foreach (array('edit', 'delete', 'manage') as $op) {
+    $items['notifications/anonymous/destination/%messaging_destination/' . $op] = array (
+      'title' => 'Edit destination',
+      'page callback' => 'notifications_anonymous_destination_page',
+      'page arguments' => array(3, 4),
+      'access callback' => 'notifications_anonymous_destination_access',
+      'access arguments' => array(4, 3),
+      'file' => 'notifications_anonymous.pages.inc',
+      'type' => MENU_CALLBACK,
+    );
+  }
+  // Subscription operations
+  foreach (array('edit', 'unsubscribe') as $op) {
+    $items['notifications/anonymous/subscription/%notififications_subscription/' . $op] = array (
+      'title' => 'Edit subscription',
+      'page callback' => 'notifications_anonymous_subscription_page',
+      'page arguments' => array(3, 4),
+      'access callback' => 'notifications_anonymous_subscription_access',
+      'access arguments' => array(4, 3),
+      'file' => 'notifications_anonymous.pages.inc',
+      'type' => MENU_CALLBACK,
+    );
+  }
+  // Admin settings page
   $items['admin/messaging/notifications/anonymous'] = array(
     'title' => 'Anonymous',
     'description' => 'Settings for anonymous subscriptions',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('notifications_anonymous_settings_form'),
+    'page arguments' => array('notifications_anonymous_admin_settings_form'),
     'access arguments' => array('administer notifications'),
     'type' => MENU_LOCAL_TASK,
     'file' => 'notifications_anonymous.pages.inc',
@@ -86,18 +75,20 @@ function notifications_anonymous_subscription_access($op = 'create', $subscripti
 /**
  * Menu access callback for destinations
  */
-function notifications_anonymous_destination_access($op, $destination) {  
+function notifications_anonymous_destination_access($op, $destination = NULL) {  
+  global $user;
   // Access will be granted if anonymous destination or administrator
   if (user_access('administer notifications')) {
     return TRUE;
   }
-  elseif (!$destination->uid) {
-    $account = drupal_anonymous_user();
+  elseif (!$destination->uid || $destination->uid == $user->uid) {
     switch ($op) {
       case 'manage':
-        return user_access('manage own subscriptions', $account);
-      case 'subscribe': 
-      case 'unsubscribe':
+        return user_access('manage own subscriptions');
+      case 'edit':
+        return user_access('maintain own subscriptions');
+      case 'confirm': 
+      case 'delete':
         return TRUE;
     }
   }
@@ -312,13 +303,21 @@ function notifications_anonymous_token_values($type, $object = NULL, $options = 
 }
 
 /**
- * Get link for anonymous subscriptions
+ * Get link for anonymous subscriptions / destinations
+ * 
+ * @param $op
+ *   Operation: subscribe, unsubscribe, manage, edit
+ * @param $params
+ *   Array of mixed parameters. Same as notifications_get_links() plus:
+ *   - type = 'subscription' | 'destination'
+ *   - oid = object id (sid, mdid)
  */
-function notifications_anonymous_get_link($type, $params) {
+function notifications_anonymous_get_link($op, $params) {
   $params += array(
     'absolute' => TRUE,
   );
-  switch ($type) {
+  // Diference subscription / destination
+  switch ($op) {
     case 'subscribe':
       $elements = array(
         'anonymous',
@@ -328,69 +327,77 @@ function notifications_anonymous_get_link($type, $params) {
         implode(',', $params['fields'])     
       );
       break;
-    case 'unsubscribe':
-      // Mandatory destination id parameter      
-      $elements = array(
-        'anonymous',
-        'destination',
-        $params['mdid'],
-        'unsubscribe',
-      );
-      break;
-    case 'manage':
-      $elements = array(
-        'anonymous',
-        'destination',
-        $params['mdid'],
-        'manage',
-      );
-      break;
+    case 'confirm':
     case 'edit':
+    case 'manage':
+    case 'delete':
+    case 'unsubscribe': 
       $elements = array(
         'anonymous',
-        'destination',
-        $params['mdid'],
-        'edit',
+        $params['type'],
+        $params['oid'],
+        $op,
       );
+      // Anonymous links are signed as default
+      $params += array('signed' => TRUE);
       break;
   }
   return _notifications_get_link($elements, $params);
 }
 
 /**
- * Get raw links to manage destination
+ * Get raw links to manage subscription / destination
  */
-function notifications_anonymous_manage_links($destination) {
+function _notifications_anonymous_manage_links($type, $object) {
+  $links = array();
   $params = array(
-    'mdid' => $destination->mdid,
     'absolute' => TRUE,
     'signed' => TRUE,
+    'type' => $type, // subscription / destination
   );
-  $links = array();
-  $link_types = array(
-    'unsubscribe' => t('Unsubscribe'),
-    'manage' => t('Manage'),
-    'edit' => t('Edit'),
-  );
-  foreach ($link_types as $type => $name) {
-    if (notifications_anonymous_destination_access($type, $destination)) {
-      $links[$type] = notifications_anonymous_get_link($type, $params);
-      $links[$type]['title'] = $name;
+  if ($type == 'destination') {
+    $params['oid'] = $params['mdid'] = $object->mdid;
+    $link_types = array(
+      'manage' => t('Manage'),
+      'edit' => t('Edit'),
+      'delete' => t('Delete'),
+    );
+  }
+  elseif ($type == 'subscription') {
+    $params['oid'] = $params['sid'] = $object->sid;
+    $link_types = array(
+      'unsubscribe' => t('Unsubscribe'),
+      'edit' => t('Edit'),
+    );
+  }
+  foreach ($link_types as $op => $name) {
+    if (_notifications_anonymous_access($type, $object, $op)) {
+      $links[$op] = notifications_anonymous_get_link($op, $params);
+      $links[$op]['title'] = $name;
     }
   }
   return $links;
 }
 
 /**
- * Get formatted links to manage destination
+ * Check for object access
  */
-function notifications_anonymous_destination_links($destination) {
+function _notifications_anonymous_access($type, $object, $op) {
+  if (function_exists($function = 'notifications_anonymous_' . $type . '_access')) {
+    return $function($op, $object);
+  }
+}
+/**
+ * Get formatted links to manage subscription / destination
+ */
+function notifications_anonymous_manage_links($type, $object) {
   $items = array();
-  foreach (notifications_anonymous_manage_links($destination) as $link) {
+  foreach (_notifications_anonymous_manage_links($type, $object) as $link) {
     $items[] = l($link['title'], $link['href'], $link['options']);
   }
   return $items;
 }
+
 /**
  * Create signed URLs for all pages
  */

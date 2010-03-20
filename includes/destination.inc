@@ -6,19 +6,38 @@
  */
 
 /**
- * Subform for destination data
+ * Query subscriptions for destination
  */
-function notifications_destination_view_subform($destination, $options = array()) {
+function notifications_destination_get_subscriptions($destination, $pager = 0) {
+  return notifications_get_subscriptions(array('mdid' => $destination->mdid), array(), FALSE, 'sid', $pager);
+}
+
+/**
+ * Validate destination   
+ */
+function notifications_destination_validate($account, $method, $address) {
+  // Check the method is valid for this account
+  $valid_methods = notifications_send_methods($account);
+  return isset($valid_methods[$method]) && Messaging_Destination::validate($method, $address, $account);
+}
+
+/**
+ * Subform elements for destination data
+ */
+function notifications_destination_subform($destination, $links = array()) {
+  // Count subscriptions for this destination
+  $count = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE mdid = %d", $destination->mdid));
   $form['destination'] = array('#type' => 'value', '#value' => 'destination');
   $form['destination_view'] = array(
     '#title' => $destination->address_name(),
     '#type' => 'item',
     '#value' => check_plain($destination->address),
+    '#description' => format_plural($count, "There is one subscription for this destination.", 'There are @count subscriptions for this destination.'),
   );
-  if ($options) {
+  if ($links) {
     $form['destination_options'] = array(
       '#type' => 'item',
-      '#value' => implode(' | ', $options),
+      '#value' => implode(' | ', $links),
     );
   }
   return $form;
@@ -89,7 +108,7 @@ function notifications_destination_address_subform($account, $destination = NULL
 /**
  * Parse submitted destination
  */
-function notifications_destination_parse_submitted($values) {
+function notifications_destination_parse_submitted($values, $validate = FALSE) {
   $method = $address = NULL;
   $uid = !empty($values['destination_account']) ? $values['destination_account']->uid : 0;
   // Destination can come in any of these configurations
@@ -109,19 +128,93 @@ function notifications_destination_parse_submitted($values) {
       }
     }    
   }
+  if ($validate) {
+    if (!$method || !$address) {
+      form_set_error($field, t('You need to enter exactly one destination address.'));
+    }
+    elseif (!notifications_destination_validate($method, $address, $uid)) {
+      form_set_error($field, t('This destination address is not valid.'));
+    }
+  }
   return array($method, $address, $uid);
+}
+
+/**
+ * Edit destination form
+ */
+function notifications_destination_edit_form($form_state, $destination, $options = array()) {
+  global $user;
+  $form = notifications_destination_subform($destination, $options);
+  $form += notifications_destination_method_subform($user, $destination);
+  $form['update'] = array('#type' => 'submit', '#value' => t('Update'));
+  //$form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
+  return $form;
+}
+/**
+ * Edit destination validate
+ */
+function notifications_destination_edit_form_validate($form, $form_state) {
+  notifications_destination_parse_submitted($form_state['values'], TRUE);
+}
+
+/**
+ * Edit destinatin submission
+ */
+function notifications_destination_edit_form_submit($form, $form_state) {
+  $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : NULL;
+  $destination = $form_state['values']['destination'];
+  switch ($op) {
+    case t('Update'):
+      list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
+      $destination->method = $method;
+      $destination->address = $address;
+      $object = Messaging_Destination::build($destination);
+      $object->save();
+      drupal_set_message(t('The destination address has been updated.'));
+      break;
+  }
+}
+
+/**
+ * Form for unsubscription confirmation
+ * 
+ * It works for both single subscription or account (all subscriptions)
+ */
+function notifications_destination_delete_confirm($form_state, $destination, $options = array()) {
+  // Pass on destination values and display them
+  $form = notifications_destination_subform($destination, $options);
+
+  return confirm_form($form,
+    t('Are you sure you want to delete this destination and all its subscriptions?'),
+    isset($_GET['destination']) ? $_GET['destination'] : '',
+    t('This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
+  );
+}
+
+/**
+ * Destination deletion confirmed
+ */
+function notifications_destination_delete_confirm_submit($form, $form_state) {
+  if ($destination = $form_state['values']['destination']) {
+    notifications_destination_delete($destination->mdid);
+    drupal_set_message('The destination and all its subscriptions have been deleted.');
+  }
 }
 
 /**
  * Unsubscribe form
  */
 function notifications_destination_unsubscribe_form($form_state, $destination, $options = array()) {
-  $form = notifications_destination_view_subform($destination, $options);
-  $count = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE mdid = %d", $destination->mdid));
-  $description = format_plural($count, "There is one subscription for this destination.", 'There are @count subscriptions for this destination.');
-  $form['destination_view']['#description'] = $description;
-  $form['unsubscribe'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
-  return $form;
+  $form = notifications_destination_subform($destination, $options);
+  return confirm_form($form,
+    t('This will delete this address and all its subscriptions.'),
+    isset($_GET['destination']) ? $_GET['destination'] : '',
+    t('This action cannot be undone.'),
+    t('Unsubscribe'),
+    t('Cancel')
+  );
 }
 
 /**
@@ -134,19 +227,24 @@ function notifications_destination_unsubscribe_form_submit($form, $form_state) {
 }
 
 /**
- * Manage form
+ * Destination manage subscriptions form
  */
-function notifications_destination_manage_form($form_state, $destination, $account = NULL, $options = array()) {
-  $form['description'] = notifications_destination_view_subform($destination, $options);
+function notifications_destination_manage_form($form_state, $destination, $options = array()) {
+  module_load_include('inc', 'notifications', 'notifications.pages');
+  $account = $destination->get_account();
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
+    $form = notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
+    return $form;
+  }  
+  $form['description'] = notifications_destination_subform($destination, $options);
   $form['admin']  = notifications_destination_manage_subform($destination);
-  $form['options'] = array('#type' => 'fieldset', '#title' => t('Options'));
-  $form['options']['unsubscribe_selected'] = array('#type' => 'submit', '#value' => t('Unsubscribe selection'));
-  $form['options']['unsubscribe_all'] = array('#type' => 'submit', '#value' => t('Unsubscribe all'));
+  $form['admin'] +=  notifications_destination_manage_subscriptions_form_options($account);
+  //$form['options'] = array('#type' => 'fieldset', '#title' => t('Options'));
   return $form;
 }
 
 /**
- * Manage subform
+ * Destination manage subform. List/edit subscriptions for destination.
  */
 function notifications_destination_manage_subform($destination) {
   module_load_include('manage.inc', 'notifications');
@@ -164,10 +262,15 @@ function notifications_destination_manage_subform($destination) {
     $form['description'][$subs->sid] = array('#value' => $format['name']);
     $form['send_interval'][$subs->sid] = array('#value' => !empty($send_intervals[$subs->send_interval]) ? $send_intervals[$subs->send_interval] : $subs->send_interval);  
     $form['status'][$subs->sid] =  array('#value' => $status[$subs->status]);
-    $operations = array(
-      l(t('edit'), 'notifications/subscription/' . $subs->sid, array('query' => $drupal_destination)),
-      l(t('drop'), 'notifications/unsubscribe/sid/' . $subs->sid, array('query' => $drupal_destination)),
-    );
+    $operations = array();
+    if ($destination->uid || user_access('administer notifications')) {
+      // Links for subscription for user. Permissions will be checked later.
+      $operations[] = l(t('edit'), 'notifications/subscription/' . $subs->sid, array('query' => $drupal_destination));
+      $operations[] = l(t('drop'), 'notifications/unsubscribe/sid/' . $subs->sid, array('query' => $drupal_destination));
+    }
+    elseif (function_exists('notifications_anonymous_manage_links')) {
+      $operations[] = notifications_anonymous_manage_links('subscription', $subs);
+    }
     $form['operations'][$subs->sid] = array('#value' => implode(', ', $operations));
   }
   $form['subscriptions'] = array('#type' => 'checkboxes', '#options' => $select);
@@ -179,7 +282,7 @@ function notifications_destination_manage_subform($destination) {
 /**
  * Form options
  */
-function notifications_destination_manage_subscriptions_form_options() {
+function notifications_destination_manage_subscriptions_form_options($account) {
   $form['options'] = array(
     '#type' => 'fieldset',
     '#title' => t('Update options'),
@@ -187,7 +290,7 @@ function notifications_destination_manage_subscriptions_form_options() {
     '#suffix' => '</div>',
   );
   $options = array();
-  foreach (notifications_destination_subscriptions_operations() as $operation => $array) {
+  foreach (notifications_destination_subscriptions_operations($account) as $operation => $array) {
     if (!empty($array['parent'])) {
       $options[$array['parent']][$operation] = $array['label'];
     } else {  
@@ -214,7 +317,7 @@ function notifications_destination_manage_subscriptions_form_options() {
  * @param $account
  *   User account if we are administering subscriptions for this user
  */
-function notifications_destination_subscriptions_operations() {
+function notifications_destination_subscriptions_operations($account = NULL) {
   $operations = array(
     'activate' => array(
       'label' => t('Activate'),
@@ -240,7 +343,7 @@ function notifications_destination_subscriptions_operations() {
     );
   }
   $parent = t('Change send interval to');
-  foreach (notifications_send_intervals() as $key => $name) {
+  foreach (notifications_send_intervals($account) as $key => $name) {
     $operations['send_method-' . $key] = array(
       'label' => $name,
       'parent' => $parent,
@@ -252,9 +355,4 @@ function notifications_destination_subscriptions_operations() {
   return $operations;
 }
 
-/**
- * Query subscriptions for destination
- */
-function notifications_destination_get_subscriptions($destination, $pager = 0) {
-  return notifications_get_subscriptions(array('mdid' => $destination->mdid), array(), FALSE, 'sid', $pager);
-}
+

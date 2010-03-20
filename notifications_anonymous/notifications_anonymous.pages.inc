@@ -13,15 +13,16 @@
 function notifications_anonymous_page_subscribe($type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
   $account = drupal_anonymous_user();
 
-  // Build subscriptions object
-  $subscription = (object)array(
+  // Build subscriptions object  
+  $subscription = Notifications_Subscription::build((object)array(
     'uid' => $account->uid,
     'type' => $type,
     'fields' => notifications_field_args($fields, $values),
-    'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
-    'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
-    'event_type' => notifications_subscription_types($type, 'event_type'),
-  );      
+    'send_interval' => $send_interval,
+    'send_method' => $send_method,
+  ));
+  $subscription->set_account($account);
+
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Ask for confirmation
     drupal_set_title(t('Confirm your subscription'));
@@ -79,7 +80,7 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
 function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
   notifications_include('destination');
   // Get destination from form
-  list($method, $address) = notifications_destination_parse_submitted($form_state['values']);
+  notifications_destination_parse_submitted($form_state['values'], TRUE);
 
   if (empty($method) || empty($address)) {
     form_set_error('destination_address', t('You need exactly one destination address.'));
@@ -98,9 +99,11 @@ function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
  * Process form submission
  */
 function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
-  $subscription = (object)$form_state['values'];
   switch ($form_state['values']['op']) {
     case t('Subscribe'):
+      $destination = Messaging_Destination::create($method, $address, 0);
+      $subscription = Notifications_Subscription::build((object)$form_state['values']);
+      $subscription->set_destination($destination);
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription has been saved.'));
       //$form_state['redirect'] = 'notifications/subscription/' . $subscription->sid;
@@ -115,30 +118,64 @@ function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
 /**
  * Page callback. Provide a form to request to edit a destination
  */
-function notifications_anonymous_overview_page() {
+function notifications_anonymous_request_page() {
   return 'Not implemented';
 }
 
 /**
- * Page callback. Manage destinations.
+ * Page callback. Manage anonymous destinations.
  */
 function notifications_anonymous_destination_page($destination, $op = 'unsubscribe') {
   notifications_include('destination');
-  // If destination has user, it has been checked by the menu system
-  if ($destination->uid || !user_access('administer notifications') && !notifications_check_signature()) {
+  // Just for administrators or signed requests
+  if (!user_access('administer notifications') && !notifications_check_signature()) {
     drupal_access_denied();
     exit(0);
   }
   drupal_set_title(t('Subscriptions for @name', array('@name' => $destination->address_name())));
-  //$output = '<p>' . t('Options for the @name: %address', array('%address' => $destination->address, '@name' => $destination->address_name())) . '</p>';
-  $options = notifications_anonymous_destination_links($destination);
-  $account = drupal_anonymous_user();
+  $options = notifications_anonymous_manage_links('destination', $destination);
   switch ($op) {
+    case 'edit':
+      $output .= drupal_get_form('notifications_destination_edit_form', $destination, $options);
+      break;
+    case 'delete':
     case 'unsubscribe':
       $output .= drupal_get_form('notifications_destination_unsubscribe_form', $destination, $options);
       break;
     case 'manage':
-      $output .= drupal_get_form('notifications_destination_manage_form', $destination, $account, $options);
+      $output .= drupal_get_form('notifications_destination_manage_form', $destination, $options);
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Subform for destination data
+ */
+function notifications_anonymous_destination_subform($destination) {
+  $options = notifications_anonymous_manage_links('manage', $destination);
+  return notitications_destination_subform($destination, $options);
+}
+
+/**
+ * Page callback. Manage anonymous subscriptions.
+ */
+function notifications_anonymous_subscription_page($subscription, $op = 'unsubscribe') {
+  global $user;
+  notifications_include('destination');
+  // Just for administrators or signed requests
+  if (!user_access('administer notifications') && !notifications_check_signature()) {
+    drupal_access_denied();
+    exit(0);
+  }
+  $options = notifications_anonymous_subscription_links($destination);
+  $account = drupal_anonymous_user();
+  switch ($op) {
+    case 'unsubscribe':
+      $output .= drupal_get_form('notifications_anonymous_unsubscribe_form', $subscription);
+      break;
+    case 'edit':
+      $output .= drupal_get_form('notifications_anonymous_subscription_form', $subscription);
       break;
   }
   return $output;
@@ -147,7 +184,7 @@ function notifications_anonymous_destination_page($destination, $op = 'unsubscri
 /**
  * Admin settings form
  */
-function notifications_anonymous_settings_form() {
+function notifications_anonymous_admin_settings_form() {
   $form['notifications_anonymous_send_methods'] = array(
     '#title' => t('Allowed messaging methods'),
     '#type' => 'checkboxes',
