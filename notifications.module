@@ -764,49 +764,25 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
  * @return integer
  *   Failure to write a record will return FALSE. Otherwise SAVED_NEW or SAVED_UPDATED is returned depending on the operation performed.
  */
-function notifications_save_subscription(&$subscription) {
+function notifications_save_subscription($subscription) {
   global $user;
   
+  // Build object if not built previously
+  if (!is_object($subscription)) {
+    $subscription = (object)$subscription;
+  }
+  if (!is_a($subscription, 'Notifications_Subscription')) {
+    $subscription = Notifications_Subscription::build($subscription);
+    $subscription->conditions = count($subscription->fields);
+  }
   $result = FALSE;
-  $subscription = (object)$subscription;
-  $subscription->conditions = count($subscription->fields);
+  // Set account that will fill in account parameters
   $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
-  
-  // Default values for fields: send_interval, send_method, cron, etc...
-  foreach (_notifications_subscription_defaults($account) as $field => $value) {
-    if (!isset($subscription->$field)) {
-      $subscription->$field = $value;
-    }
-  }
-  // Handle destination object
-  if (!empty($subscription->destination) && is_object($subscription->destination)) {
-    $subscription->mdid = $subscription->destination->mdid;
-    $subscription->send_method = $subscription->destination->method;
-    $subscription->destination = $subscription->destination->address;
-  }
-  // Fill in destination id if not set
-  if (empty($subscription->mdid)) {
-    if ($account->uid) {
-      $destination = Messaging_Destination::build($subscription->send_method, $subscription->destination, $account->uid);
-    }
-    elseif ($subscription->send_method && $subscription->destination) {
-      $destination = Messaging_Destination::build($subscription->send_method, $subscription->destination, 0);
-    }
-    if ($destination) {
-      $subscription->mdid = $destination->mdid;
-    }
-    else {
-      // Cannot create destination, something is wrong
-      return FALSE;
-    }
-  }
-  // Fill in event type if not set
-  if (empty($subscription->event_type)) {
-    $subscription->event_type = notifications_subscription_types($subscription->type, 'event_type');
-  }
+  $subscription->set_account($account);
+  // Update existing one or save new checking for duplicates
   if (!empty($subscription->sid)) {
     $op = 'update';
-    $result = drupal_write_record('notifications', $subscription, 'sid');
+    $result = $subscription->save();
   }
   elseif ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->fields, TRUE)) {
     // We've found duplicates, resolve conflict updating first, deleting the rest
@@ -827,7 +803,7 @@ function notifications_save_subscription(&$subscription) {
   }
   else {
     $op = 'insert';    
-    $result = drupal_write_record('notifications', $subscription);
+    $result = $subscription->save();
   }
   
   // If the operation has worked so far, update fields and inform other modules
@@ -863,28 +839,7 @@ function notifications_save_subscription(&$subscription) {
  *   Subscriptions object.
  */
 function notifications_load_subscription($subs, $refresh = FALSE) {
-  $cache = &messaging_static(__FUNCTION__);
-  if (is_object($subs)) {
-    $sid = $subs->sid;
-    $subscription = $subs;
-  }
-  else {
-    $sid = $subs;
-  }
-  if ($refresh || !$cache || !array_key_exists($sid, $cache)) {
-    if (!isset($subscription)) {
-      $subscription = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid));
-    }
-    if ($subscription) {
-      $subscription->fields = array();
-      $result = db_query("SELECT * FROM {notifications_fields} WHERE sid = %d", $sid);
-      while ($condition = db_fetch_object($result)) {
-        $subscription->fields[$condition->field] = $condition->value;
-      }
-    }
-    $cache[$sid] = $subscription;
-  }
-  return $cache[$sid];
+  return Notifications_Subscription::load($subs, TRUE, $refresh);
 }
 
 /**
@@ -1074,6 +1029,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
   else {
     $result = db_query($sql, $args);
   }
+  // Build list with results
   $subscriptions = array();
   while ($subs = db_fetch_object($result)) {
     $load = notifications_load_subscription($subs);

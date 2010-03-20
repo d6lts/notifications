@@ -16,7 +16,7 @@ class Notifications_Subscription {
   // Temporarily disabled ones, maybe user on holidays
   const STATUS_INACTIVE = 2;
   // Unique subscription id
-  public $sid;
+  public $sid = 0;
   // User id this belongs to
   public $uid;
   // Destination id
@@ -45,8 +45,8 @@ class Notifications_Subscription {
     if ($object) {
       foreach ($object as $key => $value) {
         // Set old fields format (array of field => value)
-        if ($key == 'fields') {
-          $this->__set('fields', $value);
+        if ($key == 'fields' || $key == 'destination') {
+          $this->__set($key, $value);
         }
         else {
           $this->$key = $value;
@@ -75,10 +75,13 @@ class Notifications_Subscription {
    *   Template object or subscription type
    */
   public static function build($template) {
+    if (is_array($template)) {
+      $template = (object)$template;
+    }
     if (is_object($template)) {
       $object = $template;
       $type = $object->type;
-    }
+    } 
     else {
       $type = $template;
       $object = NULL;
@@ -117,15 +120,39 @@ class Notifications_Subscription {
   }
   /**
    * Load from db
+   * 
+   * @param $sid
+   *   Subscription id or subscription object
+   * @param $full
+   *   Whether to load all fields in the same operation
+   * @param $refresh
+   *   Force cache refresh
    */
-  public static function load($sid, $full = TRUE) {
-    if ($object = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid))) {
-      $subscription = self::build($object);
-      if ($full) {
-        $subscription->load_fields();
+  public static function load($sid, $full = TRUE, $refresh = FALSE) {
+    $subscriptions = &messaging_static('notifications_subscriptions');
+    $subs = FALSE;
+    if (is_object($sid)) {
+      if (!$refresh && isset($subscriptions[$sid->sid])) {
+        $subs = $subscriptions[$sid->sid];
       }
-      return $subscription;
-    }   
+      else {
+        $subs = self::build($sid);
+      }
+      $sid = $sid->sid;
+    }
+    else{
+      if (!$refresh && isset($subscriptions[$sid])) {
+        $subs = $subscriptions[$sid];
+      }
+      elseif ($object = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid))) {
+        $subs = self::build($object);    
+      }
+    }
+    if ($subs && $full) {
+      $subs->get_fields();
+    }
+    $subscriptions[$sid] = $subs;
+    return $subs;
   }
   /**
    * Load condition fields from db
@@ -143,10 +170,59 @@ class Notifications_Subscription {
    * Save to db
    */
   function save() {
-    $update = !empty($this->sid) ? 'sid' : array();
-    $result = drupal_write_record('notifications', $this, $update);
-    $this->save_fields($update);
+    $result = FALSE;
+    if ($this->check_destination()) {
+      $update = !empty($this->sid) ? 'sid' : array();
+      $result = drupal_write_record('notifications', $this, $update);
+      $this->save_fields($update);
+    }
     return $result; 
+  }
+  /**
+   * Check destination or create it if new
+   */
+  function check_destination() {
+    if (empty($this->mdid)) {
+      if (!empty($this->destination_object)) {
+        return $this->create_destination($this->destination_object->method, $this->destination_object->address);
+      }
+      else {
+        return $this->create_destination();
+      }
+    }
+    elseif ($destination = $this->get_destination()) {
+      // We may need to create a new destination if method has changed
+      if (!empty($this->send_method) && $destination->method != $this->send_method) {
+        return $this->create_destination();
+      }
+      else {
+        return $destination;
+      }
+    }
+    else {
+      // Last try, figure out a destination
+      return $this->create_destination();
+    }
+  }
+  /**
+   * Create destination for this subscription
+   */
+  function create_destination($method = NULL, $address = NULL) {
+    if ($method && $address) {
+      $destination = Messaging_Destination::create($method, $address, $this->uid);
+      $this->set_destination($destination);
+      return $destination;
+    }
+    elseif (!empty($this->send_method) && !empty($this->destination)) {
+      return $this->create_destination($this->send_method, $this->destination);
+    }
+    elseif (($account = $this->get_account()) && $account->uid) {
+      // We still can create a destination if this has a user id
+      $method = !empty($this->send_method) ? $this->send_method : messaging_method_default($account);
+      if ($method && ($address = messaging_user_destination($account, $method))) {
+        return $this->create_destination($method, $address);
+      }
+    }  
   }
   /**
    * Delete from db
@@ -169,7 +245,7 @@ class Notifications_Subscription {
         db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $this->sid);
       }
       foreach ($this->fields as $field) {
-        db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $this->sid, $field->name, $field->value, (int)$field->value);
+        db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $this->sid, $field->field, $field->value, (int)$field->value);
       }
     }
   }
@@ -282,6 +358,16 @@ class Notifications_Subscription {
           $this->add_field($key, $field_value);
         }
         break;
+      case 'destination':
+        if (is_object($value)) {
+          $this->set_destination($value);
+        }
+        else {
+          $this->destination = $value;
+        }
+        break;
+      default:
+        $this->$name = $value;
     }
   }
   /**
