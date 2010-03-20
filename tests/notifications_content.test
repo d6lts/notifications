@@ -17,7 +17,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
   }
   
   function setUp() {
-    parent::setUp('messaging', 'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui', 'comment');
+    parent::setUp('autoload', 'token', 'messaging',  'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui', 'comment');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
@@ -29,6 +29,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     $settings = array_keys(notifications_subscription_types());
     variable_set('notifications_ui_types', $enable ? $settings : array());
     variable_set('notifications_ui_user', $enable ? array('page', 'create'): array());
+    menu_rebuild();
   }
   // Enable content Subscriptions for all
   function enableSubscriptionTypes($enable = TRUE) {
@@ -37,13 +38,20 @@ class NotificationsContentTests extends DrupalWebTestCase {
   }
   
   /**
+   * Simple test fails on login
+   */
+  function testSimpleUserLogin() {
+    $user = $this->drupalCreateUser();
+    $this->drupalLogin($user);
+  }
+  /**
    * Check all user pages before and after enabling permissions
    */
   function testNotificationsUserPages() {
-    $this->enableSubscriptionTypes();
-    $this->enableUIPages(0);
     $user = $this->drupalCreateUser($this->listPermissions());
     $this->drupalLogin($user);
+    $this->enableSubscriptionTypes();
+    $this->enableUIPages(0);
     $prefix = 'user/'. $user->uid .'/notifications';
     $test_pages = array(
       "$prefix/thread" => 'Thread overview page',
@@ -325,7 +333,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
   }
   
   function listPermissions() {
-    return array('access content', 'maintain own subscriptions', 'subscribe to content', 'subscribe to content type', 'subscribe to author');
+    return array('access content', 'maintain own subscriptions', 'manage own subscriptions', 'subscribe to content', 'subscribe to content type', 'subscribe to author');
   }
   // Helper option for debugging
   function printDebug($data) {

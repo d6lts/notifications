@@ -1,10 +1,11 @@
 <?php
 // $Id$
+require_once drupal_get_path('module', 'notifications') . '/tests/notifications_test_case.inc';
 /**
  * Class for testing notifications module.
  * Tests basic API functions
  */
-class NotificationsBasicTests extends DrupalWebTestCase {
+class NotificationsBasicTests extends NotificationsTestCase {
   
   function getInfo() {
     return array(
@@ -14,7 +15,7 @@ class NotificationsBasicTests extends DrupalWebTestCase {
   }
   
   function setUp() {
-    parent::setUp('notifications', 'notifications_lite', 'messaging');
+    parent::setUp('autoload', 'messaging', 'notifications', 'messaging_mail', 'notifications_lite');
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   }
 
@@ -24,26 +25,26 @@ class NotificationsBasicTests extends DrupalWebTestCase {
   function testNotificationsBasicAPI() {
     $test_type = 'test';
     $test_event_type = 'test event';
-    
     // Any user will do for exercising the API
     $user = $this->drupalCreateUser();
-    
+    // Create sample subscription object    
     $s1 = new Stdclass();
     $s1->uid = $user->uid;
     $s1->type = $test_type;
     $s1->event_type = $test_event_type;
+    $s1->send_method = 'mail';
     $s1->fields = array('field1' => 1, 'field2' => 2);
-    $s1->destination = '';
+    $s1->destination = $user->mail;
     $s2 = clone($s1);
-
     // Create the subscription and check assigned sid
     $result = notifications_save_subscription($s1);
     $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
-    
+    // Check a destination has been created
+    $dest = $s1->get_destination();
+    $this->assertEqual(array($s1->mdid, $user->uid, 'mail', $user->mail), array($dest->mdid, $dest->uid, $dest->method, $dest->address), 'A messaging destination has been created.');   
     // Retrieve the subscription and check values
     $s = notifications_load_subscription($s1->sid, TRUE);
-    $this->assertEqual($s, $s1, 'The subscription has been retrieved and values are ok');
-
+    $this->assertEqual(array($s->sid, $s->uid, $s->fields), array($s1->sid, $s1->uid, $s1->fields), 'The subscription has been retrieved and values are ok');
     // Attempt to create a second one with the same values
     $result = notifications_save_subscription($s2);
     $this->assertTrue($result == SAVED_UPDATED && $s1->sid == $s2->sid, 'A duplicate subscription has been detected and updated');
@@ -55,9 +56,10 @@ class NotificationsBasicTests extends DrupalWebTestCase {
 
     // Now change values for the second one
     unset($s2->send_method);
-    $s2->fields['field2'] = 3;
-    $result =notifications_save_subscription($s2);
-    $this->assertEqual($result, SAVED_UPDATED, 'Another subscription has been created');
+    $fields = $s2->get_fields();
+    $fields[1]->value = 3; // As fields are objects (byref) we can just change the value
+    $result = notifications_save_subscription($s2);
+    $this->assertEqual($result, SAVED_UPDATED, 'The second subscription has been updated');
     
     // Trying several recovery options
     $subs = notifications_get_subscriptions(array('type' => $test_type));

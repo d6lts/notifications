@@ -16,25 +16,29 @@ function notifications_schema() {
         'description' => 'User id this subscription belongs to.',
         'type' => 'int', 'not null' => TRUE, 'disp-width' => '11'
       ),
+      'mdid'    => array(      
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
+        'description' => 'Unique destination id.',
+      ),
       'type' => array(
         'description' => 'Subscription type, will depend on subscription modules enabled.',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
       ),
       'event_type' => array(
         'description' => 'Type of event that triggers this subscription.',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
       ),
       'conditions' => array(
         'description' => 'Number of conditions this subscription has, for query convenience.',
-        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10',
       ),
       'send_interval' => array(
         'description' => 'Sending interval for notifications of this subscription.',
-        'type' => 'int', 'not null' => FALSE, 'disp-width' => '11'
+        'type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
       ),
       'send_method' => array(
         'description' => 'Sending method key, see Messaging module.',
-        'type' => 'varchar', 'length' => '255', 'not null' => TRUE
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
       ),
       'cron' => array(
         'description' => '1 if this subscription will generate notifications to be processed on cron.',
@@ -50,11 +54,7 @@ function notifications_schema() {
       ),
       'destination' => array(
         'description' => 'Alternate destination field for anonymous subscriptions, may be an email',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE
-      ),
-      'mdid'    => array(      
-        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
-        'description' => 'Unique destination id.',
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
       ),
     ),
     'primary key' => array('sid'),

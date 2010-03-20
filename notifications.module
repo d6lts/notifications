@@ -753,6 +753,22 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
 }
 
 /**
+ * Build subscription object properly
+ */
+function notifications_build_subscription($subscription) {
+  // Build object if not built previously
+  if (!is_object($subscription)) {
+    $subscription = (object)$subscription;
+  }
+  if (is_a($subscription, 'Notifications_Subscription')) {
+    return $subscription;
+  }
+  else {
+    return Notifications_Subscription::build($subscription);
+  }
+}
+
+/**
  * Update or create subscription
  * 
  * This function checks for duplicated subscriptions before saving.
@@ -764,64 +780,46 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
  * @return integer
  *   Failure to write a record will return FALSE. Otherwise SAVED_NEW or SAVED_UPDATED is returned depending on the operation performed.
  */
-function notifications_save_subscription($subscription) {
-  global $user;
-  
+function notifications_save_subscription(&$subscription) {
+  global $user;  
   // Build object if not built previously
-  if (!is_object($subscription)) {
-    $subscription = (object)$subscription;
-  }
-  if (!is_a($subscription, 'Notifications_Subscription')) {
-    $subscription = Notifications_Subscription::build($subscription);
-    $subscription->conditions = count($subscription->fields);
-  }
-  $result = FALSE;
+  $subscription = notifications_build_subscription($subscription);
+  $subscription->conditions = count($subscription->fields);
   // Set account that will fill in account parameters
   $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
   $subscription->set_account($account);
   // Update existing one or save new checking for duplicates
+  $result = FALSE;
   if (!empty($subscription->sid)) {
     $op = 'update';
     $result = $subscription->save();
   }
-  elseif ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->fields, TRUE)) {
-    // We've found duplicates, resolve conflict updating first, deleting the rest
-    // It is possible that we had a disabled one, this updating will fix it
-    $update = array_shift($duplicate);
-    unset($subscription->sid); // It may be 0
-    foreach ($subscription as $key => $value) {
-      if (isset($value)) {
-        $update->$key = $value;
+  elseif ($subscription->check_destination()) {
+    if ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->get_conditions(), TRUE)) {
+      // We've found duplicates, resolve conflict updating first, deleting the rest
+      // It is possible that we had a disabled one, this updating will fix it
+      $update = array_shift($duplicate);
+      unset($subscription->sid); // It may be 0
+      foreach ($subscription as $key => $value) {
+        if (isset($value)) {
+          $update->$key = $value;
+        }
       }
+      $subscription->sid = $update->sid;
+      // If there are more, delete, keep the table clean
+      while ($dupe = array_shift($duplicate)) {
+        notifications_delete_subscription($dupe->sid);
+      }
+      return notifications_save_subscription($subscription);  
     }
-    $subscription = $update;
-    // If there are more, delete, keep the table clean
-    while (array_shift($duplicate)) {
-      notifications_delete_subscription($duplicate->sid);
+    else {
+      $op = 'insert';    
+      $result = $subscription->save();
     }
-    return notifications_save_subscription($subscription);  
-  }
-  else {
-    $op = 'insert';    
-    $result = $subscription->save();
   }
   
   // If the operation has worked so far, update fields and inform other modules
   if ($result !== FALSE) {
-    if ($op == 'update') {
-      db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $subscription->sid);
-    }    
-    // There may be subscriptions with no fields, some people are coding such plug-ins.
-    if (!empty($subscription->fields)) {
-      foreach ($subscription->fields as $name => $value) {
-        if (is_array($value)) {
-          db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $value['type'], $value['value'], (int)$value['value']);
-        }
-        else { 
-          db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) VALUES(%d, '%s', '%s', %d)", $subscription->sid, $name, $value, (int)$value);
-        }
-      }
-    }
     notifications_module_invoke($op, $subscription);
   }
 
@@ -839,7 +837,12 @@ function notifications_save_subscription($subscription) {
  *   Subscriptions object.
  */
 function notifications_load_subscription($subs, $refresh = FALSE) {
-  return Notifications_Subscription::load($subs, TRUE, $refresh);
+  if (is_object($subs) && is_a($subs, 'Notifications_Subscription')) {
+    return $subs;
+  }
+  else {
+    return Notifications_Subscription::load($subs, TRUE, $refresh);
+  }
 }
 
 /**
@@ -1946,19 +1949,19 @@ function notifications_subscription_form_field($type, $value = NULL, $subtype = 
  *   Array with type_name, field_names (array), field_values (array)
  */
 function notifications_format_subscription($subscription, $format = 'short', $html = TRUE) {
+  // Build object if not built previously
+  $subscription = notifications_build_subscription($subscription);
   // Build array and add subscription type name
-  $info = notifications_subscription_types($subscription->type);
+  $info = $subscription->get_type();
   $names = $values = array();
  
   // Get field names and values formatting each field
-  if (!empty($subscription->fields)) {
-    foreach (_notifications_fields($subscription->fields) as $field) {
-      $item = notifications_format_subscription_field($field->type, $field->value, $html, $subscription->type);
-      $names[] = $item['name'];
-      $values[] = $item['value'];
-    }
+  foreach ($subscription->get_fields() as $field) {
+    $item = notifications_format_subscription_field($field->type, $field->value, $html, $subscription->type);
+    $names[] = $item['name'];
+    $values[] = $item['value'];
   }
-  // If this subscription has a name, use it, otherwise build it using fields and values
+  // If this subscription type has a name, use it, otherwise build it using fields and values
   if (!empty($info['name'])) {
     $value_name = $info['name'];
   }

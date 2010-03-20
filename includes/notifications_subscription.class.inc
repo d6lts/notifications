@@ -80,14 +80,14 @@ class Notifications_Subscription {
     }
     if (is_object($template)) {
       $object = $template;
-      $type = $object->type;
+      $type = $template->type;
     } 
     else {
       $type = $template;
       $object = NULL;
     }
     // The type may define its own class
-    if ($class = notifications_subscription_types($type, 'class')) {
+    if ($type && ($class = notifications_subscription_types($type, 'class'))) {
       return new $class($type, $object);
     }
     else {
@@ -171,11 +171,9 @@ class Notifications_Subscription {
    */
   function save() {
     $result = FALSE;
-    if ($this->check_destination()) {
-      $update = !empty($this->sid) ? 'sid' : array();
-      $result = drupal_write_record('notifications', $this, $update);
-      $this->save_fields($update);
-    }
+    $update = !empty($this->sid) ? 'sid' : array();
+    $result = drupal_write_record('notifications', $this, $update);
+    $this->save_fields($update);
     return $result; 
   }
   /**
@@ -345,10 +343,12 @@ class Notifications_Subscription {
    * Get subscription type data
    */
   function get_type($property = NULL) {
-    return notifications_subscription_types($this->type, $property); 
+    return empty($this->type) ? NULL : notifications_subscription_types($this->type, $property);
   }
   /**
    * Magic method, set protected properties
+   * 
+   * Warning: This also runs for unset properties
    */
   public function __set($name, $value) {
     switch ($name) {

@@ -45,24 +45,6 @@ function notifications_ui_menu() {
     'file' => 'notifications_ui.pages.inc',
     'weight' => 100,
   );
-
-  // Enabled pages for user account and subscription types
-  /*
-  foreach (notifications_subscription_types() as $type => $info) {
-    $info = notifications_subscription_types($type);
-    if (!empty($info['page callback'])) {
-      $items['user/%user/notifications/' . $type] = array(  
-        'type' => MENU_LOCAL_TASK,
-        'access callback' => 'notifications_ui_access_page', 
-        'access arguments' => array($type, 1),
-        'title' => $info['title'],
-        'page callback' => $info['page callback'],
-        'page arguments' => array(1),
-        'weight' => 10,
-      );
-    }
-  }
-  */
   return $items;
 }
 

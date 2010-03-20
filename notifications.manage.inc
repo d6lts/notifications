@@ -69,9 +69,9 @@ function notifications_manage_subscriptions_access($sids) {
 function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) {
   $filter = notifications_subscriptions_build_filter_query($account);
   if ($account) {
-    $result = pager_query('SELECT n.*, d.* FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] . $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
+    $result = pager_query('SELECT n.*, d.method, d.address FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] . $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   } else {
-    $result = pager_query('SELECT n.*, d.*, u.name FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] .' INNER JOIN {users} u ON n.uid = u.uid '. $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
+    $result = pager_query('SELECT n.*, d.method, d.address, u.name FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] .' INNER JOIN {users} u ON n.uid = u.uid '. $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   }
   $form = notifications_manage_subscriptions_form_options($account);
   $destination = drupal_get_destination();
@@ -79,10 +79,11 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   $status = _notifications_subscription_status();
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = notifications_send_intervals();
-  while ($sub = db_fetch_object($result)) {
+  while ($object = db_fetch_object($result)) {
+    $sub = Notifications_Subscription::build($object);
     $subscriptions[$sub->sid] = '';
     // Naming for this specific subscription, formatted strings    
-    $form['type'][$sub->sid] = array('#value' => notifications_subscription_types($sub->type, 'title'));
+    $form['type'][$sub->sid] = array('#value' => $sub->get_type('title'));
     // If full loading, load full subscription and add description
     if ($full) {
       $sub = notifications_load_subscription($sub);
