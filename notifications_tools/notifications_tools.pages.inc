@@ -125,9 +125,15 @@ function notifications_tools_queue_operations_form() {
  * Operations form submit, translate op into callback
  */
 function notifications_tools_queue_operations_form_submit($form, $form_state) {
+  global $user;
+
   include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   // Enable messaging & notifications logs
   messaging_log_start();
+  // Switch to anonymous user so this works with anonymous permissions
+  session_save_session(FALSE);
+  $save_user = $user;
+  $user = drupal_anonymous_user();
   foreach (notifications_tools_queue_operations() as $op => $data) {
     if ($form_state['values']['op'] == $data['label']) {
       $callback = $data['callback'];
@@ -136,6 +142,9 @@ function notifications_tools_queue_operations_form_submit($form, $form_state) {
       break;
     }  
   }
+  // Switch back to current user
+  $user = $save_user;
+  session_save_session(TRUE);
 }
 
 /**

@@ -5,16 +5,17 @@
  * Base class for Notifications Tests
  */
 class NotificationsTestCase extends DrupalWebTestCase { 
-  // Helper option for debugging
+  /**
+   * Print helper for debugging
+   */ 
   function printDebug($data, $title = 'DEBUG') {
-    $string = is_array($data) || is_object($data) ? print_r($data, TRUE) : $data;
-    $this->assertTrue(TRUE, $title . ': ' . $string);
+    $string = is_array($data) || is_object($data) ? $this->formatTable($data) : $data;
+    $this->assertTrue(TRUE, $string, $title);
   }
   // Debug dump object with some formatting
   function printObject($object, $title = 'DEBUG Object') {
-    $output = $title . ':';
-    $output .= $this->formatTable($object);
-    $this->assertTrue(TRUE, $output);
+    $output = $this->formatTable($object);
+    $this->printDebug($output, $title);
   }
   // Format object as table, recursive
   function formatTable($object) {
@@ -25,7 +26,7 @@ class NotificationsTestCase extends DrupalWebTestCase {
       );
     }
     if (!empty($rows)) {
-      return theme('table', array(), $rows);
+      return theme_table(array(), $rows);
     }
     else {
       return 'No properties';
@@ -56,7 +57,7 @@ class NotificationsTestCase extends DrupalWebTestCase {
   // Dump table contents
   function dumpTable($table) {
     $result = db_query('SELECT * FROM {' . $table . '}');
-    $output = 'Table dump <strong>' . $table . '</strong>:';
+    $output = '';
     while ($row = db_fetch_array($result)) {
       $rows[] = $row;
       if (empty($header)) {
@@ -64,16 +65,17 @@ class NotificationsTestCase extends DrupalWebTestCase {
       }
     }
     if (!empty($rows)) {
-      $output .= theme('table', $header, $rows);
+      // Need to call theme function directly
+      $output .= theme_table($header, $rows);
     } else {
       $output .= ' No rows';
     }
-    $this->assertTrue(TRUE, $output);
+    $this->printDebug($output, "Table dump: $table");
   }
   // Dump Notifications log
   function dumpLogs() {
-    if ($logs = notifications_log()) {
-      $this->assertTrue(TRUE, theme('item_list', $logs, 'Notifications logs'));
+    if ($logs = messaging_log_get()) {
+      $this->assertTrue(TRUE, messaging_log_format($logs), 'Notifications Log');
     }
   }
 }

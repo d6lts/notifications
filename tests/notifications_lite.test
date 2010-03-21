@@ -17,11 +17,10 @@ class NotificationsLiteTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'token', 'messaging',  'messaging_debug', 'notifications', 'notifications_lite');
-    // Set some defaults
-    // Default send interval will be: immediately
+    parent::setUp('autoload', 'token', 'messaging',  'messaging_simple', 'notifications', 'notifications_lite');
+    // Set some defaults: method simple, interval immediate
     variable_set('notifications_default_send_interval', 0);
-    variable_set('notifications_default_send_method', 'debug');
+    variable_set('notifications_default_send_method', 'simple');
     // Set fake site name for comparison after token replacement
     variable_set('site_name', 'Test Site');
     
@@ -40,7 +39,9 @@ class NotificationsLiteTests extends NotificationsTestCase {
     // There should be two queued rows and two queued events
     $this->assertUserRows('notifications_queue', 2, $user->uid, 'Two queued notifications');
     $this->assertTableRows('notifications_event', 2, NULL, 'Two queued events');
-    //$this->dumpTable('notifications_queue');
+    
+    $this->dumpTable('notifications_queue');
+    $this->dumpTable('notifications_event');
     // Send, and check again
     $sqid = notifications_process_prepare();
     $count = notifications_process_queue(0, $sqid);
