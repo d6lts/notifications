@@ -1,0 +1,45 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Notifications tools module
+ */
+/**
+ * Implementation of hook_menu().
+ */
+function notifications_tools_menu() {
+  $items['admin/messaging/subscriptions'] = array(
+    'title' => 'Manage subscriptions',
+    'description' => 'Manage existing subscriptions and queue.',
+    'page callback' => 'notifications_tools_status_page',
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications_tools.pages.inc',
+  ); 
+  $items['admin/messaging/subscriptions/overview'] = array(
+    'title' => 'Overview',
+    'description' => 'Subscriptions overview.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+    'file' => 'notifications_tools.pages.inc',
+  );
+  $items['admin/messaging/subscriptions/admin'] = array(
+    'title' => 'Administer',
+    'description' => 'Administer subscriptions.',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_tools_manage_subscriptions'),
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications_tools.pages.inc',
+  );
+  $items['admin/messaging/subscriptions/queue'] = array(
+    'title' => 'Queue',
+    'description' => 'Notifications queue.',
+    'page callback' => 'notifications_tools_admin_queue',
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications_tools.pages.inc',
+  );
+ 
+  return $items;
+}

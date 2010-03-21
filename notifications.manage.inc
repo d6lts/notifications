@@ -7,22 +7,6 @@
  */
 
 /**
- * Menu callback: subscriptions administration.
- */
-function notifications_manage_admin_subscriptions($form_state) {
-  module_load_include('inc', 'notifications', 'notifications.admin');
-  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
-    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
-  }
-  $form = notifications_subscriptions_filter_form(TRUE);
-
-  $form['#theme'] = 'notifications_subscriptions_filter_form';
-  $form['admin']  = notifications_manage_subscriptions_form();
-
-  return $form;
-}
-
-/**
  * Menu callback: user subscriptions management
  */
 function notifications_manage_user_subscriptions($form_state, $account) {

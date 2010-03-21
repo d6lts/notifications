@@ -62,7 +62,7 @@ class Notifications_Event {
    * Save/update the event
    */
   function save() {
-    $update = !empty($this->eid) ? array() : 'eid';
+    $update = empty($this->eid) ? array() : 'eid';
     drupal_write_record('notifications_event', $this, $update);    
   }
   

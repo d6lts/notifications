@@ -65,28 +65,33 @@ function notifications_anonymous_menu() {
 /**
  * Menu access callback for subscriptions
  */
-function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL) {  
+function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL, $account = NULL) {  
+  global $user;
+  $account = $account ? $account : $user;
   switch ($op) {
     case 'create':
-      return user_access('create anonymous subscriptions') && notifications_anonymous_send_methods();
+      return user_access('create anonymous subscriptions', $account) && notifications_anonymous_send_methods();
+    case 'unsubscribe':
+      return !$subscription->uid || $subscription->uid == $account->uid;
   }
 }
 
 /**
  * Menu access callback for destinations
  */
-function notifications_anonymous_destination_access($op, $destination = NULL) {  
+function notifications_anonymous_destination_access($op, $destination = NULL, $account = NULL) {  
   global $user;
+  $account = $account ? $account : $user;
   // Access will be granted if anonymous destination or administrator
-  if (user_access('administer notifications')) {
+  if (user_access('administer notifications', $account)) {
     return TRUE;
   }
-  elseif (!$destination->uid || $destination->uid == $user->uid) {
+  elseif (!$destination->uid || $destination->uid == $account->uid) {
     switch ($op) {
       case 'manage':
-        return user_access('manage own subscriptions');
+        return user_access('manage own subscriptions', $account);
       case 'edit':
-        return user_access('maintain own subscriptions');
+        return user_access('maintain own subscriptions', $account);
       case 'confirm': 
       case 'delete':
         return TRUE;
@@ -292,11 +297,11 @@ function notifications_anonymous_token_values($type, $object = NULL, $options = 
   switch ($type) {
     case 'user':
       $values = array();
-      // Object should have no uid but a valid mdid
-      if (($account = $object) && !$object->uid && $object->mdid) {
+      // When object is a destination, it should have no uid but a valid mdid
+      if (($account = $object) && empty($account->uid) && !empty($account->mdid)) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = notifications_anonymous_url("notifications/destination/$account->mdid/manage");
-        $values['unsubscribe-url-global'] =  notifications_anonymous_url("notifications/destination/$account->mdid/unsubscribe");
+        $values['unsubscribe-url-global'] =  notifications_anonymous_url("notifications/destination/$account->mdid/delete");
       }
       return $values;
   }
@@ -402,7 +407,7 @@ function notifications_anonymous_manage_links($type, $object) {
  * Create signed URLs for all pages
  */
 function notifications_anonymous_url($url, $options = array()) {
-  $elements = explode('/' . $url);
+  $elements = explode('/' , $url);
   $options += array('absolute' => TRUE);
   $options['query']['signature'] =  _notifications_signature($elements);
   return url($url, $options);

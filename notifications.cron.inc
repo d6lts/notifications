@@ -200,7 +200,7 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
 
   // Build query and fetch rows from queue
   $query = notifications_queue_query($conditions, 'q');
-  $sql = "SELECT q.sqid, q.sid, q.eid, q.type, q.send_interval, q.module, q.language, m.uid, m.method, m.address ";
+  $sql = "SELECT q.sqid, q.sid, q.eid, q.mdid, q.type, q.send_interval, q.module, q.language, m.uid, m.method, m.address ";
   $sql .= " FROM {notifications_queue} q INNER JOIN {messaging_destination} m ON q.mdid = m.mdid";
   $sql .= " WHERE ". implode(' AND ', $query['where']);
   $sql .= " ORDER BY q.module, q.mdid, q.send_interval";
@@ -215,7 +215,7 @@ function notifications_process_rows($conditions, $limit = 0, $update = TRUE) {
   // This loop has to run a final time after all rows have been fetched
   while (($queue = db_fetch_object($result)) || $processed) {
     notifications_process('count', 'row');
-    if (!$account || !$queue || ($queue->module != $module) || ($queue->did != $account->did) || ($queue->destination != $destination) || $queue->method != $send_method || $queue->send_interval != $send_interval) {
+    if (!$account || !$queue || ($queue->module != $module) || ($queue->mdid != $account->mdid) || $queue->method != $send_method || $queue->send_interval != $send_interval) {
       // New user or sending method or destination, send if not the first row and reset
       if ($account && $events && $subscriptions) {        
         $messages = notifications_callback($module, 'process_compose', $account, $events, $subscriptions, $send_method, $send_interval);
