@@ -23,20 +23,24 @@ class NotificationsTestCase extends DrupalWebTestCase {
    * Print helper for debugging
    */ 
   function printDebug($data, $title = 'DEBUG') {
-    $string = is_array($data) || is_object($data) ? $this->formatTable($data) : $data;
+    $string = is_array($data) || is_object($data) ? '<pre>' . print_r($data, TRUE) . '</pre>' : $data;
     $this->assertTrue(TRUE, $string, $title);
   }
   // Debug dump object with some formatting
-  function printObject($object, $title = 'DEBUG Object') {
-    $output = $this->formatTable($object);
+  function printObject($object, $title = 'DEBUG Object', $max_depth = NULL) {
+    $output = $this->formatTable($object, $max_depth);
     $this->printDebug($output, $title);
   }
   // Format object as table, recursive
-  function formatTable($object) {
+  function formatTable($object, $max_depth = NULL) {
+    if (isset($max_depth) && !$max_depth) {
+      // Reached max depth, print out in debug format
+      return '<pre>' . print_r($object, TRUE) . '</pre>';
+    }
     foreach ($object as $key => $value) {
       $rows[] = array(
         $key,
-        is_array($value) || is_object($value) ? $this->formatTable($value) : $value,
+        is_array($value) || is_object($value) ? $this->formatTable($value, isset($max_depth) ? $max_depth - 1 : NULL) : $value,
       );
     }
     if (!empty($rows)) {
@@ -90,7 +94,12 @@ class NotificationsTestCase extends DrupalWebTestCase {
   // Dump Notifications log
   function dumpLogs() {
     if ($logs = messaging_log_get()) {
-      $this->assertTrue(TRUE, messaging_log_format($logs), 'Notifications Log');
+      $rows = array();
+      foreach ($logs as $log) {
+        list($type, $string, $append, $objects) = _messaging_log_format($log);
+        $rows[] = array($type, $string, $this->formatTable($append), $this->formatTable($objects));  
+      }
+      $this->printDebug(theme_table(array(), $rows), 'Notifications Log');
     }
   }
 }

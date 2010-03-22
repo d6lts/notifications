@@ -64,7 +64,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = notifications_send_intervals();
   while ($object = db_fetch_object($result)) {
-    $sub = Notifications_Subscription::build($object);
+    $sub = notifications_load_subscription($object);
     $subscriptions[$sub->sid] = '';
     // Naming for this specific subscription, formatted strings    
     $form['type'][$sub->sid] = array('#value' => $sub->get_type('title'));

@@ -805,11 +805,21 @@ function notifications_save_subscription(&$subscription) {
  *   Subscriptions object.
  */
 function notifications_load_subscription($subs, $refresh = FALSE) {
-  if (is_object($subs) && is_a($subs, 'Notifications_Subscription')) {
-    return $subs;
+  $subscriptions = &messaging_static(__FUNCTION__);
+  if (is_object($subs)) {
+    if(is_a($subs, 'Notifications_Subscription')) {
+      $subscriptions[$subs->sid] = $subs;
+    }
+    else {
+      $subscriptions[$subs->sid] = Notifications_Subscription::build($subs);
+    }
+    return $subscriptions[$subs->sid];
   }
   else {
-    return Notifications_Subscription::load($subs, TRUE, $refresh);
+    if ($refresh || !$subscriptions || !array_key_exists($subs, $subscriptions)) {
+      $subscriptions[$subs] = Notifications_Subscription::load($subs);
+    }
+    return $subscriptions[$subs];
   }
 }
 
@@ -850,9 +860,12 @@ function notifications_load_user($uid, $destination = NULL, $send_method = NULL)
  * It also removes pending notifications related to that subscription 
  * 
  * @param $sid
- *   Id of subscriptin to delete
+ *   Subscription object or id of subscriptin to delete
  */
 function notifications_delete_subscription($sid) {
+  $sid = is_object($sid) ? $sid->sid : $sid;
+  $subscriptions = &messaging_static('notifications_load_subscription');
+  $subscriptions[$sid] = NULL;
   foreach (array('notifications', 'notifications_fields', 'notifications_queue') as $table) {
     db_query("DELETE FROM {". $table ."} WHERE sid = %d", $sid);
   }
@@ -871,6 +884,7 @@ function notifications_delete_subscription($sid) {
  *   Whether to limit the result to subscriptions with exactly that condition fields
  */
 function notifications_delete_subscriptions($params, $conditions = array(), $limit = FALSE) {
+  $subscriptions = &messaging_static('notifications_load_subscription');
   // Build query conditions using the query builder
   $query = notifications_subscriptions_query_build($params, $conditions, $limit);
   $query['select'][] = 'n.sid';
@@ -880,6 +894,7 @@ function notifications_delete_subscriptions($params, $conditions = array(), $lim
   $delete = array();
   while ($n = db_fetch_object($result)) {
     $delete[] = $n->sid;
+    $subscriptions[$n->sid] = NULL;
   }
   // This is the actual deletion. We've fetched the values from the db so this needs no escaping.
   if ($delete) {

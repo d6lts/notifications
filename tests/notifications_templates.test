@@ -15,7 +15,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'messaging', 'messaging_debug', 'token', 'notifications', 'notifications_content');
+    parent::setUp('autoload', 'messaging', 'messaging_simple', 'token', 'notifications', 'notifications_content');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
@@ -31,8 +31,9 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
    */
   function testNotificationsTemplates() {
     // Create user to subscribe and get notifications
-    $user = $this->drupalCreateUser();
-    $send_method = 'debug';
+    $user = $this->drupalCreateUser(); 
+    $send_method = 'simple';
+    $destination = messaging_account_build_destination($user, $send_method);
     $site_name = 'Test Site';
     // Create content types for test nodes
     $ctype1 = $this->drupalCreateContentType();
@@ -60,7 +61,10 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $event2 = $this->notificationsCreateNodeEvent('update', $node2);
         
     // Basic api, text parts and info functions
-    variable_set('notifications_digest_methods', array(1 => 'short', 2 => 'long'));  
+    $interval_nodigest = 0;
+    $interval_short = 1;
+    $interval_long = 2;
+    variable_set('notifications_digest_methods', array($interval_short => 'short', $interval_long => 'long'));  
     
     $digest = notifications_digest_method(1);
     $this->assertEqual($digest['type'], 'short', 'Get information about intervals and digest methods.');
@@ -103,9 +107,10 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     );
     $event1->text = $event2->text = $text;    
     // Build event and subscriptions array
-    $event_list = array($event1);
-    $subscriptions = array_fill(1, count($event_list), array());
-    $messages = notifications_process_compose(NULL, $event_list, $subscriptions, 'test', 0);
+    $event_list = array($event1->eid => $event1);
+    $subscriptions[$event1->eid] = array();
+    $subscriptions[$event2->eid] = array();
+    $messages = notifications_process_compose($destination, $event_list, $subscriptions, $interval_nodigest);
     unset($messages[0]['notifications']);
     $this->assertEqual($messages[0], $target, 'Message composition for single event'. $this->compareTexts($messages[0], $target));
 
@@ -123,9 +128,14 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $event3 = $this->notificationsCreateNodeEvent('insert', $node3);
     // This should be digested by node with the second one, it's the same node update
     $event4 = $this->notificationsCreateNodeEvent('update', $node2);
+    $subscriptions[$event3->eid] = array();
+    $subscriptions[$event4->eid] = array();
     // Set known event texts
     $event3->text = $event4->text = $text;
-    $event_list = array(1 => $event1, 2 => $event2, 3 => $event3, 4 => $event4);
+    $event_list = array(
+      $event1->eid => $event1, $event2->eid => $event2,
+      $event3->eid => $event3, $event4->eid => $event4
+    );
     
     // This should produce a short digest, build the target to compare
     $items = array();
@@ -161,16 +171,14 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'subject' => $texts['subject'],
       'body' => theme('notifications_digest_short_body', $texts, $lines),
     );
-    // Build fake subscriptions array
-    $subscriptions = array_fill(1, count($event_list), array());
-    $digest = notifications_process_compose($user, $event_list, $subscriptions, $send_method, 1);
+    $digest = notifications_process_compose($destination, $event_list, $subscriptions, $interval_short);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for short digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');
     //$this->printObject($message, 'Message');
     
     // This should be a long digest, interval 2, build target to compare
-    $event_list = array(1 => $event1, 2 => $event2);
+    $event_list = array($event1->eid => $event1, $event2->eid => $event2);
     $body = array(
       "Subject $node1->title",
       "The body is $node1->body",
@@ -181,8 +189,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'subject' => $texts['subject'],
       'body' => theme('notifications_digest_long_body', $texts['header'], $body, $texts['footer']),
     );
-    $subscriptions = array_fill(1, count($event_list), array());
-    $digest = notifications_process_compose($user, $event_list, $subscriptions, $send_method, 2);
+    $digest = notifications_process_compose($destination, $event_list, $subscriptions, $interval_long);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');
@@ -193,11 +200,13 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
   function notificationsCreateNodeEvent($action, $node) {
     static $eid = 0;
  
-    return (object)array(
-      'eid' => ++$eid, 'type' => 'node', 'action' => $action, 
+    $event = new Notifications_Event(array(
+      'type' => 'node', 'action' => $action, 
       'node' => $node, 'params' => array('nid' => $node->nid),
       'objects' => array('node' => $node),
-    );
+    ));
+    $event->save();
+    return $event;
   }
 
   // Helper function to compare two text arrays and print the differences side by side

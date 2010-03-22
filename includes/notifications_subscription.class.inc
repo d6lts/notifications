@@ -122,37 +122,18 @@ class Notifications_Subscription {
    * Load from db
    * 
    * @param $sid
-   *   Subscription id or subscription object
+   *   Subscription id 
    * @param $full
    *   Whether to load all fields in the same operation
-   * @param $refresh
-   *   Force cache refresh
    */
-  public static function load($sid, $full = TRUE, $refresh = FALSE) {
-    $subscriptions = &messaging_static('notifications_subscriptions');
-    $subs = FALSE;
-    if (is_object($sid)) {
-      if (!$refresh && isset($subscriptions[$sid->sid])) {
-        $subs = $subscriptions[$sid->sid];
+  public static function load($sid, $full = TRUE) {
+    if ($object = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid))) {
+      $subs = self::build($object);
+      if ($full) {
+        $subs->get_fields();
       }
-      else {
-        $subs = self::build($sid);
-      }
-      $sid = $sid->sid;
+      return $subs;    
     }
-    else{
-      if (!$refresh && isset($subscriptions[$sid])) {
-        $subs = $subscriptions[$sid];
-      }
-      elseif ($object = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid))) {
-        $subs = self::build($object);    
-      }
-    }
-    if ($subs && $full) {
-      $subs->get_fields();
-    }
-    $subscriptions[$sid] = $subs;
-    return $subs;
   }
   /**
    * Load condition fields from db
@@ -175,6 +156,14 @@ class Notifications_Subscription {
     $result = drupal_write_record('notifications', $this, $update);
     $this->save_fields($update);
     return $result; 
+  }
+  /**
+   * Delete from db
+   */
+  function delete() {
+    db_query("DELETE FROM {notifications} WHERE sid = %d", $this->sid);
+    db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $this->sid);
+    unset($this->sid);
   }
   /**
    * Check destination or create it if new
@@ -221,15 +210,6 @@ class Notifications_Subscription {
         return $this->create_destination($method, $address);
       }
     }  
-  }
-  /**
-   * Delete from db
-   */
-  function delete() {
-    if (!empty($this->sid)) {
-      notifications_delete_subscription($this->sid);
-      unset($this->sid);
-    }
   }
   /**
    * Save condition fields to db

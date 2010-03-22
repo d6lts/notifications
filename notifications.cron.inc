@@ -794,12 +794,13 @@ function notifications_process_digest_short($destination, $events, $subscription
   // Build up the digested list with text replacement
   // We need text replacement for each line because it depends on different objects
   foreach ($events as $event) {
-    notifications_log('Digesting short format', array('event' => $event));
-    $sid = is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
+    notifications_log('Digesting short format', array('event' => $event->eid));
+    $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('destination' => $destination, 'user' => $account, 'subscription' => $subscription);
     // $info = notifications_event_types($event->type, $event->action);
     $digest = nofitications_digest_event_info($event);
+    notifications_log('Digest info for event', $digest);
     $digest_type = $digest['type'];
     $digest_value = $digest['value'];
 
@@ -871,7 +872,7 @@ function notifications_process_digest_long($destination, $events, $subscriptions
     $part[] = notifications_message_part('event', 'subject', $send_method, $event, $module);
     $part[] = notifications_message_part('event', 'main', $send_method, $event, $module);
     // Pass only the first subscription here
-    $sid = is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
+    $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
     $body = array_merge($body, messaging_text_replace($part, $objects));
@@ -946,6 +947,7 @@ function notifications_digest_line($event, $method) {
       $line = $info['line'];
     }    
     $digest[$event->eid][$method] = $line;
+    notifications_log('Created digest line for event', array('event' => $event->eid, 'line' => $line ));
   }
   
   return $digest[$event->eid][$method];
