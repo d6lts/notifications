@@ -33,6 +33,7 @@ class Notifications_Event {
   public $delete;
   // Event text for composition
   public $text;
+
   /**
    * Constructor
    */
@@ -65,7 +66,13 @@ class Notifications_Event {
     $update = empty($this->eid) ? array() : 'eid';
     drupal_write_record('notifications_event', $this, $update);    
   }
-  
+  /**
+   * Delete from system
+   */ 
+  function delete() {
+    db_query('DELETE FROM {notifications_event} WHERE eid = %d', $this->eid);
+    unset($this->eid);
+  }
   /**
    * Load by id
    */
@@ -77,5 +84,20 @@ class Notifications_Event {
       notifications_module_invoke('event load', $event);
       return $event;
     }
+  }
+  /**
+   * Track notifications queue row processed, decrease counter
+   */
+  function track_count() {
+    return $this->counter ? --$this->counter : 0;
+  }
+  /**
+   * Update event counter
+   */
+  function update_counter($value = NULL) {
+    if (isset($value)) {
+      $event->counter = $value;
+    }
+    db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $event->counter, $this->eid);
   }
 }

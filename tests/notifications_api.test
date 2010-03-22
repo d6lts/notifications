@@ -15,7 +15,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'messaging', 'notifications', 'messaging_mail', 'notifications_lite');
+    parent::setUp('autoload', 'messaging', 'messaging_mail', 'notifications', 'notifications_tools', 'notifications_lite');
     require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
   }
 
@@ -150,26 +150,4 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $this->assertEqual($this->countQueued(array('cron' => 0)), 0, 'Both rows have been deleted' );
   }
 
-  /**
-   * Helper function. Simple row counting with conditions, uses query builder
-   */
-  function countQueued($params = NULL) {
-    if ($params) {
-      $query = notifications_queue_query($params);
-      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE ' . implode(' AND ', $query['where']), $query['args']));
-    } else {
-      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue}'));
-    }
-  }
-  
-  /**
-   * Implementation of tearDown().
-   */
-  function tearDown() {
-    // Perform any clean-up tasks.
-    //variable_del('some_variable');
-
-    // The last thing a tearDown() method should always do is call its parent tearDown() method.
-    parent::tearDown();
-  }
 }

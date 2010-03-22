@@ -253,8 +253,7 @@ function notifications_process_queue_group($group, $update, $module = 'notificat
         $processed[] = $queue->sqid;
         $variables = array('queue sqid' => $queue->sqid , 'uid' => $queue->uid, 'event' => $queue->eid, 'destination' => $queue->mdid, 'send_interval' => $queue->send_interval);
         $count++;
-        $event = notifications_load_event($queue->eid);
-        notifications_event_tracker('count', $event);
+        $event = notifications_event_tracker('load', $queue->eid);
         if (!$event) {
           notifications_log('Cannot load event', $variables);
         }
@@ -397,34 +396,46 @@ function notifications_process_queue($send_interval, $max_sqid) {
  * Keep track of events and update event counter with processed rows eids
  * 
  * @param $op
- *   count, reset, update
+ *   load, count, reset, update
  * @param $event
  *   event object to track
  */
 function notifications_event_tracker($op, $event = NULL) {
-  $events = &messaging_static(__FUNCTION__);
+  $tracker = &messaging_static(__FUNCTION__);
+  $events = &messaging_static('notifications_load_event'); // Shared cache
   switch ($op) {
+    case 'load': // Load and add to the tracker, $event is eid
+      if ($event = notifications_load_event($event)) {
+        $event->track_count();
+        $tracker[$event->eid] = $event;
+        return $event;
+      }
+      break;
     case 'count':
-      $events[$event->eid] = $events && array_key_exists($event->eid, $events) ? $events[$event->eid] + 1 : 1;
+      $event->track_count();
       break;
     case 'delete':
-      // Delete event and all related rows. For events no longer available, deleted nodes, comments, etc..
-      foreach (array('notifications_queue', 'notifications_event') as $table) {
-        db_query('DELETE FROM {' . $table . '} WHERE eid = %d', $event->eid);
-      }
-      if ($events && array_key_exists($event->eid, $events)) {
-        unset($events[$event->eid]);
-      }
+      // Delete event and all related rows.
+      $events[$event->eid] = NULL;
+      unset($tracker[$event->eid]);
+      $event->delete();
       break;
     case 'update':
-      if ($events) {
-        foreach ($events as $eid => $count) {
-          db_query('UPDATE {notifications_event} SET counter = counter - %d WHERE eid = %d', $count, $eid);
+      // Update tracked events counter or delete if counter reached zero.
+      if ($tracker) {
+        foreach ($tracker as $event) {
+          if ($event->counter) {
+            $event->update_counter();
+          }
+          else {
+            $events[$event->eid] = NULL;
+            $event->delete();
+          }
         }
       }
       // Intentional no break (update will also reset)
     case 'reset':
-      $events = array();
+      $tracker = array();
   }  
 }
 
@@ -689,11 +700,9 @@ function notifications_queue_done($params) {
  *   Fields values to update. Array of field => value pairs
  */
 function notifications_queue_update($params, $updates) {
-  
   $values =  _messaging_query_conditions('notifications_queue', $updates);
   $where = notifications_queue_query($params);
   $args = array_merge($values['args'], $where['args']);
-
   return db_query('UPDATE {notifications_queue} SET ' . implode(', ', $values['conditions']) . ' WHERE ' . implode(' AND ', $where['where']), $args);
 }
 

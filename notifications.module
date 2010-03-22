@@ -687,12 +687,12 @@ function notifications_query_sql($query) {
  * @return
  *   Array of subscriptions for this user and object indexed by sid 
  */
-function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL) {
+function notifications_user_get_subscriptions($uid, $event_type, $oid, $object = NULL, $refresh = FALSE) {
   $subscriptions = &messaging_static(__FUNCTION__);
   // No subscriptions for anonymous
   if (!$uid) return;
 
-  if (!isset($subscriptions[$uid][$event_type][$oid])) {
+  if ($refresh || !isset($subscriptions[$uid][$event_type][$oid])) {
     $subscriptions[$uid][$event_type][$oid] = array();
     $query_args = notifications_module_information('query', 'user', $event_type, $object);
     // Base query
@@ -714,7 +714,7 @@ function notifications_user_get_subscriptions($uid, $event_type, $oid, $object =
     $result = db_query($sql, $args);
 
     while ($subs = db_fetch_object($result)) {
-      $subscriptions[$uid][$event_type][$oid][$sub->sid] = notifications_load_subscription($subs->sid);
+      $subscriptions[$uid][$event_type][$oid][$subs->sid] = notifications_load_subscription($subs->sid);
     }
   }
   return $subscriptions[$uid][$event_type][$oid];

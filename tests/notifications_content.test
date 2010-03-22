@@ -7,7 +7,10 @@
  * Notes:
  *  - An exception (PHP warning) is thrown when content module (cck) is enabled, nothing to worry about.
  */
-class NotificationsContentTests extends DrupalWebTestCase {
+
+require_once drupal_get_path('module', 'notifications') . '/tests/notifications_test_case.inc';
+
+class NotificationsContentTests extends NotificationsTestCase {
   
   function getInfo() {
     return array(
@@ -242,8 +245,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     node_save($node);
  
     // Check queued notifications. We should have three queued notifs at the end
-    $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
-    $this->assertEqual($count, 3, 'Disabling notifications for node updates worked, we have the right number of rows in queue: '. $count);
+    $this->assertEqual($this->countQueued(array('uid' => $user->uid)), 3, 'Disabling notifications for node updates worked, we have the right number of rows in queue: '. $count);
     
     // Check queued events, these should be cleaned at the end
     $count = db_result(db_query("SELECT COUNT(*) FROM {notifications_event}"));   
@@ -253,10 +255,6 @@ class NotificationsContentTests extends DrupalWebTestCase {
     include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
     $send_method = notifications_user_setting('send_method', $user);
     $send_interval = notifications_user_setting('send_interval', $user);
-    // Update this part of the test, pull function is obsolete
-    //$queued = notifications_process_pull($send_method, array($user->uid));
-    //$this->assertEqual(count($queued), 1, 'Messages for this event have been queued.');
-
     // Simulate real queue processing and check queue has been cleaned.
     $max_sqid = notifications_process_prepare();
     $this->assertEqual($max_sqid > 0, TRUE, 'Cleanup and queue prepare.');
@@ -265,10 +263,7 @@ class NotificationsContentTests extends DrupalWebTestCase {
     notifications_process_queue($send_interval, $max_sqid);
     //$count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($this->countUserRows('notifications_queue', $user->uid), 0, 'All rows in queue have been processed.');
-
-    // Check event counters
-    $count = db_result(db_query("SELECT count(*) FROM {notifications_event} WHERE counter = 0"));   
-    $this->assertEqual($count, 1, 'The event counters have been updated:' . $count);
+    $this->assertTableRows('notifications_event', 0, NULL, 'Events have been processed and deleted.');
     
     // Check unsubscribe from all page, with confirmation and with direct link
     $link = notifications_get_link('unsubscribe', array('uid' => $user->uid));

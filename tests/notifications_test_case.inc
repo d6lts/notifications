@@ -1,10 +1,24 @@
 <?php
 // $Id$
+
+// Some utility functions need this one
+module_load_include('cron.inc', 'notifications');
 /**
  * @file
  * Base class for Notifications Tests
  */
-class NotificationsTestCase extends DrupalWebTestCase { 
+class NotificationsTestCase extends DrupalWebTestCase {
+  /**
+   * Helper function. Simple row counting with conditions, uses query builder
+   */
+  function countQueued($params = NULL) {
+    if ($params) {
+      $query = notifications_queue_query($params);
+      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE ' . implode(' AND ', $query['where']), $query['args']));
+    } else {
+      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue}'));
+    }
+  }
   /**
    * Print helper for debugging
    */ 
@@ -35,6 +49,7 @@ class NotificationsTestCase extends DrupalWebTestCase {
   // Assert number of rows in table
   function assertTableRows($table, $target, $conditions = NULL, $message = NULL) {
     $sql = 'SELECT COUNT(*) FROM {' . $table . '}';
+    $print = $where = array();
     if ($conditions) {
       foreach ($conditions as $field => $value) {
         $where[] = "$field = '%s'";
