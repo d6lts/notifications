@@ -101,18 +101,19 @@ function notifications_settings_form() {
  * Send intervals administration
  */
 function notifications_send_intervals_form() {
+  notifications_include('process.inc');
   // Collect information about digesting methods and print out some help
-  $form['digest'] = array(
-    '#title' => t('Digest formats'),
+  // Collect information about building methods and print out some help
+  $form['build'] = array(
+    '#title' => t('Build formats'),
     '#type' => 'fieldset',
-    '#description' => t('These are the digest formats available for each interval.')
+    '#description' => t('These are the building formats available for each interval.')
   );
-  $digest_methods[''] = t('None');
-  foreach (notifications_digest_method() as $type => $method) {
-    $digest_methods[$type] = $method['name'];
+  foreach (notifications_process_build_method() as $type => $method) {
+    $build_methods[$type] = $method['name'];
     $rows[] = array($method['name'], $method['description']);    
   }
-  $form['digest']['info'] = array('#value' => theme('table', array(), $rows));
+  $form['build']['info'] = array('#value' => theme('table', array(), $rows));
   
   // Build options. Need some complex formatting.
   $units = array(
@@ -169,12 +170,12 @@ function notifications_send_intervals_form() {
       '#default_value' => $name,
       '#size' => 40,
     );
-    $digest = notifications_digest_method($time);
-    $form['intervals'][$index]['digest'] = array(
+    $build = notifications_process_build_method($time);
+    $form['intervals'][$index]['build'] = array(
       '#type' => 'select',
       '#disabled' => ($number < 0),
-      '#default_value' => $digest ? $digest['type'] : '',
-      '#options' => $digest_methods,
+      '#default_value' => $build ? $build['type'] : 'simple',
+      '#options' => $build_methods,
     );
     // Store also index -> time mapping
     $form['intervals'][$index]['key'] = array('#type' => 'value', '#value' => $time);
@@ -219,7 +220,7 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
         $unit = $values['unit'] ? (int)$values['unit'] : 1;
         $time = (int)$values['time'] * $unit;
         $intervals[$time] = $values['name'];
-        $digest[$time] = $values['digest'];
+        $build_methods[$time] = $values['build'];
         if ($index == $form_values['default']) {
           variable_set('notifications_default_send_interval', $time);
         }
@@ -227,7 +228,7 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
     }
     ksort($intervals);
     variable_set('notifications_send_intervals', $intervals);
-    variable_set('notifications_digest_methods', $digest);
+    variable_set('notifications_digest_methods', $build_methods);
   }
   drupal_set_message(t('The time intervals for your subscriptions have been updated'));
   // Update orphaned notifications with invalid send interval
@@ -248,13 +249,13 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
  */
 function theme_notifications_send_intervals_form($element) {
   $output = ''; //drupal_render($element['digest']);
-  $header = array(array('data' => t('Time'), 'colspan' => 2), t('Display name'), t('Digest'), t('Default'));
+  $header = array(array('data' => t('Time'), 'colspan' => 2), t('Display name'), t('Format'), t('Default'));
   foreach (element_children($element['intervals']) as $key) {
     $rows[] = array(
       drupal_render($element['intervals'][$key]['time']),
       drupal_render($element['intervals'][$key]['unit']),
       drupal_render($element['intervals'][$key]['name']),
-      drupal_render($element['intervals'][$key]['digest']),
+      drupal_render($element['intervals'][$key]['build']),
       drupal_render($element['default'][$key]),
     );  
   }

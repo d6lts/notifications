@@ -151,7 +151,7 @@ function notifications_tools_queue_operations_form($form_state, $op = 'run') {
 function notifications_tools_queue_operations_form_submit($form, &$form_state) {
   global $user;
 
-  include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+  notifications_include('process.inc');
   // Enable messaging & notifications logs
   messaging_log_start();
   // Switch to anonymous user so this works with anonymous permissions

@@ -184,7 +184,7 @@ function notifications_manage_subscriptions_form_submit($form, &$form_state) {
  */
 function notifications_manage_destination_form($form_state, $destination) {
   module_load_include('inc', 'notifications', 'notifications.pages');
-  notifications_include('destination');
+  notifications_include('destination.inc');
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
     $form = notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
     return $form;

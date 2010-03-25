@@ -346,7 +346,7 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
  * Clean queue for a user and update event tracker
  */
 function notifications_queue_clean($params) {
-  require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+  notitications_include('process.inc');
   notifications_queue_delete($params);
   notifications_event_clean(TRUE);
 }
@@ -563,7 +563,7 @@ function notifications_send_immediate($eid = 0) {
  */
 function notifications_exit() {
   if ($events = notifications_send_immediate()) {
-    require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_include('process.inc');
     foreach ($events as $eid) {
       notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
     }    
@@ -1139,35 +1139,6 @@ function notifications_info(&$data, $type = NULL, $field = NULL) {
 }
 
 /**
- * Information about digesting method for a send interval.
- * 
- * @return array()
- *   Ditest information for that interval, or all the information if no interval
- */
-function notifications_digest_method($send_interval = NULL, $refresh = FALSE) {
-  static $digest_methods, $intervals;
-  
-  if (!isset($digest_methods) || $refresh) {
-    // Method information
-    foreach (notifications_module_information('digest methods') as $method) {
-      $digest_methods[$method['type']] = $method;
-    }
-    // Mapping interval -> method
-    $intervals = variable_get('notifications_digest_methods', array());
-  }
-  if (is_null($send_interval)) {
-    return $digest_methods;
-  }
-  elseif (!empty($intervals[$send_interval]) && isset($digest_methods[$intervals[$send_interval]])) {
-    return $digest_methods[$intervals[$send_interval]];
-  }
-  else {
-    // Default, that will be 'short' if interval > 0, none otherwise
-    return ($send_interval > 0) ? $digest_methods['short'] : NULL;
-  }
-}
-
-/**
  * Invokes hook_notifications() with a single parameter or more but not needing
  * an object to be passed as reference.
  */
@@ -1399,7 +1370,7 @@ function notifications_event_types($type = NULL, $action = NULL) {
  */
 function notifications_cron() {
   if (variable_get('notifications_process_on_cron', TRUE)) {
-    include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_include('process.inc');
     notifications_process_run();
   }
 }
@@ -1557,19 +1528,14 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
       }
       break;
 
-    case 'digest methods':
-      // Return array of digesting engines
-      $info['short'] = array(
-        'type' => 'short',
-        'name' => t('Short'),
-        'description' => t('Produces one line per event, grouped by object'),
-        'digest callback' => 'notifications_process_digest_short',
-      );
-      $info['long'] = array(
-        'type' => 'long',
-        'name' => t('Long'),
-        'description' => t('Adds full information for each event'),
-        'digest callback' => 'notifications_process_digest_long',
+    case 'build methods':
+      // Return array of building engines
+      $info['simple'] = array(
+        'type' => 'simple',
+        'name' => t('Simple'),
+        'description' => t('Produces one message per event, without digesting.'),
+        'build callback' => 'notifications_process_build_simple',
+        'digest' => FALSE,
       );
       return $info;
   }
@@ -2009,18 +1975,6 @@ function notifications_theme() {
       'arguments' => array('element' => NULL),
       'file' => 'notifications.admin.inc',
     ),
-    'notifications_digest_short_body' => array(
-      'arguments' => array('text' => NULL, 'list' => NULL),
-      'file' => 'notifications.cron.inc',
-    ),
-    'notifications_digest_short_line' => array(
-      'arguments' => array('line' => NULL, 'group' => NULL),
-      'file' => 'notifications.cron.inc',
-    ),
-    'notifications_digest_long_body' => array(
-      'arguments' => array('header' => NULL, 'content' => NULL, 'footer' => NULL),
-      'file' => 'notifications.cron.inc',
-    ),
     'notifications_manage_subscriptions' => array(
       'arguments' => array('form' => NULL),
       'file' => 'notifications.manage.inc',
@@ -2093,7 +2047,7 @@ function notifications_locale_refresh() {
 function notifications_include($file) {
   static $used = array();
   if (!isset($used[$file])) {
-    require_once './' . drupal_get_path('module', 'notifications') . "/includes/$file.inc";
+    require_once './' . drupal_get_path('module', 'notifications') . "/includes/$file";
   }
   $used[$file] = TRUE;
 }

@@ -16,7 +16,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
   
   function setUp() {
     parent::setUp('autoload', 'messaging', 'messaging_mail', 'notifications', 'notifications_tools', 'notifications_lite');
-    require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_include('process.inc');
   }
 
   /**

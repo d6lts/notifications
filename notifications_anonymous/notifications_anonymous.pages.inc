@@ -41,7 +41,7 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
  */
 function notifications_anonymous_form_subscribe($form_state, $subscription, $account) {
   $account = $account ? $account : drupal_anonymous_user();
-  notifications_include('destination');
+  notifications_include('destination.inc');
   // Pass on simple values
   foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
     $form[$field] = array('#type' => 'value', '#value' => isset($subscription->$field) ? $subscription->$field : '');
@@ -78,7 +78,7 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
  * Subscription form validation
  */
 function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
-  notifications_include('destination');
+  notifications_include('destination.inc');
   // Get destination from form
   notifications_destination_parse_submitted($form_state['values'], TRUE);
 
@@ -126,7 +126,7 @@ function notifications_anonymous_request_page() {
  * Page callback. Manage anonymous destinations.
  */
 function notifications_anonymous_destination_page($destination, $op = 'unsubscribe') {
-  notifications_include('destination');
+  notifications_include('destination.inc');
   // Just for administrators or signed requests
   if (!user_access('administer notifications') && !notifications_check_signature()) {
     drupal_access_denied();
@@ -162,7 +162,7 @@ function notifications_anonymous_destination_subform($destination) {
  */
 function notifications_anonymous_subscription_page($subscription, $op = 'unsubscribe') {
   global $user;
-  notifications_include('destination');
+  notifications_include('destination.inc');
   // Just for administrators or signed requests
   if (!user_access('administer notifications') && !notifications_check_signature()) {
     drupal_access_denied();

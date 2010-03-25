@@ -252,7 +252,6 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertEqual($count, 1, 'The right number of events are stored:'. $count);
     
     // Get messages from queue. After de-duping there should be only one.
-    include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';   
     $send_method = notifications_user_setting('send_method', $user);
     $send_interval = notifications_user_setting('send_interval', $user);
     // Simulate real queue processing and check queue has been cleaned.

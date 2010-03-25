@@ -15,7 +15,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'messaging', 'messaging_simple', 'token', 'notifications', 'notifications_content');
+    parent::setUp('autoload', 'messaging', 'messaging_simple', 'token', 'notifications', 'notifications_digest', 'notifications_content');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
@@ -23,7 +23,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     // Set fake site name for comparison after token replacement
     variable_set('site_name', 'Test Site');
     
-    require_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
+    notifications_include('process.inc');
   }
 
   /**
@@ -66,7 +66,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $interval_long = 2;
     variable_set('notifications_digest_methods', array($interval_short => 'short', $interval_long => 'long'));  
     
-    $digest = notifications_digest_method(1);
+    $digest = notifications_process_build_method(1);
     $this->assertEqual($digest['type'], 'short', 'Get information about intervals and digest methods.');
     
     $info = notifications_event_types($event1->type, $event1->action);

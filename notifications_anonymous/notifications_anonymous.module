@@ -280,7 +280,7 @@ function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
     case 'notifications_ui_options_form':
       $account = $form['subscriptions']['account'];
       if (!$account->uid && !$user->uid) {
-        notifications_include('destination');
+        notifications_include('destination.inc');
         $form += notifications_destination_address_subform($account);
         //$form['destination']['#weight'] = -10;
       }
