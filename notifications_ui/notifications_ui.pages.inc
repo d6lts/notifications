@@ -40,7 +40,28 @@ function notifications_ui_settings_form() {
     '#default_value' => variable_get('notifications_ui_types', array()),
     '#description' => t('Check the subscription types the UI module should show. If not checked no options for this subscription type will be displayed at all.'),
   );
-
+  // Link options
+  $form['links'] = array(
+    '#title' => t('Link types'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+  );
+  $options = array(
+    t('<strong>Confirmation form</strong>. Links take the user through a confirmation form with some more options.'),
+    t('<strong>Direct operation</strong>. Links create/delete a subscription without confirmation using default settings.'),
+  );
+  $form['links']['notifications_ui_subscribe_links'] = array(
+    '#title' => t('Subscribe links'),
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => variable_get('notifications_ui_subscribe_links', 0),
+  );
+  $form['links']['notifications_ui_unsubscribe_links'] = array(
+    '#title' => t('Unsubscribe links'),
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => variable_get('notifications_ui_unsubscribe_links', 0),
+  );
   $options = array(
     'page' => t('<strong>Tab</strong>. A full tab for some subscription types will be displayed for each enabled subscription type when available.'),
     'create' => t('<strong>Create</strong>. A create link and a custom page for adding subscriptions will be available for each enabled subscription type.'),

@@ -342,25 +342,25 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
  * 
  * These links can be added as node link elements or rendered some other way
  * 
- * @param $options
+ * @param $subscription_types
  *   Array of subscription options, like the one produced by notifications_ui_subscribe_options()
  * @param $prefix
  *   Prefix to use for the link indexes
  */
-function notifications_ui_build_links($options, $prefix = 'notifications_') {
+function notifications_ui_build_links($subscription_types, $prefix = 'notifications_') {
   global $user;
 
   $links = array();  
-  foreach ($options as $index => $option) {
+  foreach ($subscription_types as $index => $option) {
     if (!empty($option['subscription'])) {
       // Unsubscribe link
-      $title = t('Unsubscribe from: !name', array('!name' => $option['name']));
-      $props = notifications_get_link('unsubscribe', array('sid' => $option['subscription']->sid, 'destination' => $_GET['q']));
+      $title = t('Unsubscribe from: @name', array('@name' => $option['name']));
+      $props = notifications_ui_get_link('unsubscribe', array('sid' => $option['subscription']->sid));
     }
     else {
       // Subscribe link
-      $title = t('Subscribe to: !name', array('!name' => $option['name']));
-      $props = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => $_GET['q']));
+      $title = t('Subscribe to: @name', array('@name' => $option['name']));
+      $props = notifications_ui_get_link('subscribe', array('uid' => $user->uid, 'type' => $option['type'], 'fields' => $option['fields']));
     }
     $links[$prefix . $index] = array(
       'title' => $title,
@@ -369,6 +369,25 @@ function notifications_ui_build_links($options, $prefix = 'notifications_') {
     ) + $props['options'];      
   }
   return $links;  
+}
+
+/**
+ * Get subscribe / unsubscribe links to display in page
+ * 
+ * This is a wrapper to get links for the page (not for mails nor anything else) and
+ * will count in some specific UI options.
+ * 
+ * @see notifications_get_links()
+ */
+function notifications_ui_get_link($type, $options) {
+  $options += array('destination' => $_GET['q']);
+  if ($type == 'subscribe' && variable_get('notifications_ui_subscribe_links', 0)) {
+    $options += array('signed' => TRUE, 'confirm' => FALSE);
+  }
+  if ($type == 'unsubscribe' && variable_get('notifications_ui_unsubscribe_links', 0)) {
+    $options += array('signed' => TRUE, 'confirm' => FALSE);
+  }  
+  return notifications_get_link($type, $options);
 }
 
 /**
