@@ -51,9 +51,9 @@ function notifications_tools_status_page() {
  * 
  * @ TO DO Add confirmation before queue reset
  */
-function notifications_tools_admin_queue($op = 'status', $param = NULL) {
+function notifications_tools_admin_queue($op = 'run') {
   $output = '';
-  $output .= drupal_get_form('notifications_tools_queue_operations_form');
+  $output .= drupal_get_form('notifications_tools_queue_operations_form', $op);
   $output .= notifications_tools_queue_summary();
 
   // Display logs from last process
@@ -83,17 +83,42 @@ function notifications_tools_manage_subscriptions($form_state) {
  * Summary of queued notifications
  */
 function notifications_tools_queue_summary() {
-  $output = '';
+  $output = '<p>' . t('Queued notifications by send interval and method.') . '</p>';
   // Queue status
   $send_intervals = _notifications_send_intervals();
+  $send_methods = _notifications_send_methods();
   $header = array(t('Send interval'), t('Number'));
+  $result = db_query("SELECT q.send_interval, d.method, count(*) AS count FROM {notifications_queue} q LEFT JOIN {messaging_destination} d ON q.mdid = d.mdid WHERE q.cron = 1 GROUP BY q.send_interval, d.method");    
+  // Store by interval, method 
+  $data = array();
   $count = 0;
-  $result = db_query("SELECT send_interval, count(*) AS count FROM {notifications_queue} WHERE cron = 1 GROUP BY send_interval");    
-  $rows = array();
-  while ($stype = db_fetch_object($result)) {
-    $rows[] = array($send_intervals[$stype->send_interval], $stype->count);
-    $count += $stype->count;
+  while ($item = db_fetch_object($result)) {
+    $data[$item->send_interval][$item->method] = $item->count;
+    $count += $item->count;
   }
+  // Format the results in a table
+  $rows = array();
+  $header = array_merge(array(''), array_map('check_plain', array_values($send_methods)), array(t('Total')));
+  $total_column = array();
+  foreach ($send_intervals as $interval => $interval_name) {
+    $total_row = 0;
+    $row = array(array('header' => TRUE, 'data' => check_plain($interval_name)));
+    foreach ($send_methods as $method => $method_name) {
+      $value = isset($data[$interval][$method]) ? $data[$interval][$method] : 0;
+      $row[] = $value;
+      $total_row += $value;
+      $total_column[$method] = isset($total_column[$method]) ? $total_column[$method] + $value : $value;
+    }
+    // Totals per row
+    $row[] = $total_row;
+    $rows[] = $row;
+  }
+  // Add totals per column
+  $rows[] = array_merge(
+    array(array('header' => TRUE, 'data' => t('Total'))),
+    $total_column,
+    array(array_sum($total_column))
+  );
   $output .= theme('table', $header, $rows);
   $output .= t('Total: %number', array('%number' => $count));
   return theme('box', t('Notifications in queue'), $output);
@@ -102,29 +127,28 @@ function notifications_tools_queue_summary() {
 /**
  * Form for queue operations
  */
-function notifications_tools_queue_operations_form() {
-  $form['operations'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Operations'),
-    '#theme' => 'notifications_table_form',
-    '#table_fields' => array('description', 'button'),
+function notifications_tools_queue_operations_form($form_state, $op = 'run') {
+  $form['operation'] = array(
+    '#type' => 'radios',
+    '#title' => t('Operation'),
+    '#options' => array(),
+    '#default_value' => $op ? $op : 'run',
+    //'#default_value' => isset($form_state['values']['mode']) ? $form_state['values']['mode'] : 'run',
   );
   foreach (notifications_tools_queue_operations() as $op => $data) {
-    $form['operations']['description'][$op] = array(
-      '#value' => $data['description'],
-    );
-    $form['operations']['button'][$op] = array(
-      '#type' => 'submit',
-      '#value' => $data['label'],
-    );
+    $form['operation']['#options'][$op] = $data['description'];
   }
-  return $form; 
+  $form['process'] = array(
+    '#type' => 'submit',
+    '#value' => t('Process queue'),
+  );
+  return $form;
 }
 
 /**
  * Operations form submit, translate op into callback
  */
-function notifications_tools_queue_operations_form_submit($form, $form_state) {
+function notifications_tools_queue_operations_form_submit($form, &$form_state) {
   global $user;
 
   include_once drupal_get_path('module', 'notifications') .'/notifications.cron.inc';
@@ -134,14 +158,14 @@ function notifications_tools_queue_operations_form_submit($form, $form_state) {
   session_save_session(FALSE);
   $save_user = $user;
   $user = drupal_anonymous_user();
-  foreach (notifications_tools_queue_operations() as $op => $data) {
-    if ($form_state['values']['op'] == $data['label']) {
-      $callback = $data['callback'];
-      $args = !empty($data['callback arguments']) ? $data['callback arguments'] : array();
-      call_user_func_array($callback, $args);
-      break;
-    }  
-  }
+  $operations = notifications_tools_queue_operations();
+  if ($mode = $form_state['values']['operation']) {
+    $process = $operations[$mode];
+    $args = !empty($process['callback arguments']) ? $process['callback arguments'] : array();
+    call_user_func_array($process['callback'], $args);
+    drupal_set_message($process['description']);
+    $form_state['redirect'] = 'admin/messaging/subscriptions/queue/' . $mode;
+  } 
   // Switch back to current user
   $user = $save_user;
   session_save_session(TRUE);
@@ -177,10 +201,16 @@ function notifications_tools_queue_operations() {
       'callback arguments' => array('reset queue'),
     ),
     'test' => array(
-      'label' => t('Run test'),
+      'label' => t('Test processing'),
       'description' => t('Test run queue processing, without updating nor sending messages.'),
       'callback' => 'notifications_tools_queue_process',
       'callback arguments' => array('test run'),
+    ),
+    'testsend' => array(
+      'label' => t('Test sending'),
+      'description' => t('Test run queue processing, without updating but actually sending messages.'),
+      'callback' => 'notifications_tools_queue_process',
+      'callback arguments' => array('test send'),
     ),
   );
   return $operations;
@@ -198,6 +228,10 @@ function notifications_tools_queue_process($op) {
       break;
     case 'test run':
       notifications_process('option', 'test', TRUE);
+      notifications_process_run(FALSE);
+      break;
+    case 'test send':
+      notifications_process('option', 'keep', TRUE);
       notifications_process_run(FALSE);
       break;
     case 'clean queue':

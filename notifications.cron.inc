@@ -318,14 +318,20 @@ function notifications_event_user_access($event, $account) {
  *   Send interval to process
  * @param $max_sqid
  *   Max queue id to process
+ * @param $language
+ *   Optional language to process only rows in this language
+ * 
  * @return Number of rows processed
  * 
  * @ TODO Review time conditions
  * @ TODO Per module queue processing
  */
-function notifications_process_queue($send_interval, $max_sqid) {
+function notifications_process_queue($send_interval, $max_sqid, $language = NULL) {
   notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max squid' => $max_sqid));
+  // Option for test running, marking messages as test, nor updating not sending
   $test = notifications_process('option', 'test');
+  // Option for normal running but without updating the queue records
+  $keep = notifications_process('option', 'keep');
   // Count processed rows
   $count = 0;
   // This is the time from which stored rows will be sent
@@ -346,11 +352,17 @@ function notifications_process_queue($send_interval, $max_sqid) {
   $sql = "SELECT q.mdid, q.module, COUNT(q.sqid) AS count_rows FROM {notifications_queue} q ";
   $sql .= " LEFT JOIN {notifications_sent} su ON q.mdid = su.mdid AND q.send_interval = su.send_interval ";
   $sql .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
+  if ($language) {
+    $sql .= " AND q.language = '%s'";
+  }
   $sql .= " AND (su.mdid IS NULL OR su.sent < %d) ";
   // Note: the group by su.sent seems to be needed by pgsql
   $sql .= " GROUP BY q.mdid, q.module, su.sent ORDER BY su.sent";
-  $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, $step_users);
-
+  if ($language) {
+    $result = db_query_range($sql, $send_interval, $max_sqid, $language->language, $timelimit, 0, $step_users);
+  } else {
+    $result = db_query_range($sql, $send_interval, $max_sqid, $timelimit, 0, $step_users);
+  }
   // We create a bach for each mdid (user, destination, method) and handle it to notifications_process_rows()
   while (($queue = db_fetch_object($result)) && notifications_process('check')) {
     $module = $queue->module;
@@ -359,31 +371,35 @@ function notifications_process_queue($send_interval, $max_sqid) {
     // In case we have too many rows, we go updating step by step
     if ($queue->count_rows > $step_rows) {
       $limit = $step_rows;
-      $update = TRUE;
+      // Still if we want to keep data, we don't update as we go
+      $update = !$keep;
     }
     else {
       $limit = $queue->count_rows;
       $update = FALSE;
     }
-    
+    // Prepare batch query for actual row processing
     $batch = array(
       'mdid' => $queue->mdid, 'module' => $queue->module,
       'send_interval' => $send_interval, 
       'cron' => 1, 'max_sqid' => $max_sqid,
     );
+    if ($language) {
+      $batch['language'] = $language->language;
+    }
     notifications_log('Queue processing', $batch);
     // These rows may be processed by a different module. Defaults to notifications_process_rows()
     $processed = notifications_callback($queue->module, 'process_rows', $batch, $limit, $update);
     $count += $processed;
 
-    if ($processed && !$test && !$update) {
+    if ($processed && !$test && !$update && !$keep) {
       notifications_queue_done($batch);      
     }
   }
 
   // If not doing a test run, update event counter and return count
   // If doing a test run, return 0 so we don't go through this again
-  if (!$test) {
+  if (!$test && !$keep) {
     notifications_event_tracker('update');
     return $count;
   }
