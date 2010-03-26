@@ -20,11 +20,12 @@ class NotificationsContentTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'token', 'messaging',  'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui', 'comment');
+    parent::setUp('autoload', 'token', 'messaging', 'messaging_template',  'messaging_debug', 'notifications', 'notifications_content', 'notifications_ui', 'comment');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
     variable_set('notifications_default_send_method', 'debug');
+    notifications_include('process.inc');
   }
 
   // Enable all UI optional pages

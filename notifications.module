@@ -2047,7 +2047,7 @@ function notifications_locale_refresh() {
 function notifications_include($file) {
   static $used = array();
   if (!isset($used[$file])) {
-    require_once './' . drupal_get_path('module', 'notifications') . "/includes/$file";
+    require_once './' . drupal_get_path('module', 'notifications') . '/includes/' . $file;
   }
   $used[$file] = TRUE;
 }

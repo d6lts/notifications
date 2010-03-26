@@ -3,7 +3,7 @@
 
 // Base class and some utility functions need this one
 require_once drupal_get_path('module', 'messaging') . '/tests/messaging_testcase.inc';
-module_load_include('cron.inc', 'notifications');
+
 /**
  * @file
  * Base class for Notifications Tests

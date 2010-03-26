@@ -15,7 +15,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'messaging', 'messaging_simple', 'token', 'notifications', 'notifications_digest', 'notifications_content');
+    parent::setUp('autoload', 'messaging', 'messaging_template', 'messaging_simple', 'token', 'notifications', 'notifications_digest', 'notifications_content');
     // Set some defaults
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
@@ -85,7 +85,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
     $part = notifications_message_part('type', 'key', 'test');
     $this->assertEqual($part, 'type key [type-name] [title] [site-name]', 'Retrieved testing message part: '. $part);
-    $text = messaging_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
+    $text = messaging_template_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
     $this->assertEqual($text, "$node1->title $node1->type Test Site", 'Text replacement for node object');
     
     // Now lets get into the scary part, events and event digesting
@@ -143,7 +143,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $items['header'] = "Greetings, [user].\n\nThese are your messages";
     $items['footer'] = "This is an automatic message from [site-name]\nTo manage your subscriptions, browse to [subscriptions-manage]";
     $objects = array('user' => $user, 'subscription' => NULL);
-    $texts = messaging_text_replace($items, $objects);
+    $texts = messaging_template_text_replace($items, $objects);
     // Node post events are digested by node type
     $lines = array();
     $lines['node'][$ctype1->type] = array(

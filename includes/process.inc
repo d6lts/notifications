@@ -359,7 +359,7 @@ function notifications_process_queue($send_interval, $max_sqid, $language = NULL
   $sql_select .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
   $sql_select .= " AND (su.mdid IS NULL OR su.sent < %d) ";
   // Note: the group by su.sent seems to be needed by pgsql
-  $sql_group .= " GROUP BY q.mdid, q.module, su.sent ORDER BY su.sent";
+  $sql_group = " GROUP BY q.mdid, q.module, su.sent ORDER BY su.sent";
   // If processing by language some things change
   if ($language) {
     $sql_select .= " AND q.language = '%s' ";
@@ -594,8 +594,8 @@ function notifications_message_part($type, $key, $method, $param = NULL, $module
   $search = $keyparts = array_merge(array($module, $type), $options);
   while ($keyparts) {
     $groupkey = implode('-', $keyparts);
-     if ($text = messaging_message_part($groupkey, $key, $method)) {
-      $output = $text == MESSAGING_EMPTY ? '' : $text;
+     if ($text = messaging_template_message_part($groupkey, $key, $method)) {
+      $output = $text == MESSAGING_TEMPLATE_EMPTY ? '' : $text;
       break;
     }
     // If no text trim out latest part of the key and retry
@@ -608,7 +608,7 @@ function notifications_message_part($type, $key, $method, $param = NULL, $module
   }
   elseif ($module != 'notifications') {
     // Found nothing, different module, retry with notifications templates
-    return notifications_message_part($type, $key, $method, $param, 'notifications');
+    return notifications_template_message_part($type, $key, $method, $param, 'notifications');
   }
   else {
     // Failed to get message part, return information about the template not found, will help debugging
@@ -798,7 +798,7 @@ function notifications_process_build_simple_message($destination, $event, $subsc
   }
   $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
   $objects = array_merge($objects, $event->objects);
-  $text = messaging_text_replace($text, $objects);
+  $text = messaging_template_text_replace($text, $objects);
 
   // Get subject out of text and build the message array
   $subject = $text['subject'];
