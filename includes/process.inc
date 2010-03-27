@@ -283,7 +283,7 @@ function notifications_process_queue_group($group, $update, $module = 'notificat
       notifications_callback($module, 'process_send', $destination, $messages, $test);
     }
     if (!$test) {          
-      notifications_update_sent($destination->mdid, $send_interval, time());
+      notifications_queue_update_sent($destination->mdid, $send_interval, time());
     }
   }
   if ($processed && $update) {
@@ -411,56 +411,9 @@ function notifications_process_queue($send_interval, $max_sqid, $language = NULL
 }
 
 /**
- * Keep track of events and update event counter with processed rows eids
- * 
- * @param $op
- *   load, count, reset, update
- * @param $event
- *   event object to track
- */
-function notifications_event_tracker($op, $event = NULL) {
-  $tracker = &messaging_static(__FUNCTION__);
-  $events = &messaging_static('notifications_load_event'); // Shared cache
-  switch ($op) {
-    case 'load': // Load and add to the tracker, $event is eid
-      if ($event = notifications_load_event($event)) {
-        $event->track_count();
-        $tracker[$event->eid] = $event;
-        return $event;
-      }
-      break;
-    case 'count':
-      $event->track_count();
-      break;
-    case 'delete':
-      // Delete event and all related rows.
-      $events[$event->eid] = NULL;
-      unset($tracker[$event->eid]);
-      $event->delete();
-      break;
-    case 'update':
-      // Update tracked events counter or delete if counter reached zero.
-      if ($tracker) {
-        foreach ($tracker as $event) {
-          if ($event->counter) {
-            $event->update_counter();
-          }
-          else {
-            $events[$event->eid] = NULL;
-            $event->delete();
-          }
-        }
-      }
-      // Intentional no break (update will also reset)
-    case 'reset':
-      $tracker = array();
-  }  
-}
-
-/**
  * Update user last time sent for each sending method / interval
  */
-function notifications_update_sent($mdid, $interval, $time) {
+function notifications_queue_update_sent($mdid, $interval, $time) {
   db_query("UPDATE {notifications_sent} SET sent = %d WHERE mdid = %d AND send_interval = '%d'", $time, $mdid, $interval);
   if (!db_affected_rows()) {
     db_query("INSERT INTO {notifications_sent}(mdid, send_interval, sent) VALUES(%d, '%d', %d)", $mdid, $interval, $time);
@@ -653,18 +606,69 @@ function notifications_event_text($event) {
 /**
  * Get events with static caching. Handle event deletion if not available anymore
  */
-function notifications_load_event($id) {
+function notifications_event_load($id) {
   $cache = &messaging_static(__FUNCTION__);
   if (!$cache || !array_key_exists($id, $cache)) {
-    $event = Notifications_Event::load($id);
-    // Check event status, it may need deletion if objects are not available
-    if (!empty($event->delete)) {
-      notifications_event_tracker('delete', $event);
-      $event = NULL;
-    }
-    $cache[$id] = $event;
+    $cache[$id] = Notifications_Event::load($id);
   }
   return $cache[$id];
+}
+
+
+/**
+ * Keep track of events and update event counter with processed rows eids
+ * 
+ * It will delete events when objects are not available anymore
+ * 
+ * @param $op
+ *   load, count, reset, update
+ * @param $event
+ *   event object to track
+ */
+function notifications_event_tracker($op, $event = NULL) {
+  $tracker = &messaging_static(__FUNCTION__);
+  $events = &messaging_static('notifications_event_load'); // Shared cache
+  switch ($op) {
+    case 'load': // Load and add to the tracker, $event is eid
+      if ($event = notifications_event_load($event)) {
+        // Check event status, it may need deletion if objects are not available
+        if (!empty($event->delete)) {
+          $events[$event->eid] = NULL;
+          return NULL;
+        }
+        else {
+          $event->track_count();
+          $tracker[$event->eid] = $event;
+          return $event;
+        }
+      }
+      break;
+    case 'count':
+      $event->track_count();
+      break;
+    case 'delete':
+      // Delete event and all related rows.
+      $events[$event->eid] = NULL;
+      unset($tracker[$event->eid]);
+      $event->delete();
+      break;
+    case 'update':
+      // Update tracked events counter or delete if counter reached zero.
+      if ($tracker) {
+        foreach ($tracker as $event) {
+          if ($event->counter) {
+            $event->update_counter();
+          }
+          else {
+            $events[$event->eid] = NULL;
+            $event->delete();
+          }
+        }
+      }
+      // Intentional no break (update will also reset)
+    case 'reset':
+      $tracker = array();
+  }  
 }
 
 /**

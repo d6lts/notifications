@@ -58,7 +58,16 @@ class Notifications_Event {
       return isset($this->objects[$type]) ? $this->objects[$type] : NULL;
     }
   }
-
+  /**
+   * Add event object
+   */
+  function add_object($type, $object, $key) {
+    $this->params[$type . ':' . $key] = $object->$key;
+    $this->set_object($type, $object);
+  }
+  function set_object($type, $object) {
+    $this->objects[$type] = $object;
+  }
   /**
    * Save/update the event
    */
@@ -78,7 +87,7 @@ class Notifications_Event {
    */
   public static function load($eid) {
     if ($object = db_fetch_object(db_query("SELECT * FROM {notifications_event} WHERE eid = %d", $eid))) {
-      $object->params = unserialize($object->params);
+      $object->params = $object->params ? unserialize($object->params) : array();
       $event = new Notifications_Event($object);
       // Load aditional objects for the event
       notifications_module_invoke('event load', $event);
