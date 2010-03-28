@@ -66,6 +66,13 @@ function notifications_node_nid2autocomplete($nid) {
 }
 
 /**
+ * Check user access to node
+ */
+function notifications_node_user_access($node, $account) {
+  return node_access('view', $node, $account);
+}
+
+/**
  * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing users
  */
 function notifications_node_autocomplete_title($string = '') {

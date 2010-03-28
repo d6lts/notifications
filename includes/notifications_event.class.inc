@@ -26,11 +26,12 @@ class Notifications_Event {
   // Notifications in queue linked to this event
   public $counter = 0;
   // Loaded objects for this event
-  public $objects = array();
+  public $objects;
   // Processing options, not saved
   public $save = TRUE;
   public $queue = TRUE;
-  public $delete;
+  // Will be set if any of the objects cannot be loaded
+  public $incomplete = FALSE;
   // Event text for composition
   public $text;
 
@@ -48,25 +49,95 @@ class Notifications_Event {
     }
   }
   /**
+   * Get event type information
+   */
+  function get_type($property = NULL) {
+    if ($info = notifications_event_types($this->type, $this->action)) {
+      if ($property) {
+        return isset($info[$property]) ? $info[$property] : NULL;
+      }
+      else {
+        return $info;
+      }
+    }
+  }
+  /**
+   * Get event text if available
+   */
+  function get_text($key) {
+    if (isset($this->text[$key])) {
+      return $this->text[$key];
+    }
+    elseif (isset($this->params['text'][$key])) {
+      return $this->params['text'][$key];
+    }
+  }
+  /**
    * Get set event object
    */
   function object($type, $object = NULL) {
     if (isset($object)) {
-      $this->objects[$type] = $object;
+      $this->add_object($type, $object);
     }
     else {
+      $this->load_objects();
       return isset($this->objects[$type]) ? $this->objects[$type] : NULL;
     }
   }
   /**
    * Add event object
+   * 
+   * @param $type
+   *   Object type: 'user', 'node', etc...
+   * @param $object
+   *   Full object or key field value. I.e. it may be nid, uid
    */
-  function add_object($type, $object, $key) {
-    $this->params[$type . ':' . $key] = $object->$key;
-    $this->set_object($type, $object);
+  function add_object($type, $object) {
+    $key = notifications_object_type($type, 'key_field');
+    $value = is_object($object) ? $object->$key : $object;
+    $this->params['objects'][$type] = $value;
+    if (is_object($object)) {
+      $this->set_object($type, $object);
+    }
   }
+  /**
+   * Set event object
+   */
   function set_object($type, $object) {
     $this->objects[$type] = $object;
+  }
+  /**
+   * Get event objects
+   */
+  function get_objects() {
+    // Make sure objects are loaded
+    $this->load_objects();
+    return $this->objects;
+  }
+  /**
+   * Load event objects
+   * 
+   * @return Boolean
+   *   Object status, FALSE for incomplete (missing object)
+   */
+  function load_objects($refresh = FALSE) {
+    if (!isset($this->objects) || $refresh) {
+      $this->objects = array();
+      if (!empty($this->params['objects'])) {
+        foreach ($this->params['objects'] as $type => $value) {
+          if ($object = notifications_object_load($type, $value)) {
+            $this->objects[$type] = $object;
+          }
+          else {
+            // Cannot find object, mark as incomplete and return FALSE
+            $this->incomplete = TRUE;
+            return FALSE;
+          }
+        }
+      }
+    }
+    // Return true unless marked as incomplete
+    return $this->incomplete ? FALSE : TRUE;
   }
   /**
    * Save/update the event
@@ -88,10 +159,7 @@ class Notifications_Event {
   public static function load($eid) {
     if ($object = db_fetch_object(db_query("SELECT * FROM {notifications_event} WHERE eid = %d", $eid))) {
       $object->params = $object->params ? unserialize($object->params) : array();
-      $event = new Notifications_Event($object);
-      // Load aditional objects for the event
-      notifications_module_invoke('event load', $event);
-      return $event;
+      return new Notifications_Event($object);
     }
   }
   /**

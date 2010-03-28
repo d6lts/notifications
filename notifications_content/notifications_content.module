@@ -8,9 +8,6 @@
 // Max number of elements per page for user account tabs
 define('NOTIFICATIONS_CONTENT_PAGER', 20);
 
-// Include notifications node API
-require_once drupal_get_path('module', 'notifications') .'/notifications.node.inc';
-
 /**
  * Implementation of hook_menu_()
  */
@@ -260,19 +257,13 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'name' => t('Node'),
         'field' => 'nid',
         'type' => 'int',
-        'autocomplete path' => 'notifications/autocomplete/node/title',
-        'autocomplete callback' => 'notifications_node_nid2autocomplete',
-        'format callback' => 'notifications_node_nid2title',
-        'value callback' => 'notifications_node_title2nid',
+        'object_type' => 'node',
       );
       $fields['author'] = array(
         'name' => t('Author'),
         'field' => 'author',
         'type' => 'int',
-        'autocomplete path' => 'user/autocomplete',
-        'autocomplete callback' => 'notifications_content_author_name_callback',
-        'format callback' => 'notifications_content_author_name',
-        'value callback' => 'notifications_content_author_uid',
+        'object_type' => 'user',
       );
       $fields['type'] = array(
         'name' => t('Node type'),
@@ -281,10 +272,9 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'options callback' => 'notifications_content_types_callback',
       );
       return $fields;
-
     case 'query':
       // $arg2 is $event array.
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) ||
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->object('node')) ||
           $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         $query[]['fields'] = array(
             'nid' => $node->nid,
@@ -299,34 +289,29 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
     case 'node options':
       // Subscription options for a node, args will be account and node
       return _notifications_content_node_options($arg0, $arg1);
+
     case 'user options':
       // Subscription options for a user account, args will be account and author
-      return _notifications_content_user_options($arg0, $arg1);
+      return _notifications_content_user_options($arg0, $arg1);     
       
-    case 'event load': // $arg0 is event
-      $event = &$arg0;
-      $load = array();
-      if ($event->type == 'node') {
-        if (!empty($event->params['nid']) && empty($event->objects['node'])) {
-          if ($node = node_load($event->params['nid'])) {
-            $event->objects['node'] = $node;
-          }
-          else { // Node not available anymore, mark event for deletion
-            $event->delete = TRUE;
-          }
-        }
-        if (!empty($event->params['cid']) && empty($event->objects['comment'])) {
-          if ($comment = notifications_content_comment_load($event->params['cid'])) {
-            $event->objects['comment'] = $comment;
-          }
-          else { // Comment not available anymore, mark event for deletion
-            $event->delete = TRUE;
-          }
-        }
-      }
-      break;
+    case 'object types':
+      // Define object types for use by events and subscriptions
+      // Node and user are defined in the main notifications module
+      $types['comment'] = array(
+        'name' => t('Comment'),
+        'key_field' => 'cid',
+        'load callback' => 'notifications_content_comment_load',
+        //'autocomplete path' => 'notifications/autocomplete/node/title',
+        //'autocomplete callback' => 'notifications_node_nid2autocomplete',
+        'format callback' => 'notifications_content_comment_cid2title',
+        //'value callback' => 'notifications_node_title2cid',
+        'access callback' => 'notifications_content_comment_access',
+      );      
+      return $types;
+
     case 'event objects':
       return array('node' => t('Node'));
+ 
     case 'event types':
       // Node inserts are not grouped by node but all together. The digest will look like:
       //   New content has been submitted
@@ -361,71 +346,19 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
         'description' => t('Node comment'),
       );
       return $types;
-
+    
     case 'access': 
       // Return an array with some TRUE value if the user has access to this event objects or subscription type
-      $type = $arg0;
-      $account = &$arg1;
-      $object = &$arg2;
       $access = TRUE;
-      // For events we check that node and comment are allowed
-      if ($type == 'event' && $object->type == 'node') {        
-        if (!empty($object->objects['node'])) {
-          $access = notifications_content_node_allow($account, $object->objects['node']);
-        }
-        // If no access to node, we don't check more
-        if ($access && !empty($object->objects['comment'])) {
-          $access = $access && notifications_content_comment_allow($account, $object->objects['comment']);
-        }
-      // For node subscriptions we check that user can view the node
-      }
-      elseif ($type == 'subscription') {
-        $access = TRUE;
-        if (!empty($object->fields['nid'])) {
-          if ($node = node_load($object->fields['nid'])) {
-            $access =  notifications_content_node_allow($account, $node) && notifications_content_type_enabled($node->type, $object->type);
-          }
-          else {
-            $access = FALSE;
-          }
-        }
-        if (!empty($object->fields['type'])) {
-          $access = $access && notifications_content_type_enabled($object->fields['type'], $object->type);
+      // We just check subscriptions. Even objects are checked by the notifications_object API
+      if ($arg0 == 'subscription' && ($subscription = $arg2)) {
+        if (($conditions = $subscription->get_conditions()) && !empty($conditions['type'])) {
+          // It seems to be a subscription for a content type
+          $access = $access && notifications_content_type_enabled($conditions['type'], $subscription->type);
         } 
       }
       // We return an array that will be merged with the ones from other modules
-      return array($access);      
-      break;
-  }
-}
-
-/**
- * Wrapper for author autocomplete callback.
- *
- * @param $uid
- *   uid of the author for which to return the name.
- * @param $subs_type
- *   Optional type of subscription for which to find allowed content types. Defaults to nodetype, can be any subscription type with event-type=node for which notifications_content handles content type settings.
- */
-function notifications_content_author_name_callback($uid, $subs_type = '') {
-  return notifications_content_author_name($uid);
-}
-
-/**
- * Field name callback, author uid to user name
- */
-function notifications_content_author_name($uid, $html = FALSE) {
-  if ($account = user_load($uid)) {
-    return $html ? theme('username', $account) : check_plain($account->name);
-  }
-}
-
-function notifications_content_author_uid($name, $field = NULL) {
-  if ($account = user_load(array('name' => $name))) {
-    return $account->uid;
-  }
-  elseif ($field) {
-    form_set_error($field, t('User name not found.'));
+      return array($access);
   }
 }
 
@@ -675,9 +608,9 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
           'oid' => $node->nid,
           'type' => 'node',
           'action' => $op,
-          'node' => $node,
+          //'node' => $node,
           'params' => array('nid' => $node->nid),      
-        );        
+        );
         if ($op == 'update') {
           // If the node has been published the 'update' will become a 'insert' (first post)
           // In this case the event user will be the node author instead of the current user
@@ -696,27 +629,16 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
             node_load(0, NULL, TRUE);
           }
         }
-        notifications_content_event($event);
+        if ($event = notifications_event_build($event)) {
+          $event->add_object('node', $node);
+          notifications_event_trigger($event);
+        }
       }
       break;
     case 'delete':
       // Remove all subscriptions for this node
       notifications_delete_subscriptions(array('event_type' => 'node'), array('nid' => $node->nid), FALSE);
   }
-}
-
-/**
- * Throw notifications content event
- */
-function notifications_content_event($event) {
-  // Normalize event objects so they're always on the objects array
-  if (!empty($event['node'])) {
-    $event['objects']['node'] = $event['node'];
-  }
-  if (!empty($event['comment'])) {
-    $event['objects']['comment'] = $event['comment'];
-  }
-  return notifications_event($event);
 }
 
 /**
@@ -742,12 +664,17 @@ function notifications_content_comment($comment, $op) {
         'uid' => $comment->uid, // For this special case the event actor is the user who posts the comment
         'module' => 'node',
         'type' => 'node',
+        'oid' => $node->nid,
         'action' => 'comment',
         'node' => $node,
         'comment' => $comment,
         'params' => array('nid' => $comment->nid, 'cid' => $comment->cid),
       );
-      notifications_content_event($event);
+      if ($event = notifications_event_build($event)) {
+        $event->add_object('node', $node);
+        $event->add_object('comment', $comment);
+        notifications_event_trigger($event);
+      }    
     }    
   }
 }
@@ -785,6 +712,18 @@ function notifications_content_comment_load($cid) {
     $cache[$cid] = $comment;
   }
   return $cache[$cid];
+}
+
+/**
+ * Mapping from comment cid to title
+ */
+function notifications_content_comment_cid2title($cid, $html = FALSE) {
+  if ($comment = notifications_content_comment_load($cid)) {
+    return $html ? l($comment->subject, "node/$comment->nid", array('fragment' => "comment-$comment->cid")) : check_plain($comment->subject);
+  }
+  else {
+    return t('Not found');
+  }
 }
 
 /**
@@ -929,4 +868,17 @@ function notifications_content_comment_allow($account, $comment) {
     }
   }
   return $access[$account->uid][$comment->cid];
+}
+
+/**
+ * Notifications object access callback. Determine whether the specified user may view the specified comment.
+ */
+function notifications_content_comment_access($comment, $account) {
+  // User can access own comments, other comments if published and has access, or can administer comments
+  return (
+    ($account->uid == $comment->uid || $comment->status == COMMENT_PUBLISHED && user_access('access comments', $account))
+    || user_access('administer comments', $account)
+  )
+  // But all that if and only if the user can access the node too
+  && notifications_object_access('node', $comment->nid, $account);
 }

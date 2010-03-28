@@ -129,7 +129,7 @@ function notifications_ui_subscription_types($type = NULL, $field = NULL) {
     }
   }
   
-  return notifications_info($types, $type, $field);
+  return notifications_array_info($types, $type, $field);
 }
 
 /**
@@ -453,7 +453,8 @@ function notifications_ui_subscribe_options($account, $type, $object, $load = TR
   // We also keep track of event types for each subscription type
   $event_types = array('node' => TRUE);
   foreach ($subscribe_options as $index => $option) {
-    if (isset($allowed_types[$option['type']]) && notifications_user_allowed('subscription', $account, (object)$option)) {
+    $subscription = notifications_build_subscription($option);
+    if (isset($allowed_types[$option['type']]) && notifications_user_allowed('subscription', $account, $subscription)) {
       $allowed_options[] = $option;
       // We add the event type to our list
       $event_types[$allowed_types[$option['type']]['event_type']] = TRUE;

@@ -36,6 +36,11 @@ class Notifications_Subscription {
   // Temporary variables
   protected $account;
   protected $destination_object;
+  protected $format;
+  protected $objects;
+  // Mark if incomplete loading of objects
+  public $incomplete;
+  
   /**
    * Class constructor
    */
@@ -325,6 +330,219 @@ class Notifications_Subscription {
   function get_type($property = NULL) {
     return empty($this->type) ? NULL : notifications_subscription_types($this->type, $property);
   }
+
+  /**
+   * Load subscription objects
+   */
+  function load_objects() {
+    if (!isset($this->objects)) {
+      $this->objects = array();
+      foreach ($this->get_fields() as $field) {
+        if ($type = notifications_subscription_fields($field->field, 'object_type')) {
+          if ($object = notifications_object_load($type, $field->value)) {
+            if (!isset($this->objects[$type])) {
+              $this->objects[$type] = $object;
+            }
+            elseif (is_array($this->objects[$type])) {
+              // Was an array, just add
+              $this->objects[$type][] = $object;
+            }
+            else {
+              // Was single element, make into an array with this new object
+              $this->objects[$type] = array($this->objects[$type], $object);
+            }
+          }
+          else {
+            // Object cannot be loaded, mark as incomplete
+            $this->incomplete = TRUE;
+          }
+        }
+      } 
+    }
+    return empty($this->incomplete);
+  }
+  /**
+   * Get objects
+   */
+  function get_objects() {
+    $this->load_objects();
+    return $this->objects;
+  }
+  /**
+   * Format subscription for display
+   * 
+   * @return array()
+   *   Array of formatted texts with the following properties
+   *   - type, Subscription type name (title)
+   *   - name, Subscription name or glued values if not name defined
+   *   - names, Array of field names
+   *   - values, Array of field values
+   *   
+   */
+  function format_array($html = FALSE) {
+    $fields = $this->format_fields($html ? 'html' : 'plain');
+    return array(
+      'type' => $this->get_type('title'),
+      'name' => $this->format_name($html), 
+      'names' => $fields['names'],
+      'values' => $fields['values'],
+    );
+  }
+  /**
+   * Format as short text
+   */
+  function format_short($html = FALSE) {
+    return t('@type: !values', array('@type' => $this->get_type('title'), '!values' => $this->format_name($html)));
+  }
+  /**
+   * Format as long text
+   */
+  function format_long($html = FALSE) {
+    return t('Subscription %id of type %type to: !values', array('%id' => $this->sid, '%type' => $this->get_type('title'), '!values' => $this->format_name($html)));
+  }
+  
+  /**
+   * Get subscription name.
+   *
+   * If the subscription type has a name, like custom subscriptions have, that will be the name
+   * Otherwise we build the name using fields and values
+   */
+  function format_name($html = FALSE) {
+    if ($name = $this->get_type('name')) {
+      return $name;
+    }
+    else {
+      $fields = $this->format_fields($html ? 'html' : 'plain');
+      return $fields['values'] ? implode(', ', $fields['values']) : t('Unknown (no fields)');
+    }   
+  }
+  
+  /**
+   * Format all fields
+   *
+   * @return array();
+   *   Array of arrrays with 'names', 'values'
+   */
+  function format_fields($format = 'plain') {
+    if (!isset($this->format[$format])) {
+      $html = ($format == 'html');
+      // Get field names and values formatting each field
+      $this->format[$format]['names'] = array();
+      $this->format[$format]['values'] = array();
+      foreach ($this->get_fields() as $field) {
+        $item = $this->format_field($field->type, $field->value, $html, $this->type);
+        $this->format[$format]['names'][] = $item['name'];
+        $this->format[$format]['values'][] = $item['value'];
+      }      
+    }
+    return $this->format[$format];
+  }
+
+  /**
+   * Format subscriptions field for display and get some more information
+   * 
+   * @return array()
+   *   Array with 'name' and 'value' elements
+   */
+  public static function format_field($type, $value, $html = TRUE, $subscription_type = NULL) {
+    $format_name = $format_value = t('Unknown');
+    
+    if ($info = notifications_subscription_fields($type)) {
+      $format_name = $info['name'];
+      // First try format callback
+      $format_value = _notifications_field_callback($type, 'format callback', $value, $html, $subscription_type);
+      // If not we try options callback, we can get the name from the array of options
+      if (!isset($format_value)) {
+        $options = _notifications_field_callback($type, 'options callback', $subscription_type);
+        if (isset($options)) {
+          $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
+        }
+      }
+      // If nothing got, we return the value
+      if (!isset($format_value)) {
+        $format_value = check_plain($value);
+      }
+    }
+  
+    return array('name' => $format_name, 'value' => $format_value);
+  }
+
+  /**
+   * Subscription information field for several forms
+   */
+  public static function form_info($subscription) {
+    $info = notifications_subscription_types($subscription->type);
+    //$format = $subscription->format_array(TRUE);
+    $format = notifications_format_subscription($subscription, 'array');
+    if (!empty($info['name'])) {
+      // This subscription type already have a name
+      $value = $info['name'];
+    }
+    elseif (empty($format['names'])) {
+      // No name, maybe no fields it should be enough with the title
+      $value = '';
+    }
+    elseif (count($format['names']) == 1) {
+      // If the field is unique, we don't need a table nor a name for it
+      $value = array_shift($format['values']);
+    }
+    else {
+      // Multiple fields, format as a table
+      foreach ($format['names'] as $index => $value) {
+        $rows[] = array(
+          $value,
+          $format['values'][$index],
+        );
+      }
+      $value = theme('table', array(), $rows);
+    }
+    // Build a form field
+    $field = array(
+      '#type' => 'item',
+      '#title' => t('!type subscription', array('!type' => $format['type'])),
+      '#value' => $value,
+    );
+    if (!empty($info['description'])) {
+      $field['#description'] = $info['description'];
+    }
+    return $field;
+  }
+  /**
+   * Display a form field for a notifications_field
+   */
+  public static function form_field($type, $value = NULL, $subtype = NULL) {
+    $field_info = notifications_subscription_fields($type);
+    $object_info = isset($field_info['object_type']) ? notifications_object_type($field_info['object_type']) : array();
+    $merged_info = $field_info + $object_info;
+  
+    if (isset($merged_info['options callback'])) {
+      $element['#type'] = 'select';
+      $element['#options'] = _notifications_field_callback($type, 'options callback');
+    }
+    elseif (!empty($merged_info['autocomplete path'])) {
+      $element['#type'] = 'textfield';
+      $element['#autocomplete_path'] = $merged_info['autocomplete path'];
+      if ($value) {     
+        if (!empty($merged_info['autocomplete callback'])) {
+          $value = _notifications_field_callback($type, 'autocomplete callback', $value, $subtype);
+        }
+        elseif (!empty($merged_info['format callback']))  {
+          $value = _notifications_field_callback($type, 'format callback', $value, FALSE, $subtype);
+        }      
+      }
+    }
+    else {
+      $element['#type'] = 'textfield';
+      if ($value) {
+        $value = check_plain($value);
+      }
+    }
+    if ($value) {
+      $element['#default_value'] = $value;
+    }
+    return $element;
+  }
+  
   /**
    * Magic method, set protected properties
    * 
@@ -333,7 +551,7 @@ class Notifications_Subscription {
   public function __set($name, $value) {
     switch ($name) {
       case 'fields':
-        $this->fields = array();   
+        $this->fields = array();
         foreach ($value as $key => $field_value) {
           $this->add_field($key, $field_value);
         }

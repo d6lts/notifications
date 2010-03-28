@@ -115,10 +115,11 @@ class NotificationsContentTests extends NotificationsTestCase {
       'status' => 1,    
     ));
 
-    $subs_thread = new Stdclass();
-    $subs_thread->type = 'thread';
-    $subs_thread->event_type = 'node';
-    $subs_thread->fields['nid'] = $node->nid;
+    $subs_thread = notifications_build_subscription(array(
+      'type' => 'thread',
+      'event_type' => 'node',
+      'fields' => array('nid' => $node->nid),
+    ));
     
     // Check generic info hooks with some random values
     $this->assertEqual(notifications_subscription_types('thread', 'event_type'), 'node', 'Types hook retrieves right value.');
@@ -328,7 +329,10 @@ class NotificationsContentTests extends NotificationsTestCase {
   }
   
   function listPermissions() {
-    return array('access content', 'maintain own subscriptions', 'manage own subscriptions', 'subscribe to content', 'subscribe to content type', 'subscribe to author');
+    return array('access content', 'access user profiles', // This one needed to subscribe to users
+      'maintain own subscriptions', 'manage own subscriptions', 
+      'subscribe to content', 'subscribe to content type', 'subscribe to author'
+    );
   }
   // Helper option for debugging
   function printDebug($data) {

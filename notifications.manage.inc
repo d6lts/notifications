@@ -70,9 +70,8 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     $form['type'][$sub->sid] = array('#value' => $sub->get_type('title'));
     // If full loading, load full subscription and add description
     if ($full) {
-      $sub = notifications_load_subscription($sub);
-      $format = notifications_format_subscription($sub, 'array');
-      $form['description'][$sub->sid] = array('#value' => $format['name']);
+      //$format = notifications_format_subscription($sub, 'array');
+      $form['description'][$sub->sid] = array('#value' => $sub->format_name());
     }    
     if (!$account) {
       $username = theme('username', $sub);

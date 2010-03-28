@@ -89,10 +89,13 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
     'oid' => $uid,
     'type' => 'lite',
     'action' => $action,
-    'params' => array('for-uid' => $uid, 'subject' => $subject, 'body' => $body),
+    'params' => array('for-uid' => $uid),
     'queue' => FALSE, // Do not send to notifications queue, save some queries
     'counter' => 1, // There will be just one queued row for this event
-  );  
+    'objects' => array(), // So we don't attempt to load any object if immediate sending
+  );
+  $event['params']['text'] = array('subject' => $subject, 'main' => $body);
+  $event['params']['text']['digest'] = $body ? $subject . ': ' . $body : $subject;
   $event['params'] = array_merge($event['params'], $params);
 
   $event  = notifications_event($event);
@@ -116,21 +119,8 @@ function notifications_lite_mail($key, &$message, $params) {
  * 
  * It handles event texts to rebuild the message from stored event parameters
  */
-function notifications_lite_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_lite_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
-    case 'event load': // $arg0 is event
-      $event = &$arg0;      
-      if ($event->type == 'lite') {
-        if (!empty($event->params['subject'])) {
-          $event->text['subject'] = $event->params['subject'];
-          $event->text['digest'] = $event->params['subject'];
-        }
-        if (!empty($event->params['body'])) {
-          $event->text['main'] = $event->params['body'];
-          $event->text['digest'] .= ': ' . $event->params['body'];
-        } 
-      }
-      break;
     case 'event types':
       // We just define event type 'lite', action 'default'
       $types[] = array(

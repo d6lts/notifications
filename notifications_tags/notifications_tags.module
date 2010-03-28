@@ -60,19 +60,32 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'user page' => 'user/%user/notifications/taxonomy',
       );
       return $types;
+ 
     case 'subscription fields':
       // Information about available fields for subscriptions
       $fields['tid'] = array(
         'name' => t('Taxonomy term'),
         'field' => 'tid',
         'type' => 'int',
+        'object_type' => 'term',
+      );
+      return $fields;
+    
+    case 'object types':
+      // Define object types used by subscriptions and events
+      $fields['term'] = array(
+        'name' => t('Taxonomy term'),
+        'key' => 'tid',
+        'load callback' => 'taxonomy_get_term',
         'autocomplete path' => 'notifications_tags/autocomplete/single',
         'format callback' => 'notifications_tags_term_name',
         'value callback' => 'notifications_tags_term_tid',
+        'access' => 'access content',
       );
-      return $fields;
+      return $types;
+     
     case 'query':
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->node) || $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
+      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->get_objects('node')) || $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
         if ($tids = notifications_tags_node_get_terms($node->nid)) {
           $query[]['fields']['tid'] = $tids;
           return $query;

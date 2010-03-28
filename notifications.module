@@ -186,7 +186,7 @@ function notifications_menu() {
     'page callback' => 'notifications_node_autocomplete_title',
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
-    'file' => 'notifications.node.inc',
+    'file' => 'includes/node.inc',
   );
   // Some autocomplete callbacks
   $items['notifications/autocomplete/node/type'] = array(
@@ -194,7 +194,7 @@ function notifications_menu() {
     'page callback' => 'notifications_node_autocomplete_type',
     'access arguments' => array('access content'),
     'type' => MENU_CALLBACK,
-    'file' => 'notifications.node.inc',
+    'file' => 'includes/node.inc',
   );
   return $items;
 }
@@ -407,9 +407,23 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
  *   Array with event parameters
  */
 function notifications_event($event) {
+  if (is_array($event)) {
+    $event = notifications_event_build($event);
+  }
+  if ($event) {
+    notifications_event_trigger($event);
+    return $event;
+  }
+  
+}
+
+/**
+ * Build event object
+ */
+function notifications_event_build($params) {
   global $user;
   // Fill in event with default values
-  $event += array(
+  $params += array(
     'uid' => $user->uid,
     'load_args' => '',
     'created' => time(),
@@ -417,18 +431,24 @@ function notifications_event($event) {
     'type' => '', // Object/event type
     'action' => '', // Action that happened to the object
     'params' => array(), // Object parameters
+    'save' => TRUE,
+    'queue' => TRUE,
   );
-  
   // Check whether we have to save and queue this event, defaults to yes if not set
   // If not enabled, do not store nor queue this event, can be changed by plug-in modules
-  $enabled = notifications_event_enabled($event['type'], $event['action']);
-  $event += array(
-    'save' => $enabled,
-    'queue' => $enabled,
-  );
+  if (notifications_event_enabled($params['type'], $params['action'])) {
+    return new Notifications_Event($params);
+  }
+  else {
+    // Event type not enabled, return nothing
+    return NULL;
+  }
+}
 
-  $event = new Notifications_Event($event);
-
+/**
+ * Trigger event
+ */
+function notifications_event_trigger($event) {
   // Notify other modules we are about to trigger some subscriptions event
   // Modules can do cleanup operations or modify event properties
   notifications_module_invoke('event trigger', $event);
@@ -440,9 +460,7 @@ function notifications_event($event) {
   // Send event to queue for subscriptions, unless marked not to
   if ($event->queue) {
     notifications_queue($event);
-  }
-  
-  return $event;
+  }  
 }
 
 /**
@@ -752,7 +770,7 @@ function notifications_save_subscription(&$subscription) {
   global $user;  
   // Build object if not built previously
   $subscription = notifications_build_subscription($subscription);
-  $subscription->conditions = count($subscription->fields);
+  $subscription->conditions = count($subscription->get_fields());
   // Set account that will fill in account parameters
   $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
   $subscription->set_account($account);
@@ -1017,17 +1035,158 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
   }
   // Build list with results
   $subscriptions = array();
-  while ($subs = db_fetch_object($result)) {
-    $load = notifications_load_subscription($subs);
+  while ($load = db_fetch_object($result)) {
+    $subs = notifications_load_subscription($load);
     if ($key == 'value' || $key == 'intval') {
-      $field = array_shift(_notifications_fields($load->fields));
-      $subscriptions[$field->value] = $load;
+      $field = array_shift($subs->get_fields());
+      $subscriptions[$field->value] = $subs;
     }
     else {
-      $subscriptions[$subs->$key] = $load;
+      $subscriptions[$subs->$key] = $subs;
     }  
   }
   return $subscriptions;
+}
+
+/**
+ * Get info about subscription types
+ *
+ * @param $type
+ *   String, the subscriptions type OPTIONAL
+ * @param $field
+ *   String, a specific field to retrieve info from OPTIONAL
+ *   
+ *   Information for a given field and type
+ *   or information for a given field for all types
+ */
+function notifications_object_type($type = NULL, $field = NULL) {
+  $types = &messaging_static(__FUNCTION__); 
+  if (!isset($types)) {
+    $types = notifications_module_information('object types');
+    drupal_alter('notifications_object_types', $types);
+  }
+  return notifications_array_info($types, $type, $field);
+}
+
+/**
+ * Load an object of type defined by notifications 'object types'
+ */
+function notifications_object_load($type, $value) {
+  return _notifications_object_callback($type, 'load callback', $value);
+}
+
+/**
+ * Check access to an object for user account
+ * 
+ * @param $type
+ *   Object type
+ * @param $object
+ *   Object or object id
+ * @param $account
+ *   User account to check access to the object
+ */
+function notifications_object_access($type, $object, $account) {
+  $object = is_numeric($object) ? notifications_object_load($type, $object) : $object;
+  // If object not properly loaded, always false
+  if (!$object) {
+    return FALSE;
+  }
+  elseif ($info = notifications_object_type($type)) {
+    $access = &messaging_static(__FUNCTION__);
+    $key = $info['key_field'];
+    if (!isset($access[$account->uid][$object->$key])) {
+      if (isset($info['access callback'])) {
+        $access[$account->uid][$object->$key] = _notifications_object_callback($type, 'access callback', $object, $account);
+      }
+      elseif (isset($info['access'])) {
+        $access[$account->uid][$object->$key] = user_access($info['access'], $account);
+      }
+      else {
+        // Not defined, so we allow user access
+        $access[$account->uid][$object->$key] = TRUE;
+      }
+    }
+    return $access[$account->uid][$object->$key];
+  }
+  // If not object information we cannot determine anything 
+}
+
+/**
+ * Invoke a callback for an object type
+ * 
+ * @param $type
+ *   Object type
+ * @param $name
+ *   Callback name
+ * @param $arg1, $arg2...
+ *   Variable arguments
+ */
+function _notifications_object_callback() {
+  $args = func_get_args();
+  $type = array_shift($args);
+  $name = array_shift($args);
+  return _notifications_info_callback(notifications_object_type($type), $name, $args);
+}
+
+/**
+ * Invoke a callback for a subscription type
+ * 
+ * @param $type
+ *   Subscription type
+ * @param $name
+ *   Callback name
+ * @param $arg1, $arg2...
+ *   Variable arguments
+ */
+function _notifications_subscription_callback() {
+  $args = func_get_args();
+  $type = array_shift($args);
+  $name = array_shift($args);
+  return _notifications_info_callback(notifications_subscription_types($type), $name, $args);
+}
+
+/**
+ * Invoke a callback for a field type
+ * 
+ * @param $type
+ *   Subscription type
+ * @param $name
+ *   Callback name
+ * @param $arg1, $arg2...
+ *   Variable arguments
+ */
+function _notifications_field_callback() {
+  $args = func_get_args();
+  $type = array_shift($args);
+  $name = array_shift($args);
+  // We try first the field callback, then the field object type callback
+  $info = notifications_subscription_fields($type);
+  if (isset($info[$name])) {
+    return _notifications_info_callback($info, $name, $args);
+  }
+  elseif (!empty($info['object_type']) && ($object_info = notifications_object_type($info['object_type'])) && isset($object_info[$name])) {
+    return _notifications_info_callback($object_info, $name, $args);
+  }
+  else {
+    return NULL;
+  }
+}
+/**
+ * Get a callback for an objec type
+ */
+function _notifications_info_callback($info, $name, $args) {
+  // We may need to include the file before
+  if (isset($info['file'])) {
+    notifications_include($info['file'], $info['module']);
+  }
+  if (isset($info[$name]) && function_exists($info[$name])) {
+    // The callback may have arguments, a property like 'format callback args'
+    if (isset($info[$name . ' args'])) {
+      $args[] = $info[$name . ' args'];
+    }
+    return call_user_func_array($info[$name], $args);
+  }
+
 }
 
 /**
@@ -1060,7 +1219,7 @@ function notifications_subscription_types($type = NULL, $field = NULL, $check_ac
     }
   }
 
-  return notifications_info($result, $type, $field);
+  return notifications_array_info($result, $type, $field);
 }
 
 /**
@@ -1072,7 +1231,7 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
     $fields = notifications_module_information('subscription fields');
     drupal_alter('notifications_subscription_fields', $fields);
   }
-  return notifications_info($fields, $type, $property);
+  return notifications_array_info($fields, $type, $property);
 }
 
 
@@ -1080,46 +1239,13 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
  * Subscription information field for several forms
  */
 function notifications_subscription_info_field($subscription) {
-  $info = notifications_subscription_types($subscription->type);
-  $format = notifications_format_subscription($subscription, 'array');  
-  if (!empty($info['name'])) {
-    // This subscription type already have a name
-    $value = $format['name'];
-  }
-  else if (empty($format['names'])) {
-    // No name, maybe no fields it should be enough with the title
-    $value = '';
-  }
-  elseif (count($format['names']) == 1) {
-    // If the field is unique, we don't need a table nor a name for it
-    $value = array_shift($format['values']);
-  }
-  else {
-    // Multiple fields, format as a table
-    foreach ($format['names'] as $index => $value) {
-      $rows[] = array(
-        $value,
-        $format['values'][$index],
-      );
-    }
-    $value = theme('table', array(), $rows);
-  }
-  // Build a form field
-  $field = array(
-    '#type' => 'item',
-    '#title' => t('!type subscription', array('!type' => $format['type'])),
-    '#value' => $value,
-  );
-  if (!empty($info['description'])) {
-    $field['#description'] = $info['description'];
-  }
-  return $field;
+  return Notifications_Subscription::form_info($subscription);
 }
 
 /**
  * Get information from an array of data
  */
-function notifications_info(&$data, $type = NULL, $field = NULL) {
+function notifications_array_info(&$data, $type = NULL, $field = NULL) {
   if ($field && $type) {
     return isset($data[$type][$field]) ? $data[$type][$field] : NULL;
   }
@@ -1143,8 +1269,21 @@ function notifications_info(&$data, $type = NULL, $field = NULL) {
  * an object to be passed as reference.
  */
 function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
-  $object = NULL;
-  return notifications_module_invoke($op, $arg0, $arg1, $arg2);
+  $result = array();
+  foreach (module_implements('notifications') as $module) {
+    $function = $module .'_notifications';
+    if ($return = $function($op, $arg0, $arg1, $arg2)) {
+      // Add module name to each result if it is an info array
+      foreach ($return as $key => &$value) {
+        if (is_array($value)) {
+          $value += array('module' => $module);
+        }
+      }
+      // Note we use array_merge isntead of array_merge_recursive()
+      $result = array_merge($result, $return);
+    }
+  }
+  return $result;
 }
 
 /**
@@ -1484,11 +1623,24 @@ function _notifications_get_link($elements, $params = array()) {
  *   - 'subscription', will check access to subscribed objects
  */
 function notifications_user_allowed($type, $account, $object = NULL) {
-
+  if (is_object($object)) {
+    // For events and subscriptions check first all objects are loaded
+    if (!$object->load_objects()) {
+      return FALSE;
+    }
+    // Now check all the loaded objects
+    foreach ($object->get_objects() as $check_type => $values) {
+      // Subscriptions can have several objects of one type
+      $type_list = is_array($values) ? $values : array($values);
+      foreach ($type_list as $check_object) {
+        if (notifications_object_access($check_type, $check_object, $account) === FALSE) {
+          return FALSE;
+        }
+      }
+    }
+  }
   // Invoke notifications hook and check for a FALSE return value
-  
   $permissions = notifications_module_information('access', $type, $account, $object);
-
   if ($permissions) {
     return !in_array(FALSE, $permissions);
   }
@@ -1538,6 +1690,31 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
         'digest' => FALSE,
       );
       return $info;
+
+    case 'object types':
+      $types['node'] = array(
+        'name' => t('Node'),
+        'key_field' => 'nid',
+        'load callback' => 'node_load',
+        'autocomplete path' => 'notifications/autocomplete/node/title',
+        'autocomplete callback' => 'notifications_node_nid2autocomplete',
+        'format callback' => 'notifications_node_nid2title',
+        'value callback' => 'notifications_node_title2nid',
+        'access callback' => 'notifications_node_access',
+        'file' => 'node.inc',
+      );      
+      $types['user'] = array(
+        'name' => t('User'),
+        'key_field' => 'uid',
+        'load callback' => 'notifications_load_user',
+        'autocomplete path' => 'user/autocomplete',
+        'autocomplete callback' => 'notifications_user_name_callback',
+        'format callback' => 'notifications_user_uid2name',
+        'value callback' => 'notifications_user_name2uid',
+        'access callback' => 'notifications_user_user_access',
+        'file' => 'user.inc',
+      ); 
+      return $types;
   }
 }
 
@@ -1660,38 +1837,6 @@ function _notifications_subscription_types($format = 'short', $filter = NULL) {
     }
   }
   return $options;
-}
-
-/**
- * Normalize field format
- * 
- * Converts notifications field into an array with known structure
- * which will be an array containing objects with key, type, value pairs
- * 
- * In some parts, fields are a key => value array
- * They can be also an array of arrays or objects
- */
-function _notifications_fields($source) {
-  $result = array();
-  if ($source) {
-    foreach ($source as $key => $data) {
-      if (is_object($data)) {
-        $field = $data;
-      }
-      elseif (is_array($data)) {
-        $field = (object)$data;
-        $field->key = $key;
-      }
-      else {
-        $field = new Stdclass();
-        $field->key = $key;
-        $field->type = $key;
-        $field->value = $data;
-      }
-      $result[] = $field;
-    }
-  }
-  return $result;
 }
 
 /**
@@ -1847,85 +1992,20 @@ function notifications_user_form_submit($form, &$form_state) {
 /**
  * Display a form field for a notifications_field
  */
-function notifications_subscription_form_field($type, $value = NULL, $subtype = NULL) {
-  $info = notifications_subscription_fields($type);
-  
-  if (!empty($info['options callback'])) {
-    $element['#type'] = 'select';
-    if (!empty($info['options callback args'])) {
-      $element['#options'] = call_user_func($info['options callback'], $subtype, $info['options callback args']);
-    } else {
-      $element['#options'] = call_user_func($info['options callback'], $subtype);
-    }
-  }
-  elseif (!empty($info['autocomplete path'])) {
-    $element['#type'] = 'textfield';
-    $element['#autocomplete_path'] = $info['autocomplete path'];
-    if ($value) {
-      if (!empty($info['autocomplete callback'])) {
-        if (!empty($info['autocomplete callback args'])) {
-          $value = call_user_func($info['autocomplete callback'], $value, $subtype, $info['autocomplete callback args']);
-        } else {
-          $value = call_user_func($info['autocomplete callback'], $value, $subtype);
-        }
-      }
-      elseif (!empty($info['format callback']))  {
-        if (!empty($info['format callback args'])) {
-          $value = call_user_func($info['format callback'], $value, FALSE, $subtype, $info['format callback args']);
-        } else {
-          $value = call_user_func($info['format callback'], $value, FALSE, $subtype);
-        }
-      }      
-    }
-  }
-  else {
-    $element['#type'] = 'textfield';
-    if ($value) {
-      $value = check_plain($value);
-    }
-  }
-  if ($value) {
-
-    $element['#default_value'] = $value;
-  }
-  return $element;
+function notifications_subscription_form_field($type, $value = NULL, $subscription_type = NULL) {
+  return Notifications_Subscription::form_field($type, $value, $subscription_type);
 }
 
 /**
  * Format subscription for display
  * 
- * @return array()
- *   Array with type_name, field_names (array), field_values (array)
+ * Just for backwards compatiblity, we use Notifications_Subscription formatting functions now
  */
 function notifications_format_subscription($subscription, $format = 'short', $html = TRUE) {
   // Build object if not built previously
   $subscription = notifications_build_subscription($subscription);
-  // Build array and add subscription type name
-  $info = $subscription->get_type();
-  $names = $values = array();
- 
-  // Get field names and values formatting each field
-  foreach ($subscription->get_fields() as $field) {
-    $item = notifications_format_subscription_field($field->type, $field->value, $html, $subscription->type);
-    $names[] = $item['name'];
-    $values[] = $item['value'];
-  }
-  // If this subscription type has a name, use it, otherwise build it using fields and values
-  if (!empty($info['name'])) {
-    $value_name = $info['name'];
-  }
-  else {
-    $value_name = implode(', ', $values);
-  }
-  // Now do the formatting
-  switch ($format) {
-    case 'array':
-      return array('type' => $info['title'], 'name' => $value_name, 'names' => $names, 'values' => $values);
-    case 'short':
-      return t('@type: !values', array('@type' => $info['title'], '!values' => $value_name));
-    case 'long':
-      return t('Subscription %id of type %type to: !values', array('%id' => $subscription->sid, '%type' => $info['title'], '!values' => $value_name));
-  }
+  $method = 'format_' . $format;
+  return $subscription->$method($html);
 }
 
 /**
@@ -1934,32 +2014,8 @@ function notifications_format_subscription($subscription, $format = 'short', $ht
  * @return array()
  *   Array with 'name' and 'value' elements
  */
-function notifications_format_subscription_field($type, $value, $html = TRUE, $subtype = NULL) {
-  $format_name = $format_value = t('Unknown');
- 
-  if ($info = notifications_subscription_fields($type)) {
-    $format_name = $info['name'];
-    if (!empty($info['format callback'])) {
-      if (!empty($info['format callback args'])) {
-        $format_value = call_user_func($info['format callback'], $value, $html, $subtype, $info['format callback args']);
-      } else {
-        $format_value = call_user_func($info['format callback'], $value, $html, $subtype);
-      }
-    }
-    elseif (!empty($info['options callback'])) {
-      if (!empty($info['options callback args'])) {
-        $options = call_user_func($info['options callback'], $subtype, $info['options callback args']);
-      } else {
-        $options = call_user_func($info['options callback'], $subtype);
-      }
-      $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
-    }
-    else {
-      $format_value = check_plain($value);
-    }
-  }
-
-  return array('name' => $format_name, 'value' => $format_value);
+function notifications_format_subscription_field($type, $value, $html = TRUE, $subscription_type = NULL) {
+  return Notifications_Subscription::format_field($type, $value, $html, $subscription_type);
 }
 
 /**
@@ -2042,12 +2098,14 @@ function notifications_locale_refresh() {
 }
 
 /**
- * Include notifications .inc files as necessary.
+ * Include module files as necessary.
+ * 
+ * The files must be in an 'includes' subfolder inside the module folder. 
  */
-function notifications_include($file) {
+function notifications_include($file, $module = 'notifications') {
   static $used = array();
-  if (!isset($used[$file])) {
-    require_once './' . drupal_get_path('module', 'notifications') . '/includes/' . $file;
+  if (!isset($used[$module][$file])) {
+    require_once './' . drupal_get_path('module', $module) . '/includes/' . $file;
+    $used[$module][$file] = TRUE;
   }
-  $used[$file] = TRUE;
 }

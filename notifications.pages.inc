@@ -195,14 +195,13 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));
 
   // Build subscriptions object
-  $subscription = (object)array(
+  $subscription = notifications_build_subscription(array(
     'uid' => $account->uid,
     'type' => $type,
     'fields' => notifications_field_args($fields, $values),
     'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
     'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
-    'event_type' => notifications_subscription_types($type, 'event_type'),
-  );      
+  ));
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Display subscription information
     if (!empty($_GET['confirm']) && $signed) {
@@ -229,17 +228,17 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
  * Form for subscription confirmation
  */
 function notifications_form_subscribe_confirm($form_state, $subscription, $account) {
-  // Pass on simple values
-  foreach (array('sid', 'uid', 'type', 'fields', 'event_type') as $field) {
-    $form[$field] = array('#type' => 'value', '#value' => isset($subscription->$field) ? $subscription->$field : '');
-  }
+  // Pass on whole subscription
+  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
+  // Fields to be saved on submit
+  $form['subscription_fields'] = array('#type' => 'value', '#value' => array('send_interval', 'send_method'));
   // The subscription description will be added here
   $form['info'] = notifications_subscription_info_field($subscription); 
   // Additional parameters
   $form['send_interval'] = array(
     '#type' => 'select',
     '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals(),
+    '#options' => notifications_send_intervals($account),
     '#default_value' => $subscription->send_interval,
   );
   $send_methods = _notifications_send_methods($account);
@@ -260,7 +259,12 @@ function notifications_form_subscribe_confirm($form_state, $subscription, $accou
  * Process form submission
  */
 function notifications_form_subscribe_confirm_submit($form, &$form_state) {
-  $subscription = (object)$form_state['values'];
+  $subscription = $form_state['values']['subscription'];
+  foreach ($form_state['values']['subscription_fields'] as $field) {
+    if (isset($form_state['values'][$field])) {
+      $subscription->$field = $form_state['values'][$field];
+    }
+  }
   switch ($form_state['values']['op']) {
     case t('Subscribe'):
       notifications_save_subscription($subscription);

@@ -527,8 +527,9 @@ function notifications_process_send($destination, $messages, $test = FALSE) {
 function notifications_message_part($type, $key, $method, $param = NULL, $module = 'notifications') {
   // If event passed check for predefined text or get optional keys from event
   if ($type == 'event' && is_object($param)) {
-    if (isset($param->text[$key])) {
-      return $param->text[$key];  
+    $text = $param->get_text($key);
+    if (isset($text)) {
+      return $text;  
     } else {
       $options = array($param->type, $param->action);
     }
@@ -594,26 +595,29 @@ function notifications_message_send($destination, $message, $test = FALSE) {
 }
 
 /**
- * Get texts for event
- * 
- * @ TODO Support for configurable texts
- */
-function notifications_event_text($event) {
-  $info = notifications_event_types($event->type, $event->action);
-  return $info;
-}
-
-/**
  * Get events with static caching. Handle event deletion if not available anymore
  */
 function notifications_event_load($id) {
   $cache = &messaging_static(__FUNCTION__);
   if (!$cache || !array_key_exists($id, $cache)) {
-    $cache[$id] = Notifications_Event::load($id);
+    $event = Notifications_Event::load($id);
+    // Load aditional objects for the event. For backwards compatibility
+    // For modules up to date events are loaded with $event->load_objects()
+    notifications_module_invoke('event load', $event);
+    $cache[$id] = $event;
   }
   return $cache[$id];
 }
 
+/**
+ * Delete event and all queued notifications for it
+ */
+function notifications_event_delete($event) {
+  $cache = &messaging_static('notifications_event_load');
+  $cache[$event->eid] = NULL;
+  db_query("DELETE FROM {notifications_queue} WHERE eid = %d", $event->eid);
+  $event->delete();
+}
 
 /**
  * Keep track of events and update event counter with processed rows eids
@@ -627,20 +631,12 @@ function notifications_event_load($id) {
  */
 function notifications_event_tracker($op, $event = NULL) {
   $tracker = &messaging_static(__FUNCTION__);
-  $events = &messaging_static('notifications_event_load'); // Shared cache
   switch ($op) {
     case 'load': // Load and add to the tracker, $event is eid
-      if ($event = notifications_event_load($event)) {
-        // Check event status, it may need deletion if objects are not available
-        if (!empty($event->delete)) {
-          $events[$event->eid] = NULL;
-          return NULL;
-        }
-        else {
-          $event->track_count();
-          $tracker[$event->eid] = $event;
-          return $event;
-        }
+      if (($event = notifications_event_load($event)) && $event->load_objects() && empty($event->delete)) {
+        $event->track_count();
+        $tracker[$event->eid] = $event;
+        return $event;
       }
       break;
     case 'count':
@@ -648,20 +644,18 @@ function notifications_event_tracker($op, $event = NULL) {
       break;
     case 'delete':
       // Delete event and all related rows.
-      $events[$event->eid] = NULL;
       unset($tracker[$event->eid]);
-      $event->delete();
+      notifications_event_delete($event);
       break;
     case 'update':
-      // Update tracked events counter or delete if counter reached zero.
+      // Update tracked events counter or delete if counter reached zero or marked for deletion.
       if ($tracker) {
         foreach ($tracker as $event) {
-          if ($event->counter) {
-            $event->update_counter();
+          if (!$event->counter || $event->incomplete || !empty($event->delete)) {
+            notifications_event_delete($event);
           }
           else {
-            $events[$event->eid] = NULL;
-            $event->delete();
+            $event->update_counter();
           }
         }
       }
@@ -781,7 +775,6 @@ function notifications_process_build_simple($destination, $events, $subscription
  *   Message array 
  */
 function notifications_process_build_simple_message($destination, $event, $subscriptions) {
-  $info = notifications_event_text($event);
   $send_method = $destination->method;
   $account = $destination->get_account();
   // Create message. Do all this in one replacemente
@@ -801,7 +794,7 @@ function notifications_process_build_simple_message($destination, $event, $subsc
     $subscription = NULL;
   }
   $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
-  $objects = array_merge($objects, $event->objects);
+  $objects = array_merge($objects, $event->get_objects());
   $text = messaging_template_text_replace($text, $objects);
 
   // Get subject out of text and build the message array

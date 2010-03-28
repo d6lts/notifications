@@ -44,5 +44,8 @@ class NotificationsTestCase extends MessagingTestCase {
     $message = $message ? $message : "There are $target rows in table $table for user $uid";
     $this->assertTableRows($table, $target, array('uid' => $uid), $message);
   }
-
+  // Display latest page requested
+  function printPage() {
+    $this->assertTrue(TRUE, $this->drupalGetContent());
+  }
 }

@@ -175,7 +175,7 @@ function notifications_digest_build_long($destination, $events, $subscriptions, 
     // Pass only the first subscription here
     $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
-    $objects = $event->objects + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
+    $objects = $event->get_objects() + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
     $body = array_merge($body, messaging_template_text_replace($part, $objects));
   }
   
@@ -239,8 +239,8 @@ function notifications_digest_line($event, $method) {
   
   if (!isset($digest[$event->eid][$method])) {
     // The event may have an specific digest line, otherwise use template if present or even information
-    if (!empty($event->text['digest'])) {
-      $line = $event->text['digest'];
+    if ($text = $event->get_text('digest')) {
+      $line = $text;
     } elseif ($part = notifications_message_part('event', 'digest', $method, $event)) {
       $line = $part;
     } else { // Get it from event information
