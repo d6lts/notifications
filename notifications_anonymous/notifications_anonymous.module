@@ -72,7 +72,7 @@ function notifications_anonymous_subscription_access($op = 'create', $subscripti
     case 'create':
       return user_access('create anonymous subscriptions', $account) && notifications_anonymous_send_methods();
     case 'unsubscribe':
-      return !$subscription->uid || $subscription->uid == $account->uid;
+      return !$subscription->uid;
   }
 }
 
@@ -83,10 +83,10 @@ function notifications_anonymous_destination_access($op, $destination = NULL, $a
   global $user;
   $account = $account ? $account : $user;
   // Access will be granted if anonymous destination or administrator
-  if (user_access('administer notifications', $account)) {
+  if (user_access('administer notifications')) {
     return TRUE;
   }
-  elseif (!$destination->uid || $destination->uid == $account->uid) {
+  elseif (!$destination->uid) {
     switch ($op) {
       case 'manage':
         return user_access('manage own subscriptions', $account);
@@ -96,6 +96,9 @@ function notifications_anonymous_destination_access($op, $destination = NULL, $a
       case 'delete':
         return TRUE;
     }
+  }
+  else {
+    return FALSE;
   }
 }
 
@@ -211,7 +214,7 @@ function notifications_anonymous_send_methods() {
   $list = &messaging_static(__FUNCTION__);
   if (!isset($list)) {
     $list = array();
-    $allowed = variable_get('notifications_anonymous_send_methods', array());
+    $allowed = variable_get('notifications_anonymous_send_methods', array('mail'));
     foreach (messaging_method_list() as $method => $name) {
       if (in_array($method, $allowed)) {
         $list[$method] = $name;
@@ -228,7 +231,7 @@ function notifications_anonymous_send_intervals() {
   $list = &messaging_static(__FUNCTION__);
   if (!isset($list)) {
     $list = array();
-    $allowed = variable_get('notifications_anonymous_send_intervals', array());
+    $allowed = variable_get('notifications_anonymous_send_intervals', array(0));
     foreach (notifications_send_intervals() as $interval => $name) {
       if (in_array($interval, $allowed)) {
         $list[$interval] = $name;
@@ -246,31 +249,6 @@ function notifications_anonymous_perm() {
 }
 
 /**
- * Destination form submitted
- */
-function notifications_anonymous_destination_form_submit(&$form, &$form_state) {
-  $account = $form_state['values']['account'];
-  $method = $form_state['values']['method'];
-  $address = $form_state['values']['address'];
-  $destination = Messaging_Destination::get(array('method' => $method, 'address' => $address));
-  if ($destination) {
-    if ($account && $account->uid && $destination->uid == $account->uid) {
-      // The address belongs to the current user, so go for it
-      notifications_delete_destination($destination->mdid);
-      drupal_set_message(t('All the subscriptions for that address have been deleted.'));
-      return;
-    }
-    else {
-      // Will ask for confirmation if enabled always or if it belongs to a user
-      $confirm = variable_get('notifications_anonymous_unsubscribe_confirm', 1);
-      notifications_anonymous_message('unsubscribe', $destination, $confirm || $destination->uid);
-    }
-  }
-  // We print out a message without undisclosing any information about whether the address exists or not
-  drupal_set_message(t('If your address is found on this system, a message will be sent with a link to delete all subscriptions.'));
-}
-
-/**
  * Implementation of hook_form_alter()
  */
 function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
@@ -285,25 +263,6 @@ function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
         //$form['destination']['#weight'] = -10;
       }
       break;
-  }
-}
-
-/**
- * Implementation of hook_token_values()
- * 
- * Provide user-like tokens for anonymous users
- */
-function notifications_anonymous_token_values($type, $object = NULL, $options = array()) {
-  switch ($type) {
-    case 'user':
-      $values = array();
-      // When object is a destination, it should have no uid but a valid mdid
-      if (($account = $object) && empty($account->uid) && !empty($account->mdid)) {
-        // We have a real user, so we produce full links
-        $values['subscriptions-manage'] = notifications_anonymous_url("notifications/destination/$account->mdid/manage");
-        $values['unsubscribe-url-global'] =  notifications_anonymous_url("notifications/destination/$account->mdid/delete");
-      }
-      return $values;
   }
 }
 
@@ -394,11 +353,24 @@ function _notifications_anonymous_access($type, $object, $op) {
 }
 /**
  * Get formatted links to manage subscription / destination
+ * 
+ * @param $format
+ *   Format to return the links
+ *   - 'link', Full built link
+ *   - 'url', Plain url 
  */
-function notifications_anonymous_manage_links($type, $object) {
+function notifications_anonymous_manage_links($type, $object, $format = 'link') {
   $items = array();
-  foreach (_notifications_anonymous_manage_links($type, $object) as $link) {
-    $items[] = l($link['title'], $link['href'], $link['options']);
+  foreach (_notifications_anonymous_manage_links($type, $object) as $key => $link) {
+    switch ($format) {
+      case 'link':
+        $items[$key] = l($link['title'], $link['href'], $link['options']);
+        break;
+      case 'url':
+        $items[$key] = url($link['href'], $link['options']);
+        break;
+    }
+    
   }
   return $items;
 }
@@ -437,29 +409,212 @@ function notifications_anonymous_notifications($op, &$arg0, $arg1 = NULL, $arg2 
 }
 
 /**
- * Send unsubscribe message
+ * Implementation of hook_messaging()
+ * 
+ * This hook provides information about the mensaje templates this module uses and related tokens.
+ * 
+ * Depending on $op, this hook takes different parameters and returns different pieces of information:
+ * 
+ * - 'message groups'
+ *   Get array of message groups, each of which will have one or more keys for different templates
+ *   Each group should have a unique key, so it should start with the module name
+ * - 'message keys'
+ *   Get message template parts for a given group ($arg1)
+ *   Return array of key => name for each part
+ * - 'messages'
+ *   Get default message templates for a given group ($arg1).
+ *   It should return default texts, indexed by message key that will be the default templates
+ *   These templates may be edited on the 'Messaging templates' page
+ * - 'tokens'
+ *   Get available tokens for a given message group and key ($arg1).
+ *   Return array of token keys that will be available for this message templates
+ *   The tokens themselves may be default tokens (provided by token module) or we can add new
+ *   tokens implementing hook_token_list() and hook_token_value()
+ * 
+ * @param $op
+ *   Operation, type of information to retrieve
+ * @param $arg1, $arg2...
+ *   Different parameters depending on $op
  */
-function notifications_anonymous_message($type , $destination, $confirm = TRUE) {
-  $message = new Stdclass();
-  switch ($type) {
-    case 'unsubscribe':
-      $message->subject = t('Unsubscribe from !site_name', array('!site_name' => variable_get('site_name', 'Drupal')));
-      if ($confirm) {
-        $message->body = array(
-          t('Click on this link or copy and paste it on your browser to confirm you want to unsubscribe.'),
-          notifications_anonymous_url("notifications/destination/$destination->mdid/unsubscribe"),
-        );
-      }
-      else {
-        $message->body = t('You have been unsubscribed.');
+function notifications_anonymous_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+  switch ($op) {
+    case 'message types':
+      $info['notifications-anonymous'] = array(
+        'name' => t('Anonymous Notifications'),
+        'description' => t('Confirmation messages for anonymous users'),
+      );
+      return $info;
+    case 'message groups':
+      // Generic notifications event
+      $info['notifications-anonymous-subscribe'] = array(
+        'module' => 'notifications_anonymous',
+        'name' => t('Confirm subscription'),
+        'description' => t('Common parts for all Notifications messages for a single event. This is useful for defining a common header and/or footer for all these messages.'),
+      );
+      $info['notifications-anonymous-unsubscribe'] = array(
+        'module' => 'notifications_anonymous',
+        'name' => t('Cancel subscription'),
+        'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
+      );
+      return $info;
+    case 'message keys':      
+      $type = $arg1;
+      switch ($type) {
+        case 'notifications-anonymous':
+          return array(
+            'subject' => t('Subject'),
+            'footer' => t('Footer'),
+          );          
+        case 'notifications-anonymous-subscribe':
+        case 'notifications-anonymous-unsubscribe':
+        case 'notifications-anonymous-manage':
+          // Anonymous confirmation mails
+          return array(
+            'subject' => t('Subject'),
+            'header' => t('Header'),
+            'main' => t('Content'),
+            'footer' => t('Footer'),
+          );
       }
       break;
-    case 'subscribe':
-      $message->subject = t('Subscribe to !site_name', array('!site_name' => variable_get('site_name', 'Drupal')));
-      $message->body = array(
-        t('Click on this link or copy and paste it on your browser to confirm your subscription.'),
-        notifications_anonymous_url("notifications/destination/$destination->mdid/subscribe"),
-      );
+    case 'messages':
+      switch ($arg1) {
+        case 'notifications-anonymous':
+          return array(
+            'subject' => t('Message from [site-name]'),
+            'footer' => array(
+                t('This is an automatic message from [site-name]'),
+                t('To manage your subscriptions, browse to [destination-manage-url]'),
+                t('You can unsubscribe at [destination-unsubscribe-url]'),
+            ),        
+          );
+        // Subscribe confirmation
+        case 'notifications-anonymous-subscribe':
+          return array(
+            'subject' => t('Confirm your subscription to [site-name]'),
+            'header' => t("Someone has subscribed to [site-name] using [destination-address],"),
+            'main' => t("To confirm your subscription, browse to [subscription-confirm]"),
+          );
+        // Unsubscribe all message for a destination
+        case 'notifications-anonymous-cancel':
+          return array(
+            'subject' => t('Cancel all subscriptions to [site-name]'),
+            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]'),
+            'main' => array(
+              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]"),
+              t('To edit your subscriptions, browse to [destination-manage-url]'),
+            ),      
+          );
+        // Unsubscribe all message for a destination
+        case 'notifications-anonymous-unsubscribe':
+          return array(
+            'subject' => t('Cancel subscription to [site-name]'),
+            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]'),
+            'main' => array(
+              t("To cancel your subscription, browse to [subscription-unsubscribe-url]"),
+              t('To edit your subscription, browse to [subscription-edit-url]'),
+            ),      
+          );
+        case 'notifications-anonymous-manage':
+          return array(
+            'subject' => t('Edit your subscriptions to [site-name]'),
+            'header' => t('Someone has requested to change the subscriptions for [destination-address]'),
+            'main' => array(
+              t('To edit your subscriptions, browse to [destination-manage-url]'),
+              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]"),
+            ),      
+          );
+      }
+      break;
+    case 'tokens':
+      $type = explode('-', $arg1);
+      $tokens = array();
+      // These are the token groups that will be used for this module's messages
+      if (strpos($arg1, 'notifications-anonymous') === 0) {
+        $tokens = array('subscription', 'destination');
+      }
+      return $tokens;
   }
-  return messaging_message_send_out($destination->address, $message, $destination->method);
+}
+
+/**
+ * Build message for destination
+ * 
+ * @param $type
+ *   Message type
+ *   - subscribe, Confirm subscription
+ *   - unsubscribe, Cancel a single subscription
+ *   - cancel, Cancel all your subscriptions
+ *   - edit, Edit a subscription
+ *   - manage, Edit all subscriptions for destination
+ */
+function notifications_anonymous_message_build($type , $destination, $objects = array(), $confirm = TRUE) {
+  notifications_include('process.inc');
+  $template = 'anonymous';
+  $objects += array('destination' => $destination);
+  $send_method = $destination->method;
+  $text = array(
+    'subject' => notifications_message_part($template, 'subject', $send_method, $type),
+    'header' => notifications_message_part($template , 'header', $send_method, $type),
+    'main'  => notifications_message_part($template, 'main', $send_method, $type),
+    'footer' => notifications_message_part($template, 'footer', $send_method, $type),
+  );
+  // Run token replacement 
+  $text = messaging_template_text_replace($text, $objects);
+  // Get subject out of text and build the message array
+  $subject = $text['subject'];
+  unset($text['subject']);
+  $message = messaging_message_build(array('subject' => $subject, 'body' => array_filter($text)));
+  $message->add_destination($destination);
+  return $message;
+}
+
+/**
+ * Implementation of hook_token_list().
+ */
+function notifications_anonymous_token_list($type = 'all') {
+  $tokens = array();
+  if ($type == 'destination' || $type == 'all') {
+    // Nore destination tokens provided by messaging module
+    $tokens['destination']['destination-unsubscribe-url'] = t('URL to unsubscribe to the destination.');
+    $tokens['destination']['destination-manage-url'] = t('URL to manage all subscriptions for the destination.');
+    $tokens['destination']['destination-edit-url'] = t('URL to edit the destination.');
+  }
+  return $tokens;
+}
+
+/**
+ * Implementation of hook_token_values()
+ * 
+ * Provide user-like tokens for anonymous users
+ */
+function notifications_anonymous_token_values($type, $object = NULL, $options = array()) {
+  switch ($type) {
+    case 'subscription':
+      // Tokens only for anonymous users
+      if (($subscription = $object) && empty($subscription->uid)) {
+        $missing = '';
+        $links = notifications_anonymous_manage_links('subscription', $subscription, 'url');
+        $values['subscription-unsubscribe-url'] = isset($links['delete']) ? $links['delete'] : $missing;
+        $values['subscription-edit-url'] = isset($links['edit']) ? $links['edit'] : $missing;
+        // Old token, populate it for old templates
+        $values['unsubscribe-url'] = $values['subscription-unsubscribe-url'];
+        return $values;      
+      }
+      break;
+    case 'destination':
+      $values = array();
+      // Just for anonymous destinations, for the others the notifications module will do the job
+      if (($destination = $object) && empty($destination->uid)) {
+        $missing = '';
+        $links = notifications_anonymous_manage_links('destination', $destination, 'url');
+        $values['destination-unsubscribe-url'] = isset($links['delete']) ? $links['delete'] : $missing;
+        $values['destination-manage-url'] = isset($links['manage']) ? $links['manage'] : $missing;
+        $values['destination-edit-url'] = isset($links['edit']) ? $links['edit'] : $missing;
+        // This user token goes with destination for anonymous
+        $values['unsubscribe-url-global'] = $values['destination-unsubscribe-url'];
+        $values['subscriptions-manage'] = $values['destination-manage-url'];
+      }
+      return $values;
+  }
 }

@@ -36,6 +36,10 @@ function notifications_schema() {
         'description' => 'Sending interval for notifications of this subscription.',
         'type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
       ),
+      'language' => array(
+        'description' => 'Language',
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''
+      ),
       'send_method' => array(
         'description' => 'Sending method key, see Messaging module.',
         'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
@@ -104,8 +108,8 @@ function notifications_schema() {
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
       ),
       'language' => array(
-        'description' => 'Language, currently unused.',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE
+        'description' => 'Language.',
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''
       ),
       'uid' => array(
         'description' => 'Id of the user causing the event.',
@@ -148,7 +152,7 @@ function notifications_schema() {
       ),
       'language' => array(
         'description' => 'Language, currently unused.',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE,
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''
       ),
       'type' => array(
         'description' => 'The {notifications}.type of the Subscription producing this notification.',
@@ -447,4 +451,23 @@ function notifications_update_6010() {
   }
   return $ret;
 }
+/**
+ * Language enable everything and normalize language field
+ */
+function notifications_update_6011() {
+  $ret = array();
+  $language_field = array('type' => 'varchar', 'length' => 12, 'not null' => TRUE, 'default' => '');
+  $language_default = language_default('language');
+  $ret[] = update_sql("UPDATE {notifications_queue} SET language = '$language_default' WHERE language = '' OR language IS NULL"); 
+  $ret[] = update_sql("UPDATE {notifications_event} SET language = '$language_default' WHERE language = '' OR language IS NULL");
+  db_change_field($ret, 'notifications_queue', 'language', 'language', $language_field);
+  //db_change_field($ret, 'notifications_event', 'language', 'language', $language_field);
+  // Add language to 'notifications' and populate with user's language or default language
+  db_add_field($ret, 'notifications', 'language', $language_field);
+  $ret[] = update_sql("UPDATE {notifications} n SET language = (SELECT language FROM {users} u WHERE n.uid = u.uid AND u.language <> '')");
+  $ret[] = update_sql("UPDATE {notifications} SET language = '$language_default' WHERE language = '' OR language IS NULL");
+  return $ret; 
+}
+
+
 // Pending update, for next version, drop fields replaced by mdid

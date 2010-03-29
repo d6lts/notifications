@@ -530,15 +530,21 @@ function notifications_message_part($type, $key, $method, $param = NULL, $module
     $text = $param->get_text($key);
     if (isset($text)) {
       return $text;  
-    } else {
+    }
+    else {
       $options = array($param->type, $param->action);
     }
-  } elseif ($method == 'test') {
+  }
+  elseif ($method == 'test') {
     // Little trick for this to be testable
     return "$type $key [type-name] [title] [site-name]";
-  } else {
-    $options = is_array($param) ? $param : array();
-  }  
+  }
+  elseif ($param) {
+    $options = is_array($param) ? $param : array($param);
+  }
+  else {
+    $options = array();
+  }
   // Buid an array for searching templates, here's where the template fallback happens
   // I.e. $keyparts = array('notifications, 'event', 'node', 'update'),  will search for:
   // - notifications-event-node-update
@@ -598,24 +604,25 @@ function notifications_message_send($destination, $message, $test = FALSE) {
  * Get events with static caching. Handle event deletion if not available anymore
  */
 function notifications_event_load($id) {
-  $cache = &messaging_static(__FUNCTION__);
-  if (!$cache || !array_key_exists($id, $cache)) {
-    $event = Notifications_Event::load($id);
+  $cached = Notifications_Event::cache_get($id);
+  if (isset($cached)) {
+    return $cached;
+  }
+  elseif ($event = Notifications_Event::load($id)) {
     // Load aditional objects for the event. For backwards compatibility
     // For modules up to date events are loaded with $event->load_objects()
     notifications_module_invoke('event load', $event);
-    $cache[$id] = $event;
+    return $event;
   }
-  return $cache[$id];
+  else {
+    Notifications_Event::cache_set($id, FALSE);
+  }
 }
 
 /**
  * Delete event and all queued notifications for it
  */
 function notifications_event_delete($event) {
-  $cache = &messaging_static('notifications_event_load');
-  $cache[$event->eid] = NULL;
-  db_query("DELETE FROM {notifications_queue} WHERE eid = %d", $event->eid);
   $event->delete();
 }
 
@@ -631,6 +638,7 @@ function notifications_event_delete($event) {
  */
 function notifications_event_tracker($op, $event = NULL) {
   $tracker = &messaging_static(__FUNCTION__);
+  //notifications_debug('Event tracker', array('op' => $op, 'event' => $event));
   switch ($op) {
     case 'load': // Load and add to the tracker, $event is eid
       if (($event = notifications_event_load($event)) && $event->load_objects() && empty($event->delete)) {

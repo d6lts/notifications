@@ -8,7 +8,10 @@
 /**
  * Message destination class
  */
-class Notifications_Subscription {
+class Notifications_Subscription extends Messaging_Object {
+  // Database properties
+  const DB_TABLE = 'notifications';
+  const DB_KEY = 'sid';
   // Blocked subscriptions, for blocked users
   const STATUS_BLOCKED = 0;
   // Enabled ones, will produce notifications
@@ -33,8 +36,10 @@ class Notifications_Subscription {
   public $destination = '';
   // Subscription fields
   protected $fields;
+  // Language and temporary language object
+  //public $language;
+  //protected $_language;
   // Temporary variables
-  protected $account;
   protected $destination_object;
   protected $format;
   protected $objects;
@@ -44,8 +49,7 @@ class Notifications_Subscription {
   /**
    * Class constructor
    */
-  function __construct($type = NULL, $object = NULL) {
-    $this->type = $type;
+  function __construct($object = NULL) {
     $this->status = self::STATUS_ACTIVE;
     if ($object) {
       foreach ($object as $key => $value) {
@@ -71,7 +75,6 @@ class Notifications_Subscription {
         $this->event_type = notifications_subscription_types($this->type, 'event_type');
       }
     }
-    
   }
   /**
    * Build for a subscription type
@@ -81,6 +84,7 @@ class Notifications_Subscription {
    */
   public static function build($template) {
     if (is_array($template)) {
+      $type = NULL;
       $template = (object)$template;
     }
     if (is_object($template)) {
@@ -89,24 +93,37 @@ class Notifications_Subscription {
     } 
     else {
       $type = $template;
-      $object = NULL;
+      $object = array('type' => $type);
     }
     // The type may define its own class
     if ($type && ($class = notifications_subscription_types($type, 'class'))) {
-      return new $class($type, $object);
+      return new $class($object);
     }
     else {
-      return new Notifications_Subscription($type, $object);
+      return new Notifications_Subscription($object);
     }
+  }
+  /**
+   * Build from form submission
+   */
+  public static function build_submission($form_state) {
+    // The object may be already created ir it may be an array so we use this function that handles that
+    $subscription = notifications_build_subscription($form_state['values']['subscription']);
+    // There may be optional fields to add
+    if (!empty($form_state['values']['subscription_fields'])) {
+      foreach ($form_state['values']['subscription_fielteds'] as $field) {
+        if (isset($form_state['values'][$field])) {
+          $subscription->$field = $form_state['values'][$field];
+        }
+      }
+    }
+    return $subscription;
   }
   /**
    * Set user account
    */
   function set_account($account) {
-    $this->account = $account;
-    if ($account) {
-      $this->uid = $account->uid;
-    }
+    $this->set_user($account);
     if (!isset($this->send_interval)) {
       $this->send_interval = notifications_user_setting('send_interval', $account, 0);
     }
@@ -118,10 +135,7 @@ class Notifications_Subscription {
    * Get user account
    */
   function get_account() {
-    if (!isset($this->account) && isset($this->uid)) {
-      $this->account = notifications_load_user($this->uid);
-    }
-    return isset($this->account) ? $this->account : NULL;
+    return $this->get_user();
   }
   /**
    * Load from db
@@ -299,10 +313,24 @@ class Notifications_Subscription {
    */
   function get_destination() {
     if (!isset($this->destination_object)) {
-      $destination = !empty($this->mdid) ? Messaging_Destination::load($this->mdid) : FALSE;
-      $this->set_destination($destination);
+      $this->destination_object = !empty($this->mdid) ? Messaging_Destination::load($this->mdid) : FALSE;
     }
     return $this->destination_object;
+  }
+  /**
+   * Get language object
+   */
+  function get_language() {
+    if (!isset($this->_language)) {
+      if (!empty($this->language) && ($languages = language_list()) && isset($languages[$this->language])) {
+        $this->_language = $languages[$this->language];
+      }
+      else {
+        $this->_language = user_preferred_language($this->get_account());
+        $this->language = $this->_language->language;
+      }
+    }
+    return $this->_language;
   }
   /**
    * Set destination object
@@ -577,5 +605,13 @@ class Notifications_Subscription {
         return $this->get_conditions();
         break;
     }
+  }
+  // Get table name for storage
+  public static function db_table() {
+    return self::DB_TABLE;
+  }
+  // Get key field name for storage
+  public static function db_key() {
+    return self::DB_KEY;
   }
 }

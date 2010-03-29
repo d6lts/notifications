@@ -58,7 +58,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     $result = pager_query('SELECT n.*, d.method, d.address, u.name FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] .' INNER JOIN {users} u ON n.uid = u.uid '. $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   }
   $form = notifications_manage_subscriptions_form_options($account);
-  $destination = drupal_get_destination();
+  $form_destination = drupal_get_destination();
   $subscriptions = array();
   $status = _notifications_subscription_status();
   $send_methods = messaging_method_info(NULL, 'name');
@@ -72,11 +72,16 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     if ($full) {
       //$format = notifications_format_subscription($sub, 'array');
       $form['description'][$sub->sid] = array('#value' => $sub->format_name());
-    }    
+    }
+    // If not account, this is an admin form for multiple users, print full account and address
     if (!$account) {
-      $username = theme('username', $sub);
-      if (!$account->uid) {
-        $username .= ' ' . l($sub->address, 'notifications/destination/' . $sub->mdid . '/manage') ;
+      if ($sub->uid) {
+        $username = theme('username', $sub);
+      }
+      else {
+        // Anonymous subscription, print destination instead
+        $dest = $sub->get_destination();
+        $username = $dest->address_name() . ' ' . l($dest->format_address(FALSE), 'notifications/destination/' . $sub->mdid . '/manage') ;
       }
       $form['username'][$sub->sid] = array('#value' => $username);
     }
@@ -86,14 +91,14 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     // These links will be different depending on whether we are under admin or user account
     if ($account) {
       $operations = array(
-        l(t('edit'), 'user/'. $account->uid .'/notifications/subscriptions/edit/' . $sub->sid, array('query' => $destination)),
-        l(t('drop'), 'user/'. $account->uid .'/notifications/subscriptions/delete/' . $sub->sid, array('query' => $destination)),
+        l(t('edit'), 'user/'. $account->uid .'/notifications/subscriptions/edit/' . $sub->sid, array('query' => $form_destination)),
+        l(t('drop'), 'user/'. $account->uid .'/notifications/subscriptions/delete/' . $sub->sid, array('query' => $form_destination)),
       );
     }
     else {
       $operations = array(
-        l(t('edit'), 'notifications/subscription/' . $sub->sid, array('query' => $destination)),
-        l(t('drop'), 'notifications/unsubscribe/sid/' . $sub->sid, array('query' => $destination)),
+        l(t('edit'), 'notifications/subscription/' . $sub->sid, array('query' => $form_destination)),
+        l(t('drop'), 'notifications/unsubscribe/sid/' . $sub->sid, array('query' => $form_destination)),
       );
     }
     $form['operations'][$sub->sid] = array('#value' => implode(', ', $operations));

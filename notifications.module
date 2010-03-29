@@ -126,6 +126,7 @@ function notifications_menu() {
     'access arguments' => array('manage', 2),
     'file' => 'notifications.manage.inc',
   );
+  // User account tabs
   $items['user/%user/notifications'] = array(
     'type' => MENU_LOCAL_TASK,
     'title' => 'Notifications',
@@ -297,11 +298,8 @@ function notifications_subscription_access($op, $subscription, $account = NULL) 
  * Menu access callback for destinations
  */
 function notifications_destination_access($op, $destination) {  
-  global $user;
   // Access will be granted only to administrator for now
-  if (user_access('administer notifications')) {
-    return TRUE;
-  }
+  return user_access('administer notifications');
 }
 
 /**
@@ -507,10 +505,10 @@ function notifications_queue($event) {
   // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
   // If no arguments retrieved, skip this step
   if ($query_args = notifications_module_information('query', 'event', $event->type, $event)) {
-    $query['insert'] = array('uid', 'mdid', 'sid', 'module', 'eid', 'send_interval', 'cron', 'created', 'conditions');
+    $query['insert'] = array('uid', 'mdid', 'sid', 'module', 'eid', 'send_interval', 'language', 'cron', 'created', 'conditions');
     $query['into'] = '{notifications_queue}';
     $query['distinct'] = TRUE;
-    $query['select'] = array('s.uid', 's.mdid', 's.sid', 's.module', '%d', 's.send_interval', 's.cron', '%d', 's.conditions');
+    $query['select'] = array('s.uid', 's.mdid', 's.sid', 's.module', '%d', 's.send_interval', 's.language', 's.cron', '%d', 's.conditions');
     $query['from'] = array('{notifications} s');
     $query['select args'] = array($event->eid, $event->created);
     // We do a left join instead of inner join to allow subscriptions with no fields to work
@@ -1432,20 +1430,28 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
     case 'subscription':
       $values = array();
-      if ($subscription = $object) {
+      // Tokens only for registered users
+      if (($subscription = $object)) {
         $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'absolute' => TRUE));
-        $values['unsubscribe-url'] = url($link['href'], $link['options']);      
+        $values['unsubscribe-url'] = url($link['href'], $link['options']);
+        $values['subscription-type'] = $subscription->get_type('name');
+        $values['subscription-name'] = $subscription->format_name(FALSE);
+        $values['subscription-description-short'] = $subscription->format_short(FALSE);
+        $values['subscription-description-long'] = $subscription->format_long(FALSE);
       }
       return $values;
     case 'user':
       $values = array();
-      if (($account = $object) && $object->uid) {
+      if (($account = $object) && !empty($object->uid)) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE));
         $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'signed' => TRUE, 'absolute' => TRUE));
         $values['unsubscribe-url-global'] = url($link['href'], $link['options']);
       }
       return $values;
+    case 'destination':
+      // @todo Destination tokens for registered users
+      break;
   }
 }
 
@@ -1460,7 +1466,11 @@ function notifications_token_list($type = 'all') {
     $tokens['user']['unsubscribe-url-global'] = t('The url to allow a user to delete all their subscriptions.');
   }
   if ($type == 'subscription' || $type == 'all') {
-    $tokens['subscription']['unsubscribe-url']      = t('The url for disabling a specific subscription.');
+    $tokens['subscription']['unsubscribe-url']  = t('The url for disabling a specific subscription.');
+    $tokens['subscription']['subscription-type'] = t('The subscription type.');
+    $tokens['subscription']['subscription-name'] = t('The subscription name.');
+    $tokens['subscription']['subscription-description-short'] = t('The subscription short description.');
+    $tokens['subscription']['subscription-description-long'] = t('The subscription long description.');
   }
   if ($type == 'event' || $type == 'all') {
     $tokens['event']['event-list'] = t('List of events for message digests');

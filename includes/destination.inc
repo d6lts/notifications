@@ -31,7 +31,7 @@ function notifications_destination_subform($destination, $links = array()) {
   $form['destination_view'] = array(
     '#title' => $destination->address_name(),
     '#type' => 'item',
-    '#value' => check_plain($destination->address),
+    '#value' => $destination->format_address(TRUE),
     '#description' => format_plural($count, "There is one subscription for this destination.", 'There are @count subscriptions for this destination.'),
   );
   if ($links) {
@@ -110,7 +110,14 @@ function notifications_destination_address_subform($account, $destination = NULL
  */
 function notifications_destination_parse_submitted($values, $validate = FALSE) {
   $method = $address = NULL;
-  $uid = !empty($values['destination_account']) ? $values['destination_account']->uid : 0;
+  if (!empty($values['destination_account'])) {
+    $account = $values['destination_account'];
+    $uid = $account->uid;
+  }
+  else {
+    $accoun = drupal_anonymous_user();
+    $uid = 0;
+  }
   // Destination can come in any of these configurations
   if (!empty($values['destination_method'])) {
     $field = 'destination_method';
@@ -132,7 +139,7 @@ function notifications_destination_parse_submitted($values, $validate = FALSE) {
     if (!$method || !$address) {
       form_set_error($field, t('You need to enter exactly one destination address.'));
     }
-    elseif (!notifications_destination_validate($method, $address, $uid)) {
+    elseif (!notifications_destination_validate($account, $method, $address)) {
       form_set_error($field, t('This destination address is not valid.'));
     }
   }

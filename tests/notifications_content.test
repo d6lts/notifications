@@ -261,6 +261,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertEqual($max_sqid > 0, TRUE, 'Cleanup and queue prepare.');
     // Dirty trick for processing only these rows
     db_query("UPDATE {notifications_queue} SET module = 'notificationstesting' WHERE uid = %d", $user->uid);
+
     notifications_process_queue($send_interval, $max_sqid);
     //$count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($this->countUserRows('notifications_queue', $user->uid), 0, 'All rows in queue have been processed.');

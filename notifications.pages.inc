@@ -259,12 +259,7 @@ function notifications_form_subscribe_confirm($form_state, $subscription, $accou
  * Process form submission
  */
 function notifications_form_subscribe_confirm_submit($form, &$form_state) {
-  $subscription = $form_state['values']['subscription'];
-  foreach ($form_state['values']['subscription_fields'] as $field) {
-    if (isset($form_state['values'][$field])) {
-      $subscription->$field = $form_state['values'][$field];
-    }
-  }
+  $subscription = Notifications_Subscription::build_submission($form_state);
   switch ($form_state['values']['op']) {
     case t('Subscribe'):
       notifications_save_subscription($subscription);

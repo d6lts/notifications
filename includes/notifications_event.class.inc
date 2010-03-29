@@ -8,7 +8,10 @@
 /**
  * Message destination class
  */
-class Notifications_Event {
+class Notifications_Event extends Messaging_Cached_Object {
+  // Database properties
+  const DB_TABLE = 'notifications_event';
+  const DB_KEY = 'eid';
   // Object unique id
   public $eid;
   public $module;
@@ -16,9 +19,6 @@ class Notifications_Event {
   public $action;
   // Main object id
   public $oid;
-  public $language;
-  // User id that caused the event
-  public $uid;
   // Sending method
   public $params;
   // Address for this sending method
@@ -39,14 +39,16 @@ class Notifications_Event {
    * Constructor
    */
   function __construct($object = NULL) {
-    if ($object) {
-      foreach ($object as $field => $value) {
-        $this->$field = $value;
-      }
-    }
+    parent::__construct($object);
     if (!isset($event->created)) {
       $event->created = time();
     }
+  }
+  /**
+   * Building function
+   */
+  public static function build($template) {
+    return new Notifications_Event($template);
   }
   /**
    * Get event type information
@@ -139,28 +141,18 @@ class Notifications_Event {
     // Return true unless marked as incomplete
     return $this->incomplete ? FALSE : TRUE;
   }
-  /**
-   * Save/update the event
-   */
-  function save() {
-    $update = empty($this->eid) ? array() : 'eid';
-    drupal_write_record('notifications_event', $this, $update);    
-  }
-  /**
-   * Delete from system
-   */ 
-  function delete() {
-    db_query('DELETE FROM {notifications_event} WHERE eid = %d', $this->eid);
-    unset($this->eid);
-  }
+
   /**
    * Load by id
    */
-  public static function load($eid) {
-    if ($object = db_fetch_object(db_query("SELECT * FROM {notifications_event} WHERE eid = %d", $eid))) {
-      $object->params = $object->params ? unserialize($object->params) : array();
-      return new Notifications_Event($object);
-    }
+  public static function load($key) {
+    return self::object_load(self::DB_TABLE, self::DB_KEY, $key, 'Notifications_Event');
+  }
+  /**
+   * Unserialize after db loading
+   */
+  public function unserialize() {
+    $this->params = $this->params ? unserialize($this->params) : array();
   }
   /**
    * Track notifications queue row processed, decrease counter
@@ -173,8 +165,24 @@ class Notifications_Event {
    */
   function update_counter($value = NULL) {
     if (isset($value)) {
-      $event->counter = $value;
+      $this->counter = $value;
     }
-    db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $event->counter, $this->eid);
+    db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $this->counter, $this->eid);
+  }
+  // Store into cache
+  public static function cache_set($key, $object) {
+    return self::object_cache_set('Notifications_Event', $key, $object);
+  }
+  // Get from cache
+  public static function cache_get($key) {
+    return self::object_cache_get('Notifications_Event', $key);
+  }
+  // Get table name for storage
+  public static function db_table() {
+    return self::DB_TABLE;
+  }
+  // Get key field name for storage
+  public static function db_key() {
+    return self::DB_KEY;
   }
 }
