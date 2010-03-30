@@ -561,7 +561,7 @@ function notifications_queue($event) {
  * Store / return events for immediate sending
  */
 function notifications_send_immediate($eid = 0) {
-  static $events;
+  $events = &messaging_static(__FUNCTION__); ;
   
   if (!$eid) {
     return $events;
@@ -1058,7 +1058,7 @@ function notifications_get_subscriptions($params, $conditions = array(), $limit 
  *   or information for a given field for all types
  */
 function notifications_object_type($type = NULL, $field = NULL) {
-  $types = &messaging_static(__FUNCTION__); 
+  $types = &messaging_static(__FUNCTION__);
   if (!isset($types)) {
     $types = notifications_module_information('object types');
     drupal_alter('notifications_object_types', $types);
@@ -1224,7 +1224,7 @@ function notifications_subscription_types($type = NULL, $field = NULL, $check_ac
  * Get information about subscriptions fields
  */
 function notifications_subscription_fields($type = NULL, $property = NULL) {
-  static $fields;
+  $fields = &messaging_static(__FUNCTION__); ;
   if (!isset($fields)) {
     $fields = notifications_module_information('subscription fields');
     drupal_alter('notifications_subscription_fields', $fields);
@@ -1409,6 +1409,9 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
         if ($type[1] == 'event') {
           $tokens[] = 'event';
         }
+        elseif ($type[1] == 'digest') {
+          $tokens[] = 'events';
+        }
       }
       return $tokens;
     case 'method update':
@@ -1452,6 +1455,15 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
     case 'destination':
       // @todo Destination tokens for registered users
       break;
+    case 'event':
+      if ($event = $object) {
+        $values['event-type-description'] = $event->get_type('description');
+        $values['event-date-small'] = format_date($event->created, 'small');
+        $values['event-date-medium'] = format_date($event->created, 'medium');
+        $values['event-date-large'] = format_date($event->created, 'large');
+        return $values;
+      }
+      break;
   }
 }
 
@@ -1473,8 +1485,10 @@ function notifications_token_list($type = 'all') {
     $tokens['subscription']['subscription-description-long'] = t('The subscription long description.');
   }
   if ($type == 'event' || $type == 'all') {
-    $tokens['event']['event-list'] = t('List of events for message digests');
-    $tokens['event']['event-detail'] = t('Detailed information for event');
+    $tokens['event']['event-type-description'] = t('Description of event type.');
+    $tokens['event']['event-date-small'] = t('Date of the event, short format.');
+    $tokens['event']['event-date-medium'] = t('Date of the event, medium format.');
+    $tokens['event']['event-date-large'] = t('Date of the event, large format.');
   }
   return $tokens;
 }
@@ -1483,7 +1497,7 @@ function notifications_token_list($type = 'all') {
  * Get event types
  */
 function notifications_event_types($type = NULL, $action = NULL) {
-  static $info;
+  $info = &messaging_static(__FUNCTION__); 
 
   if (!$info) {
     $types = notifications_module_information('event types');

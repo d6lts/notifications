@@ -19,9 +19,9 @@ class Notifications_Event extends Messaging_Cached_Object {
   public $action;
   // Main object id
   public $oid;
-  // Sending method
+  // Mixed array of parameters
   public $params;
-  // Address for this sending method
+  // Time the event was produced
   public $created;
   // Notifications in queue linked to this event
   public $counter = 0;

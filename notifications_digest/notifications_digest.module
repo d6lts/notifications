@@ -254,6 +254,41 @@ function notifications_digest_line($event, $method) {
   return $digest[$event->eid][$method];
 }
 
+/**
+ * Implementation of hook_token_list().
+ */
+function notifications_digest_token_list($type = 'all') {
+  $tokens = array();
+  if ($type == 'events' || $type == 'all') {
+    $tokens['events']['events-list'] = t('List of events for message digests');
+    $tokens['events']['events-detail'] = t('Detailed information for list of events');
+  }
+  return $tokens;
+}
+
+/**
+ * Implementation of hook_token_values()
+ */
+function notifications_digest_token_values($type, $object = NULL, $options = array()) {
+  switch ($type) {
+    case 'events':
+      // $object is an array of event objects
+      if ($object) {
+        $list = $detail = array();
+        // @ To do: some better event summary.
+        foreach ($object as $event) {
+          $list[] = $detail[] = $event->get_type('description');
+        }
+        $values['event-list'] = implode("\n", $list);
+        $values['event-detail'] = implode("\n", $detail);
+        return $values;    
+      }
+    break;
+  }
+}
+
+
+
 /** Themeable functions **/
 
 /**
