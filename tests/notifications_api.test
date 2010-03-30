@@ -35,7 +35,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $s1->send_method = 'mail';
     $s1->fields = array('field1' => 1, 'field2' => 2);
     $s1->destination = $user->mail;
-    $s2 = clone($s1);
+    $s2 = clone $s1;
     // Create the subscription and check assigned sid
     $result = notifications_save_subscription($s1);
     $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');

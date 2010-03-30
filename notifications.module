@@ -547,7 +547,7 @@ function notifications_queue($event) {
   
   // Now update event counter with rows in notifications_queue or delete if no rows
   if ($count = db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid))) {
-    $event->update_counter($event);
+    $event->update_counter($count);
     // If immediate sending enabled, store eid for sending on page exit.
     notifications_send_immediate($event->eid);
   }
@@ -1243,7 +1243,7 @@ function notifications_subscription_info_field($subscription) {
 /**
  * Get information from an array of data
  */
-function notifications_array_info(&$data, $type = NULL, $field = NULL) {
+function notifications_array_info($data, $type = NULL, $field = NULL) {
   if ($field && $type) {
     return isset($data[$type][$field]) ? $data[$type][$field] : NULL;
   }
@@ -2113,9 +2113,5 @@ function notifications_locale_refresh() {
  * The files must be in an 'includes' subfolder inside the module folder. 
  */
 function notifications_include($file, $module = 'notifications') {
-  static $used = array();
-  if (!isset($used[$module][$file])) {
-    require_once './' . drupal_get_path('module', $module) . '/includes/' . $file;
-    $used[$module][$file] = TRUE;
-  }
+  return messaging_include($file, $module);
 }
