@@ -142,7 +142,7 @@ function notifications_lite_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL
  */
 function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
-  $account = user_load(array('uid' => $uid));
+  $account = notifications_load_user($uid);
   if ($destination = messaging_account_build_destination($account)) {
     $queue = array(
       'mdid' => $destination->mdid,

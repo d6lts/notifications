@@ -83,12 +83,12 @@ function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
   // Get destination from form
   list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
 
-  if (empty($method) || empty($address)) {
-    form_set_error('destination_address', t('You need exactly one destination address.'));
-  }
-  elseif ($destination = Messaging_Destination::build($method, $address, 0)) {
+  if (!$uid && $method && $address && ($destination = Messaging_Destination::build($method, $address, 0))) {
     $form_state['values']['destination'] = $destination;
     $form_state['values']['mdid'] = $destination->mdid;
+  }
+  elseif (empty($method) || empty($address)) {
+    form_set_error('destination_address', t('You need exactly one destination address.'));
   }
   else {
     // @todo What should we do if the address is not valid?
@@ -103,7 +103,7 @@ function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
   switch ($form_state['values']['op']) {
     case t('Subscribe'):
       list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
-      $destination = Messaging_Destination::create($method, $address);
+      $destination = Messaging_Destination::create($method, $address, $uid);
       $subscription = Notifications_Subscription::build_submission($form_state);
       $subscription->set_destination($destination);
       notifications_save_subscription($subscription);

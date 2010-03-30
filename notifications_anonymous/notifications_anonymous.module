@@ -107,8 +107,11 @@ function notifications_anonymous_destination_access($op, $destination = NULL, $a
  */
 function notifications_anonymous_block($op = 'list', $delta = 0) {
   global $user;
-  
-  if ($op == 'list') {
+  // This block needs notifications_ui
+  if (!module_exists('notifications_ui')) {
+    return;
+  }
+  elseif ($op == 'list') {
     $blocks[0]['info'] = t('Anonymous subscription links');
     $blocks[0]['cache'] = BLOCK_NO_CACHE;
     return $blocks;
