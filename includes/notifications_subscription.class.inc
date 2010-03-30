@@ -20,8 +20,6 @@ class Notifications_Subscription extends Messaging_Object {
   const STATUS_INACTIVE = 2;
   // Unique subscription id
   public $sid = 0;
-  // User id this belongs to
-  public $uid;
   // Destination id
   public $mdid;
   // Subscription type
@@ -111,7 +109,7 @@ class Notifications_Subscription extends Messaging_Object {
     $subscription = notifications_build_subscription($form_state['values']['subscription']);
     // There may be optional fields to add
     if (!empty($form_state['values']['subscription_fields'])) {
-      foreach ($form_state['values']['subscription_fielteds'] as $field) {
+      foreach ($form_state['values']['subscription_fields'] as $field) {
         if (isset($form_state['values'][$field])) {
           $subscription->$field = $form_state['values'][$field];
         }
@@ -145,14 +143,8 @@ class Notifications_Subscription extends Messaging_Object {
    * @param $full
    *   Whether to load all fields in the same operation
    */
-  public static function load($sid, $full = TRUE) {
-    if ($object = db_fetch_object(db_query("SELECT * FROM {notifications} WHERE sid = %d", $sid))) {
-      $subs = self::build($object);
-      if ($full) {
-        $subs->get_fields();
-      }
-      return $subs;    
-    }
+  public static function load($sid) {
+    return self::object_load(self::DB_TABLE, self::DB_KEY, $sid, 'Notifications_Subscription');
   }
   /**
    * Load condition fields from db
@@ -169,20 +161,24 @@ class Notifications_Subscription extends Messaging_Object {
   /**
    * Save to db
    */
-  function save() {
-    $result = FALSE;
-    $update = !empty($this->sid) ? 'sid' : array();
-    $result = drupal_write_record('notifications', $this, $update);
-    $this->save_fields($update);
+  function insert() {
+    $result = parent::insert();
+    $this->save_fields(FALSE);
     return $result; 
+  }
+  /**
+   * Update db
+   */
+  function update() {
+    $this->save_fields(TRUE);
+    return parent::update();
   }
   /**
    * Delete from db
    */
   function delete() {
-    db_query("DELETE FROM {notifications} WHERE sid = %d", $this->sid);
     db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $this->sid);
-    unset($this->sid);
+    return parent::delete();
   }
   /**
    * Check destination or create it if new

@@ -547,12 +547,12 @@ function notifications_queue($event) {
   
   // Now update event counter with rows in notifications_queue or delete if no rows
   if ($count = db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid))) {
-    db_query('UPDATE {notifications_event} SET counter = %d WHERE eid = %d', $count, $event->eid);
+    $event->update_counter($event);
     // If immediate sending enabled, store eid for sending on page exit.
     notifications_send_immediate($event->eid);
   }
   else {
-    db_query('DELETE FROM {notifications_event} WHERE eid = %d', $event->eid);
+    $event->delete();
   }
 
 }
@@ -1092,19 +1092,19 @@ function notifications_object_access($type, $object, $account) {
   elseif ($info = notifications_object_type($type)) {
     $access = &messaging_static(__FUNCTION__);
     $key = $info['key_field'];
-    if (!isset($access[$account->uid][$object->$key])) {
+    if (!isset($access[$type][$account->uid][$object->$key])) {
       if (isset($info['access callback'])) {
-        $access[$account->uid][$object->$key] = _notifications_object_callback($type, 'access callback', $object, $account);
+        $access[$type][$account->uid][$object->$key] = _notifications_object_callback($type, 'access callback', $object, $account);
       }
       elseif (isset($info['access'])) {
-        $access[$account->uid][$object->$key] = user_access($info['access'], $account);
+        $access[$type][$account->uid][$object->$key] = user_access($info['access'], $account);
       }
       else {
         // Not defined, so we allow user access
-        $access[$account->uid][$object->$key] = TRUE;
+        $access[$type][$account->uid][$object->$key] = TRUE;
       }
     }
-    return $access[$account->uid][$object->$key];
+    return $access[$type][$account->uid][$object->$key];
   }
   // If not object information we cannot determine anything 
 }
@@ -1710,7 +1710,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
         'autocomplete callback' => 'notifications_node_nid2autocomplete',
         'format callback' => 'notifications_node_nid2title',
         'value callback' => 'notifications_node_title2nid',
-        'access callback' => 'notifications_node_access',
+        'access callback' => 'notifications_node_user_access',
         'file' => 'node.inc',
       );      
       $types['user'] = array(

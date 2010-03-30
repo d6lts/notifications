@@ -620,13 +620,6 @@ function notifications_event_load($id) {
 }
 
 /**
- * Delete event and all queued notifications for it
- */
-function notifications_event_delete($event) {
-  $event->delete();
-}
-
-/**
  * Keep track of events and update event counter with processed rows eids
  * 
  * It will delete events when objects are not available anymore
@@ -653,14 +646,14 @@ function notifications_event_tracker($op, $event = NULL) {
     case 'delete':
       // Delete event and all related rows.
       unset($tracker[$event->eid]);
-      notifications_event_delete($event);
+      $event->delete();
       break;
     case 'update':
       // Update tracked events counter or delete if counter reached zero or marked for deletion.
       if ($tracker) {
         foreach ($tracker as $event) {
           if (!$event->counter || $event->incomplete || !empty($event->delete)) {
-            notifications_event_delete($event);
+            $event->delete();
           }
           else {
             $event->update_counter();
