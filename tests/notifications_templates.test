@@ -69,7 +69,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $digest = notifications_process_build_method(1);
     $this->assertEqual($digest['type'], 'short', 'Get information about intervals and digest methods.');
     
-    $info = notifications_event_types($event1->type, $event1->action);
+    $info = $event1->get_type();
     $this->assertEqual($info['digest'], array('node', 'type'), 'Get event information about digest fields');
     
     $info = nofitications_digest_event_info($event1);

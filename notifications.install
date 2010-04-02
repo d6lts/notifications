@@ -102,7 +102,12 @@ function notifications_schema() {
       ),
       'action' => array(
         'description' => 'Event action: insert, update, etc.',
-        'type' => 'varchar', 'length' => '255', 'not null' => FALSE),
+        'type' => 'varchar', 'length' => '255', 'not null' => FALSE
+      ),
+      'typekey' => array(
+        'description' => 'Event key, will depend on type and action.',
+        'type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '',
+      ),
       'oid' => array(
         'description' => 'Object id of the primary object for the event. I.e. for node events it will be nid',
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
@@ -239,7 +244,7 @@ function notifications_install() {
  */
 function notifications_uninstall() {
   drupal_uninstall_schema('notifications');
-  foreach (array('events', 'send_intervals', 'sender', 'sendself', 'send_immediate') as $name) {
+  foreach (array('event_enabled', 'send_intervals', 'sender', 'sendself', 'send_immediate') as $name) {
     variable_del("notifications_$name");
   }
 }
@@ -469,5 +474,14 @@ function notifications_update_6011() {
   return $ret; 
 }
 
-
+/**
+ * Add event type key
+ */
+function notifications_update_6012() {
+  $ret = array();
+  db_add_field($ret, 'notifications_event', 'typekey', array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''));
+  $ret[] = update_sql("UPDATE {notifications_event} SET typekey = CONCAT(type, '-', action)");
+  // Reset enabled events
+  return $ret;
+}
 // Pending update, for next version, drop fields replaced by mdid

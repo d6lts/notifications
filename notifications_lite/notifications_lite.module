@@ -123,12 +123,14 @@ function notifications_lite_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL
   switch ($op) {
     case 'event types':
       // We just define event type 'lite', action 'default'
-      $types[] = array(
+      $types['lite-default'] = array(
         'type' => 'lite',
         'action' => 'default',
         'name' => t('Message for [user]'),
         'digest' => NULL, // This means grouping by: event type, event action
         'description' => t('Notifications lite message'),
+        'template' => 'notifications-event-lite',
+        'digest_template' => 'notifications-digest-lite',
       );
       return $types;
   }
@@ -162,29 +164,33 @@ function notifications_lite_queue_event($event) {
 }
 
 /**
- * Implementation of hook_messaging()
+ * Implementation of hook_notifications_template()
  */
-function notifications_lite_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+function notifications_lite_notifications_templates($op = 'info', $type = 'all', $language = NULL) {
   switch ($op) {
-    case 'message groups':
+    case 'info':
+      $info = array();
       // Generic notifications lite event (message)
-      $info['notifications-event-lite'] = array(
-        'module' => 'notifications_lite',
-        'name' => t('Simple notifications'),
-        'help' => t('The subject and main body will be provided by the event itself'),
-        'description' => t('Simple notifications triggered by other modules using the Notifications Lite API module.'),
-        'fallback' => 'notifications-event',
-      );
-      $info['notifications-digest-lite'] = array(
-        'module' => 'notifications_lite',
-        'name' => t('Group of simple notifications'),
-        'description' => t('Simple notifications digested with short format.'),
-        'help' => t('Every line of the digest will be a separate message.'),
-        'fallback' => 'notifications-digest',
-      );
+      if ($type == 'all' || $type == 'notifications-event-lite') {
+        $info['notifications-event-lite'] = array(
+          'module' => 'notifications_lite',
+          'name' => t('Simple notifications'),
+          'help' => t('The subject and main body will be provided by the event itself'),
+          'description' => t('Simple notifications triggered by other modules using the Notifications Lite API module.'),
+          'fallback' => 'notifications-event',
+        );
+      }
+      if ($type == 'digest' || $type == 'notifications-digest-lite') {
+        $info['notifications-digest-lite'] = array(
+          'module' => 'notifications_lite',
+          'name' => t('Group of simple notifications'),
+          'description' => t('Simple notifications digested with short format.'),
+          'help' => t('Every line of the digest will be a separate message.'),
+          'fallback' => 'notifications-digest',
+        );
+      }
       return $info;
-    case 'message keys':      
-      $type = $arg1;
+    case 'parts':      
       switch ($type) {
         case 'notifications-event-lite':
           // The other parts for these messages will be given by the event itself
@@ -199,8 +205,7 @@ function notifications_lite_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = N
           return $parts;
       }
       break;
-    case 'messages':
-      $type = $arg1;
+    case 'defaults':
       // Event notifications
       switch ($type) {
         case 'notifications-event-lite':

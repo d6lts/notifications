@@ -184,7 +184,7 @@ function notifications_content_theme() {
 /**
  * Implementation of hook_notifications()
  */
-function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
     case 'names':
       $subs = &$arg0;
@@ -317,33 +317,36 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
       //   New content has been submitted
       //   - Story Title1 by Author1
       //   - Event Title2 by Author2
-      $types[] = array(
+      $types['node-insert'] = array(
         'type' => 'node',
         'action' => 'insert',
         'name' => t('New content of type [type-name] has been submitted'),
         'line' => t('[type-name] [title] by [author-name]'),
         'digest' => array('node', 'type'),
         'description' => t('Node creation'),
+        'template' => 'notifications-event-node-insert',
       );
       // These other events are grouped for each node. The digest will look like:
       //   Story: Title of the story
       //   - The story has been updated
       //   - New comment by User: Comment title
-      $types[] = array(
+      $types['node-update'] = array(
         'type' => 'node',
         'action' => 'update',
         'name' => t('[type-name]: [title]'),
         'line' => t('The [type-name] has been updated'),
         'digest' => array('node', 'nid'), 
         'description' => t('Node update'),
+        'template' => 'notifications-event-node-update',
       );      
-      $types[] = array(
+      $types['node-comment'] = array(
         'type' => 'node',
         'action' => 'comment',
         'name' => t('[type-name]: [title]'),
         'line' => t('New comment by [comment-author-name]: [comment-title]'), 
         'digest' => array('node', 'nid'),
         'description' => t('Node comment'),
+        'template' => 'notifications-event-node-comment',
       );
       return $types;
     
@@ -365,57 +368,70 @@ function notifications_content_notifications($op, &$arg0, $arg1 = NULL, $arg2 = 
 /**
  * Implementation of hook_messaging()
  */
-function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+function notifications_content_notifications_templates($op, $type = 'all', $language = NULL) {
   switch ($op) {
-    case 'message groups':
-      $help = t('The <em>Header</em> and <em>Footer</em> will be taken from Notification events.');
-      $help_digest = $help . ' ' . t('The <em>Digest line</em> will be used when composing Short digests on which each event will be just a line.');
-      // Generic notifications event
-      $info['notifications-event-node'] = array(
-        'module' => 'notifications_content',
-        'name' => t('Notifications for node events'),
-        'description' => t('Defaults for all notifications related to node events.'),
-        'help' => $help_digest,
-        'fallback' => 'notifications-event',
-      );
-      $info['notifications-event-node-insert'] = array(
-        'module' => 'notifications_content',
-        'name' => t('Notifications for node creation'),
-        'description' => t('Notifications produced when a new node is created.'),
-        'help' => $help_digest,
-        'fallback' => 'notifications-event-node',
-      );
-      $info['notifications-event-node-update'] = array(
-        'module' => 'notifications_content',
-        'name' => t('Notifications for node updates'),
-        'description' => t('Notifications produced when a node is updated.'),
-        'help' => $help_digest,
-        'fallback' => 'notifications-event-node',
-      );
-      $info['notifications-event-node-comment'] = array(
-        'module' => 'notifications_content',
-        'name' => t('Notifications for node comments'),
-        'description' => t('Notifications produced when a comment is posted to a node.'),
-        'help' => $help_digest,
-        'fallback' => 'notifications-event-node',
-      );
-      // Node group digests, will have specific help text in hook_help()
-      $info['notifications-digest-node-nid'] = array(
-        'module' => 'notifications-content',
-        'name' => t('Groups digests per node'),
-        'description' => t('Group of events digested for each node.'),
-        'fallback' => 'notifications-digest',
-      );
-      $info['notifications-digest-node-type'] = array(
-        'module' => 'notifications-content',
-        'name' => t('Groups digests per node type'),
-        'description' => t('Group of events digested for each node type.'),
-        'fallback' => 'notifications-digest',
-      );
+    case 'help':
+      if (strpos($type, 'notifications-event') === 0) {
+        $help[] = t('The <em>Header</em> and <em>Footer</em> will be taken from Notification events.');
+        $help[] = t('The <em>Digest line</em> will be used when composing Short digests on which each event will be just a line.');
+        return $help;
+      }
+      break;
+    case 'info':
+      $info = array();
+      if ($type == 'all' || $type == 'notifications-event-node') {
+        // Generic notifications event
+        $info['notifications-event-node'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Notifications for node events'),
+          'description' => t('Defaults for all notifications related to node events.'),
+          'fallback' => 'notifications-event',
+        );
+      }
+      if ($type == 'all' || $type == 'notifications-event-node-insert') {
+        $info['notifications-event-node-insert'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Notifications for node creation'),
+          'description' => t('Notifications produced when a new node is created.'),
+          'fallback' => 'notifications-event-node',
+        );
+      }
+      if ($type == 'all' || $type == 'notifications-event-node-update') {
+        $info['notifications-event-node-update'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Notifications for node updates'),
+          'description' => t('Notifications produced when a node is updated.'),
+          'fallback' => 'notifications-event-node',
+        );
+      }
+      if ($type == 'all' || $type == 'notifications-event-node-comment') {
+        $info['notifications-event-node-comment'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Notifications for node comments'),
+          'description' => t('Notifications produced when a comment is posted to a node.'),
+          'fallback' => 'notifications-event-node',
+        );
+      }
+      if ($type == 'digest' || $type == 'notifications-digest-node-nid') {
+        // Node group digests, will have specific help text in hook_help()
+        $info['notifications-digest-node-nid'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Groups digests per node'),
+          'description' => t('Group of events digested for each node.'),
+          'fallback' => 'notifications-digest',
+        );
+      }
+      if ($type == 'digest' || $type == 'notifications-digest-node-type') {
+        $info['notifications-digest-node-type'] = array(
+          'module' => 'notifications_content',
+          'name' => t('Groups digests per node type'),
+          'description' => t('Group of events digested for each node type.'),
+          'fallback' => 'notifications-digest',
+        );
+      }
       return $info;
 
-    case 'message keys':      
-      $type = $arg1;
+    case 'parts':
       switch ($type) {
         case 'notifications-event-node':
         case 'notifications-event-node-insert':
@@ -435,8 +451,7 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
           return $parts;
       }
       break;
-    case 'messages':
-      $type = $arg1;
+    case 'defaults':
       // Event notifications
       switch ($type) {
         case 'notifications-event-node':
@@ -492,21 +507,21 @@ function notifications_content_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 
       }
       break;
     case 'tokens':
-      $type = explode('-', $arg1) + array(2 => '', 3 => '');
+      $args = explode('-', $type) + array(2 => '', 3 => '');
       $tokens = array();
       // These are the token groups that will be used for this module's messages
-      if ($type[0] == 'notifications' && $type[2] == 'node') {
-        if ($type[1] == 'event') {
+      if ($args[0] == 'notifications' && $args[2] == 'node') {
+        if ($args[1] == 'event') {
           $tokens[] = 'node';
-          if ($type[3] == 'comment') {
+          if ($args[3] == 'comment') {
             $tokens[] = 'comment';
           }
         }
-        elseif ($type[1] == 'digest')  {
-          if ($type[3] == 'nid') {
+        elseif ($args[1] == 'digest')  {
+          if ($args[3] == 'nid') {
             $tokens[] = 'node';
           }
-          elseif ($type[3] == 'type') {
+          elseif ($args[3] == 'type') {
             // Special format for isolated tokens: array('token type', 'token id'). 
             // In this case, as messages are digested by node type the only common element will be node-type
             $tokens[] = array('node', 'type-name');

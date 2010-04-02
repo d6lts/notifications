@@ -419,22 +419,20 @@ function notifications_event($event) {
  * Build event object
  */
 function notifications_event_build($params) {
-  global $user;
+  global $user, $language;
   // Fill in event with default values
   $params += array(
     'uid' => $user->uid,
-    'load_args' => '',
-    'created' => time(),
-    'module' => 'notifications', // Module that triggered the event
+    'language' => $language->language,
     'type' => '', // Object/event type
     'action' => '', // Action that happened to the object
-    'params' => array(), // Object parameters
     'save' => TRUE,
     'queue' => TRUE,
   );
+  $params += array('typekey' => $params['type'] . '-' . $params['action']);
   // Check whether we have to save and queue this event, defaults to yes if not set
   // If not enabled, do not store nor queue this event, can be changed by plug-in modules
-  if (notifications_event_enabled($params['type'], $params['action'])) {
+  if (notifications_event_enabled($params['typekey'])) {
     return new Notifications_Event($params);
   }
   else {
@@ -464,12 +462,47 @@ function notifications_event_trigger($event) {
 /**
  * Check whether we have enabled events of this type
  */
-function notifications_event_enabled($type, $action) {
-  $info = variable_get('notifications_events', array());
-  // Defaults to TRUE if not set
-  return (boolean)(!isset($info[$type][$action]) || $info[$type][$action]); 
+function notifications_event_enabled($key, $default = TRUE) {
+  $info = variable_get('notifications_event_enabled', array());
+  $status = isset($info[$key]) ? $info[$key] : $default;
+  // If this has a parent type, will be enabled just if parent is
+  if ($status && ($parent = notifications_event_types($key, 'parent'))) {
+    return notifications_event_enabled($parent, FALSE);
+  }
+  else {
+    return $status;
+  }
 }
 
+/**
+ * Get template for event
+ * 
+ * @param $event
+ *   It may be event object or event type key
+ */
+function notifications_event_get_template($event) {
+  $info = &messaging_static(__FUNCTION__);
+  if (!isset($info)) {
+    $info = variable_get('notifications_event_template', array());
+  }
+  if (is_object($event)) {
+    // An event object will know about its template itself
+    return $event->get_template();
+  }  
+  else {
+    // $event is just the type key
+    if (!isset($info[$event])) {
+      if ($template = notifications_event_types($event, 'template')) {
+        // Use default value from event definition
+        $info[$event] = $template;
+      }
+      else {
+        $info[$event] = FALSE;
+      }
+    }
+    return $info[$event];
+  }
+}
 /**
  * Process URL arguments and return an array of field/value pairs
  * 
@@ -1242,6 +1275,13 @@ function notifications_subscription_info_field($subscription) {
 
 /**
  * Get information from an array of data
+ * 
+ * @param $data
+ *   Array of data indexed by type
+ * @param $type
+ *   Type to return out of the array, none to return all types
+ * @param $property
+ *   Property to return, none to return all properties
  */
 function notifications_array_info($data, $type = NULL, $field = NULL) {
   if ($field && $type) {
@@ -1250,7 +1290,7 @@ function notifications_array_info($data, $type = NULL, $field = NULL) {
   elseif ($field) {
     $return = array();
     foreach ($data as $id => $info) {
-      $return[$id] = $info[$field];
+      $return[$id] = isset($info[$field]) ? $info[$field] : NULL;
     }
     return $return;
   }
@@ -1338,20 +1378,49 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       );
       return $info;
     case 'message groups':
+      return notifications_get_templates('info', 'enabled');
+    case 'message keys':
+      return notifications_get_templates('parts', $arg1);
+    case 'messages':
+      return notifications_get_templates('defaults', $arg1);
+    case 'tokens':
+      return notifications_get_templates('tokens', $arg1);
+    case 'method update':
+      // A messaging method has been disabled ($arg1) and replaced by the new one ($arg2)
+      // Update subscriptions
+      db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
+      // Purge notifications queue, we may lost some notifications but it's the safest option.
+      db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $arg1);
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_notifications_templates() 
+ */
+function notifications_notifications_templates($op, $type = NULL, $language = NULL) {
+  switch ($op) {
+    case 'info':
+      $info = array();
       // Generic notifications event
-      $info['notifications-event'] = array(
-        'module' => 'notifications',
-        'name' => t('Notifications event'),
-        'description' => t('Common parts for all Notifications messages for a single event. This is useful for defining a common header and/or footer for all these messages.'),
-      );
-      $info['notifications-digest'] = array(
-        'module' => 'notifications',
-        'name' => t('Notifications digest'),
-        'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
-      );
+      if ($type == 'all' || $type == 'notifications-event') {
+        $info['notifications-event'] = array(
+          'module' => 'notifications',
+          'name' => t('Notifications event'),
+          'description' => t('Common parts for all Notifications messages for a single event. This is useful for defining a common header and/or footer for all these messages.'),
+          'fallback' => FALSE, // This template has no fallback
+        );
+      }
+      if ($type == 'digest' || $type == 'notifications-digest') {
+        $info['notifications-digest'] = array(
+          'module' => 'notifications',
+          'name' => t('Notifications digest'),
+          'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
+          'fallback' => FALSE, // This template has no fallback
+        );
+      }
       return $info;
-    case 'message keys':      
-      $type = $arg1;
+    case 'parts':
       switch ($type) {
         case 'notifications-event':
           // Event notifications
@@ -1371,8 +1440,7 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
           );
       }
       break;
-    case 'messages':
-      $type = $arg1;
+    case 'defaults':
       // Event notifications
       if ($type == 'notifications-event') {
         return array(
@@ -1401,29 +1469,56 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       }
       break;
     case 'tokens':
-      $type = explode('-', $arg1);
+      $args = explode('-', $type);
       $tokens = array();
       // These are the token groups that will be used for this module's messages
-      if ($type[0] == 'notifications') {
+      if ($args[0] == 'notifications') {
         $tokens = array('subscription', 'user');
-        if ($type[1] == 'event') {
+        if ($args[1] == 'event') {
+          // If the template is for a single event, it can use event tokens
           $tokens[] = 'event';
         }
-        elseif ($type[1] == 'digest') {
+        elseif ($args[1] == 'digest') {
+          // Template for multiple events, can use events (note the plural) tokens
           $tokens[] = 'events';
         }
       }
-      return $tokens;
-    case 'method update':
-      // A messaging method has been disabled ($arg1) and replaced by the new one ($arg2)
-      // Update subscriptions
-      db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
-      // Purge notifications queue, we may lost some notifications but it's the safest option.
-      db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $arg1);
-      break;
+      return $tokens;    
   }
 }
+/**
+ * Get notifications templates
+ * 
+ * This will filter out templates for disabled events
+ * 
+ * $op = 'info', 'parts', 'tokens', 'defaults'
+ */
+function notifications_get_templates($op = 'info', $type = 'all', $language = NULL) {
+  static $all_templates;
 
+  switch ($op) {
+    case 'info':
+      if ($type == 'all' || $type == 'enabled') {
+        if (!isset($all_templates)) {
+          $all_templates = module_invoke_all('notifications_templates', 'info', 'all');
+        }
+        if ($type == 'all') {
+          return $all_templates;
+        }
+        elseif ($type == 'enabled') {
+          // Get a list of templates for enabled event types
+          $enabled = array_filter(notifications_event_types(NULL, 'template', FALSE));
+          return messaging_template_extract_group($enabled, $all_templates);
+        }
+      }
+      else {
+        return module_invoke_all('notifications_templates', 'info', $type, $language);
+      }
+      break;
+    default:
+      return module_invoke_all('notifications_templates', $op, $type, $language);
+  }
+}
 /**
  * Implementation of hook_token_values()
  * 
@@ -1495,37 +1590,28 @@ function notifications_token_list($type = 'all') {
 
 /**
  * Get event types
+ * 
+ * @param $typekey
+ *   Event type key
+ * @param $property
+ *   Property to return
+ * @param $enabled
+ *   Whether to return also disabled events
  */
-function notifications_event_types($type = NULL, $action = NULL) {
-  $info = &messaging_static(__FUNCTION__); 
-
-  if (!$info) {
-    $types = notifications_module_information('event types');
-    foreach ($types as $type_info) {
-      $info[$type_info['type']][$type_info['action']] = $type_info;
-    }
+function notifications_event_types($typekey = NULL, $property = NULL, $disabled = TRUE) {
+  $info = &messaging_static(__FUNCTION__);
+  $enabled = &messaging_static(__FUNCTION__ . '_enabled');
+  if (!isset($info)) {
+    $info = notifications_module_information('event types');
     drupal_alter('notifications_event_types', $info);
-  }
-  if ($action) {
-    if (isset($info[$type][$action])) {
-      // The event provides a proper action defined
-      return $info[$type][$action];
-    }
-    elseif (isset($info[$type]['default'])) {
-      // The event provides a default action, go for it
-      return $info[$type]['default'];
-    }
-    else {
-      // We better make the code break, than return an empty array()
-      return NULL; 
+    $enabled = array();
+    foreach ($info as $key => &$event) {
+      if (empty($event['disabled']) && notifications_event_enabled($key)) {
+        $enabled[$key] = &$event;
+      }
     }
   }
-  elseif ($type) {
-    return isset($info[$type]) ? $info[$type] : array();
-  }
-  else {
-    return $info;
-  }
+  return $disabled ? notifications_array_info($info, $typekey, $property) : notifications_array_info($enabled, $typekey, $property);
 }
 
 /**

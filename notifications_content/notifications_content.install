@@ -42,3 +42,20 @@ function notifications_content_update_6001() {
   drupal_set_message(t('Please, check all your Notifications content settings and note the new options.'));
   return array();
 }
+
+/**
+ * Update enabled options (again)
+ */
+function notifications_content_update_6002() {
+  if ($events = variable_get('notifications_events', array())) {
+    $enabled = array();
+    foreach ($events as $type => $type_info) {
+      foreach ($type_info as $action => $enabled) {
+        $enabled[$type . '-' . $action] = 1;
+      }
+    }
+    variable_set('notifications_event_enabled', $enabled);
+    variable_del('notifications_events');
+  }
+  return $array();
+}

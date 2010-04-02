@@ -271,33 +271,66 @@ function theme_notifications_send_intervals_form($element) {
  * Will allow to define which events trigger a notification and which ones not
  */
 function notifications_admin_events_form() {
+  $form = array();
   // Compile array from plug-ins and settings
-  $events = notifications_event_types();
-  $current = variable_get('notifications_events', array());
-
-  if ($events) {
-    $form['notifications_events'] = array(
-      '#title' => t('Enabled events'),
-      '#type' => 'fieldset',
-      '#tree' => TRUE,
-      '#description' => t('Check the events for which notifications should be triggered.'),
-    );
-    foreach ($events as $object => $object_info) {
-      foreach ($object_info as $action => $action_info) {
-        $form['notifications_events'][$object][$action] = array(
-          '#type' => 'checkbox',
-          '#title' => !empty($action_info['description']) ? $action_info['description'] : "$object:$action",
-          '#default_value' => isset($current[$object][$action]) ? $current[$object][$action] : 1,
-        );
-      }
-    }
-    return system_settings_form($form);
+  if ($events = notifications_event_types()) {
+    $form['notifications_event_enabled']['#tree'] = TRUE;
+    $form['notifications_event_template']['#tree'] = TRUE;
+    // Group event types when they have a parent
+    $tree = notifications_admin_events_build_tree($events);
+    notifications_admin_events_tree_form($tree, $form, 0);
+    $form = system_settings_form($form);
+    $form['#theme'] = 'notifications_table_form';
+    $form['#table_fields'] = array('name', 'notifications_event_enabled', 'notifications_event_template');
+    $form['#table_header'] = array(t('Event type'), t('Enabled'), t('Template'));
+    return $form;
   } else {
     $form['warning'] = array('#value' => t('You need to enable some plug-ins to provide notifications events.'));
     return $form;
   }  
 }
 
+/**
+ * Build event tree
+ */
+function notifications_admin_events_build_tree($events) {
+  $tree = array();
+  foreach ($events as $key => &$event) {
+    if (empty($event['parent'])) {
+      $tree[$key] = &$event;
+    }
+    else {
+      $events[$event['parent']]['children'][$key] = &$event;
+    }
+  }
+  return $tree;  
+}
+function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
+  foreach ($tree as $key => $event) {
+    $form['name'][$key] = array('#value' => theme('indentation', $depth) . $event['description']);
+    $form['notifications_event_enabled'][$key] = array(
+      '#type' => 'checkbox',
+      '#default_value' => notifications_event_enabled($key),
+    );
+    $form['notifications_event_template'][$key] = array(
+      '#type' => 'select',
+      '#default_value' => notifications_event_get_template($key),
+      '#options' => notifications_template_list(),
+    );
+    if (!empty($event['children'])) {
+      notifications_admin_events_tree_form($event['children'], $form, $depth +1);
+    }
+  }  
+}
+function notifications_template_list() {
+  $list = &messaging_static(__FUNCTION__);
+  if (!isset($list)) {
+    foreach (notifications_get_templates() as $key => $template) {
+      $list[$key] = $template['name'];
+    }
+  }
+  return $list;
+}
 /**
  * Theme subscriptions list
  */
@@ -325,7 +358,7 @@ function theme_notifications_form_table($element) {
 /**
  * Generic table formatting for forms
  */
-function theme_notifications_table_form($form) {
+function theme_notifications_table_form(&$form) {
   $output = '';
 
   // Get table information from special form properties

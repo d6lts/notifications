@@ -123,7 +123,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     
     // Check generic info hooks with some random values
     $this->assertEqual(notifications_subscription_types('thread', 'event_type'), 'node', 'Types hook retrieves right value.');
-    $event_type = notifications_event_types('node', 'update');
+    $event_type = notifications_event_types('node-update');
     $this->assertEqual($event_type['digest'], array('node', 'nid'), 'Event types hook retrieves right value.');
     
     // Try permissions with anonymous user

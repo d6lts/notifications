@@ -524,57 +524,21 @@ function notifications_process_send($destination, $messages, $test = FALSE) {
  * @return
  *   Part of the message with tokens for replacement.
  */
-function notifications_message_part($type, $key, $method, $param = NULL, $module = 'notifications') {
+function notifications_event_message_part($event, $key, $method, $module = 'notifications') {
   // If event passed check for predefined text or get optional keys from event
-  if ($type == 'event' && is_object($param)) {
-    $text = $param->get_text($key);
-    if (isset($text)) {
-      return $text;  
+  if ($text = $event->get_text($key)) {
+    return $text;
+  }
+  elseif ($template = notifications_event_get_template($event)) {
+    $text = messaging_template_text_part($template, $key, $method);
+    if (isset($text)) {   
+      return $text;
     }
-    else {
-      $options = array($param->type, $param->action);
-    }
   }
-  elseif ($method == 'test') {
-    // Little trick for this to be testable
-    return "$type $key [type-name] [title] [site-name]";
-  }
-  elseif ($param) {
-    $options = is_array($param) ? $param : array($param);
-  }
-  else {
-    $options = array();
-  }
-  // Buid an array for searching templates, here's where the template fallback happens
-  // I.e. $keyparts = array('notifications, 'event', 'node', 'update'),  will search for:
-  // - notifications-event-node-update
-  // - notifications-event-node
-  // - notifications-event
-  // - notifications
-  $search = $keyparts = array_merge(array($module, $type), $options);
-  while ($keyparts) {
-    $groupkey = implode('-', $keyparts);
-     if ($text = messaging_template_message_part($groupkey, $key, $method)) {
-      $output = $text == MESSAGING_TEMPLATE_EMPTY ? '' : $text;
-      break;
-    }
-    // If no text trim out latest part of the key and retry
-    array_pop($keyparts);
-  }
-  // If we don't have a template and the module is not notifications, give it another try
-  if (isset($output)) {
-    // We found something, return it
-    return $output;
-  }
-  elseif ($module != 'notifications') {
-    // Found nothing, different module, retry with notifications templates
-    return notifications_template_message_part($type, $key, $method, $param, 'notifications');
-  }
-  else {
-    // Failed to get message part, return information about the template not found, will help debugging
-    return "[UNDEFINED module = $module, key = $key, type = $type, method = $method, search = ". implode(',', $search) .']';
-  }
+  // Default, template not found
+  return "[UNDEFINED module = $module, key = $key, method = $method, event = $event->eid, type = $event->typekey]";
 }
+
 
 /**
  * Message sending, pass the message to Messaging back end
@@ -780,12 +744,11 @@ function notifications_process_build_simple_message($destination, $event, $subsc
   $account = $destination->get_account();
   // Create message. Do all this in one replacemente
   $text = array(
-    'subject' => notifications_message_part('event', 'subject', $send_method, $event),
-    'header' => notifications_message_part('event' , 'header', $send_method, $event),
-    'event'  => notifications_message_part('event', 'main', $send_method, $event),
-    'footer' => notifications_message_part('event', 'footer', $send_method, $event),
+    'subject' => notifications_event_message_part($event, 'subject', $send_method),
+    'header' => notifications_event_message_part($event , 'header', $send_method),
+    'event'  => notifications_event_message_part($event, 'main', $send_method),
+    'footer' => notifications_event_message_part($event, 'footer', $send_method),
   );
-
   // We pass only the first subscription, which is at least something
   // @ TODO Handle nicely the case where there are more than one subscription
   if ($sid = array_shift($subscriptions)) {

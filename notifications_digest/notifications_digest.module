@@ -3,9 +3,8 @@
 
 /**
  * @file
- * Notifications digest
+ * Notifications digest module
  */
-
 
 /**
  * Implementation of hook_notifications()
@@ -29,6 +28,36 @@ function notifications_digest_notifications($op, &$arg0, $arg1 = NULL, $arg2 = N
         'digest' => TRUE,
       );
       return $info;
+  }
+}
+
+/**
+ * Implementation of hook_messaging()
+ * 
+ * Get digest templates, that are not returned by notifications module
+ */
+function notifications_digest_messaging($op, $type = NULL) {
+  if ($op == 'message groups' && !$type) {
+    return notifications_digest_get_templates('enabled');
+  } 
+}
+
+/**
+ * Get templates for digesting
+ */
+function notifications_digest_get_templates($op = 'all') {
+  static $templates;
+  if (!isset($templates)) {
+    $templates = notifications_get_templates('info', 'digest');
+  }
+  if ($op == 'all') {
+    return $templates;
+  }
+  elseif ($op == 'enabled') {
+     // Get a list of templates for enabled event types
+     $enabled_events = array_filter(notifications_event_types(NULL, NULL, FALSE));
+     $enabled = array_map('notifications_digest_event_template', array_keys($enabled_events));
+     return messaging_template_extract_group($enabled, $templates);
   }
 }
 
@@ -58,30 +87,68 @@ function notifications_digest_theme() {
  * 
  * I.e. for event type = 'node', event action = 'update'
  *  'digest' => ('node', 'nid')
+ * 
+ * The result will be an array with the following properties
+ * - type, Event's object type we use for digesting
+ * - field, Event's object field we use for digesting
+ * - value, Object's field value if set, defaults to 0
+ * - object, The object we have used for digesting
  */
 function nofitications_digest_event_info($event, $module = 'notifications') {
-  $info = notifications_event_types($event->type, $event->action);
-  if (!empty($info['digest'])) {
-    $type = $info['digest'][0];
-    $field = $info['digest'][1];
+  // The event may already have digest information
+  if (isset($event->digest)) {
+    return $event->digest;
+  }
+  elseif ($digest = $event->get_type('digest')) {
+    // Cool, the event type has digesting information
+    $type = $digest[0];
+    $field = $digest[1];
     // Check object and values, the object may be the event itself
     if ($type == 'event') {
       $object = $event;
     }
     else {
-      $object = !empty($event->objects[$type]) ? $event->objects[$type] : NULL;
+      $object = $event->get_object($type);
     }
   }
   else {
-    // No digest info for this event /action so we use event and action itselves.
+    // No digest info for this event /action so we use event and action
     $type = $event->type;
     $field = $event->action;
     $object = NULL;
   }
-  $value = $object && isset($object->$field) ? $object->$field : 0;
-  return array('type' => $type, 'field' => $field, 'value' => $value, 'object' => $object, 'module' => $module);  
+  $value = $object && $field && isset($object->$field) ? $object->$field : 0;
+  return $event->digest = array('type' => $type, 'field' => $field, 'value' => $value, 'object' => $object, 'module' => $module);  
 }
 
+/**
+ * Get template name for digesting event
+ * 
+ * @param $event
+ *   Event object or event type key
+ */
+function notifications_digest_event_template($event) {
+  $info = &messaging_static(__FUNCTION__);
+  if (!isset($info)) {
+    $info = variable_get('notifications_digest_template', array());
+  }  
+  $key = is_object($event) ? $event->typekey : $event;
+  if (!isset($info[$key])) {
+    if ($template = notifications_event_types($key, 'digest_template')) {
+      $info[$key] = $template;
+    }
+    else {
+      $parts = array('notifications', 'digest');
+      // Get digesting information from event definition
+      if ($digest = notifications_event_types($key, 'digest')) {
+        // This will be an array like (node, nid) or (event, type)
+        $parts = array_merge($parts, $digest);
+      }
+      $info[$key] = implode('-', $parts);
+    }
+  }
+  return $info[$key];
+}
 /**
  * Digest multiple events in a single message, short format.
  * 
@@ -99,7 +166,6 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
     $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('destination' => $destination, 'user' => $account, 'subscription' => $subscription);
-    // $info = notifications_event_types($event->type, $event->action);
     $digest = nofitications_digest_event_info($event);
     notifications_log('Digest info for event', $digest);
     $digest_type = $digest['type'];
@@ -116,15 +182,15 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
     }
     // Check duplicate notifications for the same event so we do some deduping
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
-      $line = notifications_digest_line($event, $send_method, $objects);
+      $line = notifications_digest_line($event, $send_method);
       $objects['event'] = $event; 
       $list[$digest_type][$digest_value]['line'][$event->eid] = messaging_template_text_replace($line, $objects);
     }
   }
   // Create message. Do all this in one replacement, then strip out the subject
-  $text['subject'] = notifications_message_part('digest', 'subject', $send_method, NULL, $module);
-  $text['header'] = notifications_message_part('digest', 'header', $send_method, NULL, $module);
-  $text['footer'] = notifications_message_part('digest', 'footer', $send_method, NULL, $module);
+  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $module);
+  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $module);
+  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $module);
 
   // We dont pass a subscription object here, won't be too much use anyway
   $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
@@ -170,8 +236,8 @@ function notifications_digest_build_long($destination, $events, $subscriptions, 
     notifications_log('Digesting long format', array('event' => $event));
     // We use the regular template for the events
     $part = array();
-    $part[] = notifications_message_part('event', 'subject', $send_method, $event, $module);
-    $part[] = notifications_message_part('event', 'main', $send_method, $event, $module);
+    $part[] = notifications_event_message_part($event, 'subject', $send_method, $module);
+    $part[] = notifications_event_message_part($event, 'main', $send_method, $module);
     // Pass only the first subscription here
     $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
@@ -180,9 +246,9 @@ function notifications_digest_build_long($destination, $events, $subscriptions, 
   }
   
   // Create message. Do all this in one replacement, then strip out the subject
-  $text['subject'] = notifications_message_part('digest', 'subject', $send_method, NULL, $module);
-  $text['header'] = notifications_message_part('digest', 'header', $send_method, NULL, $module);
-  $text['footer'] = notifications_message_part('digest', 'footer', $send_method, NULL, $module);
+  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $module);
+  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $module);
+  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $module);
 
   // We dont pass a subscription object here, won't be too much use anyway
   $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
@@ -213,22 +279,36 @@ function notifications_digest_build_long($destination, $events, $subscriptions, 
  * @param $method
  *   Send method
  */
-function notifications_digest_group($digest, $part, $method) {
+function notifications_digest_group($digest_info, $part, $method) {
   static $texts = array();
 
-  $type = $digest['type'];
-  $value = $digest['value'];
-  
+  $type = $digest_info['type'];
+  $value = $digest_info['value']; 
   if (!isset($texts[$type][$value][$part][$method])) {
-    if ($line = notifications_message_part('digest', $part, $method, array($type, $digest['field']), $digest['module'])) {
-      $output = $line;
-    } else {
-      $output = '';
-    }
-    $texts[$type][$value][$part][$method] = $output;
+    $texts[$type][$value][$part][$method] = notifications_digest_message_part($part, $method, $type, $digest_info['field'], $digest_info['module']);
   }
   
   return $texts[$type][$value][$part][$method];
+}
+
+/**
+ * Get message part text
+ */
+function notifications_digest_message_part($key, $method, $type, $field, $module = 'notifications') {
+  static $cache;
+
+  $parts = array($module, 'digest', $field, $value);
+  $template = implode('-', array_filter($parts));
+  if (!isset($cache[$template][$method][$key])) {
+    $text = messaging_template_text_part($template, $key, $method);
+    if (!isset($text) && $module != 'notifications') {
+      // We try module fallback with notifications
+      $text = notifications_digest_message_part($key, $method, $type, $field, 'notifications');
+    }
+    // Store it always as string or empty string
+    $cache[$template][$method][$key] = $text ? $text : '';
+  }
+  return $cache[$template][$method][$key];
 }
 
 /**
@@ -241,11 +321,10 @@ function notifications_digest_line($event, $method) {
     // The event may have an specific digest line, otherwise use template if present or even information
     if ($text = $event->get_text('digest')) {
       $line = $text;
-    } elseif ($part = notifications_message_part('event', 'digest', $method, $event)) {
+    } elseif ($part = notifications_event_message_part($event, 'digest', $method)) {
       $line = $part;
     } else { // Get it from event information
-      $info = notifications_event_types($event->type, $event->action);
-      $line = $info['line'];
+      $line = $event->get_type('line');
     }    
     $digest[$event->eid][$method] = $line;
     notifications_log('Created digest line for event', array('event' => $event->eid, 'line' => $line ));

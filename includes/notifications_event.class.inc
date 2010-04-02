@@ -14,13 +14,15 @@ class Notifications_Event extends Messaging_Cached_Object {
   const DB_KEY = 'eid';
   // Object unique id
   public $eid;
-  public $module;
-  public $type;
-  public $action;
+  public $module = 'notifications';
+  public $type = '';
+  public $action = '';
+  // Event key that will define event behavior
+  public $typekey;
   // Main object id
   public $oid;
   // Mixed array of parameters
-  public $params;
+  public $params = array();
   // Time the event was produced
   public $created;
   // Notifications in queue linked to this event
@@ -34,14 +36,20 @@ class Notifications_Event extends Messaging_Cached_Object {
   public $incomplete = FALSE;
   // Event text for composition
   public $text;
-
+  // Template to use for this event
+  protected $template;
+  // Temporary storage for digesting information
+  public $digest;
   /**
    * Constructor
    */
   function __construct($object = NULL) {
     parent::__construct($object);
-    if (!isset($event->created)) {
-      $event->created = time();
+    if (!isset($this->created)) {
+      $this->created = time();
+    }
+    if (!isset($this->typekey)) {
+      $this->typekey = $this->type . '-' . $this->action;
     }
   }
   /**
@@ -54,7 +62,7 @@ class Notifications_Event extends Messaging_Cached_Object {
    * Get event type information
    */
   function get_type($property = NULL) {
-    if ($info = notifications_event_types($this->type, $this->action)) {
+    if ($info = notifications_event_types($this->typekey)) {
       if ($property) {
         return isset($info[$property]) ? $info[$property] : NULL;
       }
@@ -62,6 +70,22 @@ class Notifications_Event extends Messaging_Cached_Object {
         return $info;
       }
     }
+  }
+  /**
+   * Get template name
+   */
+  function get_template() {
+    if (!isset($this->template)) {
+      if ($template = notifications_event_get_template($this->typekey)) {
+        $this->template = $template;
+      }
+      else {
+        // Build default that will be like notifications-event-type-action
+        $parts = array($this->module, 'event', $this->type, $this->action);
+        $this->template = implode('-', array_filter($parts));
+      }
+    }
+    return $this->template;
   }
   /**
    * Get event text if available
@@ -115,6 +139,13 @@ class Notifications_Event extends Messaging_Cached_Object {
     // Make sure objects are loaded
     $this->load_objects();
     return $this->objects;
+  }
+  /**
+   * Get single object
+   */
+  function get_object($type) {
+    $this->load_objects();
+    return isset($this->objects[$type]) ? $this->objects[$type] : NULL;
   }
   /**
    * Load event objects
