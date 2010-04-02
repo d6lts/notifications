@@ -225,8 +225,8 @@ class NotificationsContentTests extends NotificationsTestCase {
     variable_set('notifications_sendself', 1);
     
     // Enable for update events, disble for comments
-    $events['node']['update'] = 1;
-    variable_set('notifications_events', $events);
+    $events['node-update'] = 1;
+    variable_set('notifications_event_enabled', $events);
     
     // Trigger a node update event, with node unpublished
     $node = node_load($node->nid, NULL, TRUE);   
@@ -238,8 +238,8 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertEqual($count, 3, 'We have the right number of rows in queue: '. $count);
 
     // Disable notifications for updates and try again
-    $events['node']['update'] = 0;
-    variable_set('notifications_events', $events);
+    $events['node-update'] = 0;
+    variable_set('notifications_event_enabled', $events);
 
     // Trigger a node update event
     $node = node_load($node->nid, NULL, TRUE);   
@@ -279,7 +279,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     // Clean up events and test content update workflow: publish node and publish comment
     db_query("DELETE FROM {notifications_event}");
     db_query("DELETE FROM {notifications_queue}");
-    variable_del('notifications_events');
+    variable_del('notifications_event_enabled');
     // Create unpublished node and subscribe to content type
     $subscription = array('type' => 'nodetype', 'uid' => $user->uid, 'fields' => array('type' => $ctype->type));
     notifications_save_subscription($subscription);

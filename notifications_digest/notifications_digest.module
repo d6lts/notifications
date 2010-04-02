@@ -94,7 +94,7 @@ function notifications_digest_theme() {
  * - value, Object's field value if set, defaults to 0
  * - object, The object we have used for digesting
  */
-function nofitications_digest_event_info($event, $module = 'notifications') {
+function notifications_digest_event_info($event, $module = 'notifications') {
   // The event may already have digest information
   if (isset($event->digest)) {
     return $event->digest;
@@ -166,7 +166,7 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
     $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('destination' => $destination, 'user' => $account, 'subscription' => $subscription);
-    $digest = nofitications_digest_event_info($event);
+    $digest = notifications_digest_event_info($event);
     notifications_log('Digest info for event', $digest);
     $digest_type = $digest['type'];
     $digest_value = $digest['value'];
@@ -297,7 +297,7 @@ function notifications_digest_group($digest_info, $part, $method) {
 function notifications_digest_message_part($key, $method, $type, $field, $module = 'notifications') {
   static $cache;
 
-  $parts = array($module, 'digest', $field, $value);
+  $parts = array($module, 'digest', $type, $field);
   $template = implode('-', array_filter($parts));
   if (!isset($cache[$template][$method][$key])) {
     $text = messaging_template_text_part($template, $key, $method);

@@ -72,19 +72,23 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $info = $event1->get_type();
     $this->assertEqual($info['digest'], array('node', 'type'), 'Get event information about digest fields');
     
-    $info = nofitications_digest_event_info($event1);
+    $info = notifications_digest_event_info($event1);
     $this->assertEqual($info, array('type' => 'node', 'field' => 'type', 'value' => $node1->type, 'object' => $node1, 'module' => 'notifications'), 'Get digest information for first event.');
     //$this->printObject('digest information', $info);
-    $info = nofitications_digest_event_info($event2);
+    $info = notifications_digest_event_info($event2);
     $this->assertEqual($info, array('type' => 'node', 'field' => 'nid', 'value' => $node2->nid, 'object' => $node2, 'module' => 'notifications'), 'Get digest information for second event.');
     //$this->printObject('digest information', $info);
     
     // Text parts, text replacement, etc...
     $event1->text['test'] = 'Text part';
-    $part = notifications_message_part('event', 'test', 'test', $event1);
+    $digest_line = 'type key [type-name] [title] [site-name]';
+    $event1->text['digest'] = $digest_line;
+    $part = notifications_event_message_part($event1, 'test', 'test');
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
-    $part = notifications_message_part('type', 'key', 'test');
-    $this->assertEqual($part, 'type key [type-name] [title] [site-name]', 'Retrieved testing message part: '. $part);
+    $digest_info = notifications_digest_event_info($event1); // Fields will be type, action
+    // function notifications_digest_message_part($key, $method, $type, $field, $module = 'notifications')
+    $part = notifications_digest_line($event1, 'test');
+    $this->assertEqual($part, $digest_line, 'Retrieved testing message part: '. $part);
     $text = messaging_template_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
     $this->assertEqual($text, "$node1->title $node1->type Test Site", 'Text replacement for node object');
     
