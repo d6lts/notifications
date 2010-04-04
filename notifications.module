@@ -1946,7 +1946,7 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
         }
         elseif (!empty($info['access']) && (user_access($info['access'], $account) || user_access('administer notifications', $account))) {
           // Check matching fields
-          if (!array_diff($info['fields'], array_keys($subscription->get_conditions()))) {
+          if (!empty($info['variable_fields']) || !array_diff($info['fields'], array_keys($subscription->get_conditions()))) {
             $access = TRUE;
           }
         }
