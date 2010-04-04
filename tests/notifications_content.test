@@ -168,7 +168,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertText('Your subscription was activated', 'Confirmation message is displayed');
     
     // Retrieve the subscription from the database
-    $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node);
+    $subs = notifications_user_get_subscriptions($user, 'node', $node);
     $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');
     $subscription = array_shift($subs);
     
@@ -182,7 +182,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertText(t('Your subscription was activated.'), 'Created thread subscription with signed link');
 
     // Retrieve the subscription from the database
-    $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node, TRUE);
+    $subs = notifications_user_get_subscriptions($user, 'node', $node, TRUE);
     $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');
     $subscription = array_shift($subs);
     
@@ -205,7 +205,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
 
     // Check subscriptions actually being created
-    $subs = notifications_user_get_subscriptions($user->uid, 'node', $node->nid, $node, TRUE);
+    $subs = notifications_user_get_subscriptions($user, 'node', $node, TRUE);
     $this->assertEqual(count($subs), 3, 'The 3 subscriptions have actually been created');
 
     // Check user account pages

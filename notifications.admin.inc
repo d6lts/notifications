@@ -40,7 +40,7 @@ function notifications_settings_form() {
     '#type' => 'select',
     '#options' => $period,
     '#default_value' => variable_get('notifications_log', 0),
-    '#description' => t('If enabled all notifications will be logged and kept for the specified time after they\'re processed.'),
+    '#description' => t('If enabled all notifications will be logged and kept for the specified time after they\'re processed. These logs are kept into the <i>notifications_queue</i> table in the database.'),
   );
   // Default options
   $form['defaults'] = array(

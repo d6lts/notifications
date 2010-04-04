@@ -67,7 +67,10 @@ function notifications_content_access($account, $perm) {
  * Implementation of hook_perm()
  */
 function notifications_content_perm() {
-  return array('subscribe to content', 'subscribe to content type', 'subscribe to author', 'skip notifications');
+  return array(
+    'subscribe to content', 'subscribe to content type', 'subscribe to author',
+    'subscribe to content type and author', 'skip notifications'
+  );
 }
 
 /**
@@ -186,27 +189,12 @@ function notifications_content_theme() {
  */
 function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
-    case 'names':
-      $subs = &$arg0;
-      if ($subs->event_type == 'node') {
-        $subs->type_name = t('Content');
-        if (!empty($subs->fields['type'])) {
-          $subs->names['type'] = t('Content type: @type', array('@type' => notifications_translate('type:'. $subs->fields['type'] .':name', node_get_types('name', $subs->fields['type']), NULL, 'nodetype')));
-        }
-        if (!empty($subs->fields['author']) && ($author = user_load(array('uid' => $subs->fields['author'])))) {
-          $subs->names['author'] = t('Author: @name', array('@name' => $author->name));
-        }
-        if (!empty($subs->fields['nid']) && ($node = node_load($subs->fields['nid']))) {
-          $subs->names['thread'] = t('Thread: @title', array('@title' => $node->title));
-        }
-      }
-      break;
-
     case 'subscription types':
       // Some types may be globally disabled (for all content types), mark as such
       $disabled = !variable_get('notifications_content_per_type', 0);
       $types['thread'] = array(
         'event_type' => 'node',
+        'object_type' => 'node',
         'title' => t('Thread'),
         'access' => 'subscribe to content',
         'page callback' => 'notifications_content_page_thread',
@@ -214,9 +202,11 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'fields' => array('nid'),
         'description' => t('Subscribe to all changes and comments for a thread.'),
         'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'thread'),
+        'name callback' => 'notifications_content_subscription_name',
       );
       $types['nodetype'] = array(
         'event_type' => 'node',
+        'object_type' => 'node',
         'title' => t('Content type'),
         'access' => 'subscribe to content type',
         'page callback' => 'notifications_content_page_nodetype',
@@ -224,9 +214,11 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'fields' => array('type'),
         'description' => t('Subscribe to all content of a given type.'),
         'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'nodetype'),
+        'name callback' => 'notifications_content_subscription_name',
       );
       $types['author'] = array(
         'event_type' => 'node',
+        'object_type' => 'user',
         'title' => t('Author'),
         'access' => 'subscribe to author',
         'page callback' => 'notifications_content_page_author',
@@ -234,16 +226,19 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'fields' => array('author'),
         'description' => t('Subscribe to all content submitted by a user.'),
         'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'author'),
+        'name callback' => 'notifications_content_subscription_name',
       );
       // This is a complex type, combining two fields
       $types['typeauthor'] = array(
         'event_type' => 'node',
+        'object_type' => array('node', 'user'), // This makes sense per node and per user
         'title' => t('Content type and Author'),
         'access' => 'subscribe to content type and author',
         //'page callback' => 'notifications_content_page_author',
         'fields' => array('author', 'type'),
         'description' => t('Subscribe to all content of a given type submitted by a user.'),
         'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'typeauthor'),
+        'name callback' => 'notifications_content_subscription_name',
       );      
       return $types;
 
@@ -272,28 +267,7 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'options callback' => 'notifications_content_types_callback',
       );
       return $fields;
-    case 'query':
-      // $arg2 is $event array.
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->object('node')) ||
-          $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
-        $query[]['fields'] = array(
-            'nid' => $node->nid,
-            'type' => $node->type,
-            'author' => $node->uid,
-        );
 
-        return $query;
-      }
-      break;
-    
-    case 'node options':
-      // Subscription options for a node, args will be account and node
-      return _notifications_content_node_options($arg0, $arg1);
-
-    case 'user options':
-      // Subscription options for a user account, args will be account and author
-      return _notifications_content_user_options($arg0, $arg1);     
-      
     case 'object types':
       // Define object types for use by events and subscriptions
       // Node and user are defined in the main notifications module
@@ -301,17 +275,11 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'name' => t('Comment'),
         'key_field' => 'cid',
         'load callback' => 'notifications_content_comment_load',
-        //'autocomplete path' => 'notifications/autocomplete/node/title',
-        //'autocomplete callback' => 'notifications_node_nid2autocomplete',
         'format callback' => 'notifications_content_comment_cid2title',
-        //'value callback' => 'notifications_node_title2cid',
         'access callback' => 'notifications_content_comment_access',
       );      
       return $types;
 
-    case 'event objects':
-      return array('node' => t('Node'));
- 
     case 'event types':
       // Node inserts are not grouped by node but all together. The digest will look like:
       //   New content has been submitted
@@ -348,21 +316,132 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'description' => t('Node comment'),
         'template' => 'notifications-event-node-comment',
       );
-      return $types;
-    
-    case 'access': 
-      // Return an array with some TRUE value if the user has access to this event objects or subscription type
-      $access = TRUE;
-      // We just check subscriptions. Even objects are checked by the notifications_object API
-      if ($arg0 == 'subscription' && ($subscription = $arg2)) {
-        if (($conditions = $subscription->get_conditions()) && !empty($conditions['type'])) {
-          // It seems to be a subscription for a content type
-          $access = $access && notifications_content_type_enabled($conditions['type'], $subscription->type);
-        } 
-      }
-      // We return an array that will be merged with the ones from other modules
-      return array($access);
+      return $types;     
   }
+}
+
+/**
+ * Implementation of hook notifications_subscription()
+ */
+function notifications_content_notifications_subscription($op, $subscription = NULL) {
+  switch ($op) {
+    case 'access':
+      // Check access control for subscription
+      if (($conditions = $subscription->get_conditions()) && !empty($conditions['type'])) {
+        // It seems to be a subscription for a content type
+        return notifications_content_type_enabled($conditions['type'], $subscription->type);
+      }
+      break;
+  }  
+}
+
+/**
+ * Implementation of hook notifications_event()
+ */
+function notifications_content_notifications_event($op, $event = NULL, $account = NULL) {
+  switch ($op) {
+    case 'query':
+      // Query parameters for queueing events
+      if ($event->type == 'node' && ($node = $event->get_object('node'))) {
+        $query[]['fields'] = array(
+            'nid' => $node->nid,
+            'type' => $node->type,
+            'author' => $node->uid,
+        );
+        return $query;
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_notifications_object_node()
+ */
+function notifications_content_notifications_object_node($op, $node, $account = NULL) {
+  switch ($op) {
+    case 'conditions':
+      return array(
+        'nid' => $node->nid,
+        'type' => $node->type,
+        'author' => $node->uid,
+      );
+    case 'subscriptions':
+      // Return available subscription options for this node and this user account
+      $options = array();
+      // Thread
+      if (notifications_content_type_enabled($node->type, 'thread')) {
+        $options[] = array(
+          'name' => t('This post'),
+          'type' => 'thread',
+          'fields' => array('nid' => $node->nid),
+        );
+      }
+      // Content type subscriptions
+      if (notifications_content_type_enabled($node->type, 'nodetype')) { 
+        $options[] = array(
+          'name' => t('Posts of type @type', array('@type' => notifications_translate("type:$node->type:name", node_get_types('name', $node->type), NULL, 'nodetype'))),
+          'type' => 'nodetype',
+          'fields' => array('type' => $node->type),
+        );
+      }
+      // Node author subscriptions
+      if (notifications_content_type_enabled($node->type, 'author')) {
+        // If the node comes from a page query, it may have an author name, otherwise we set it
+        if (empty($node->name)) {      
+          if ($author = messaging_load_user($node->uid)) {
+            $node->name = $author->name;
+          }
+          else {
+            $node->name = t('Unknown');
+          }
+        }
+        $options[] = array(
+          'name' => t('Posts by @name', array('@name' => $node->name)),
+          'type' => 'author',
+          'fields' => array('author' => $node->uid),
+        );
+      }
+      
+      return $options;
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_notifications_object_user()
+ */
+function notifications_content_notifications_object_user($op, $user, $account = NULL) {
+  switch ($op) {
+    case 'conditions':
+      // Condition fields for subscriptions to this object type (user)
+      return array(
+        'uid' => $user->uid,
+        'author' => $user->uid,
+      );
+    case 'subscriptions':
+      // Option subscriptions to user account. Checking permissions here will save some processing.
+      $options = array();
+      // All posts by author
+      if (!$account || user_access('subscribe to author', $account)) {
+        $options[] = array(
+          'name' => t('All posts by @name', array('@name' => $user->name)),
+          'type' => 'author',
+          'fields' => array('author' => $user->uid),
+        );
+      }
+      // Content types with author subscriptions
+      if (!$account || user_access('subscribe to content type and author', $account)) {
+        foreach (notifications_content_types('name', 'typeauthor') as $type => $type_name) {
+          $options[] = array(
+            'name' => t('@type posts by @name', array('@name' => $user->name, '@type' => $type_name)),
+            'type' => 'typeauthor',
+            'fields' => array('author' => $author->uid, 'type' => $type),
+          );
+        }
+      }
+      return $options;      
+  }
+  
 }
 
 /**
@@ -530,69 +609,6 @@ function notifications_content_notifications_templates($op, $type = 'all', $lang
       }
       return $tokens;
   }
-}
-
-/**
- * Subscribe / unsubscribe options to specific node.
- */
-function _notifications_content_node_options($account, $node) {
-  $options = array();
-  
-  // Thread
-  if (notifications_content_type_enabled($node->type, 'thread')) {
-    $options[] = array(
-      'name' => t('This post'),
-      'type' => 'thread',
-      'fields' => array('nid' => $node->nid),
-    );
-  }
-  // Content type
-  if (notifications_content_type_enabled($node->type, 'nodetype')) { 
-    $options[] = array(
-      'name' => t('Posts of type @type', array('@type' => notifications_translate("type:$node->type:name", node_get_types('name', $node->type), NULL, 'nodetype'))),
-      'type' => 'nodetype',
-      'fields' => array('type' => $node->type),
-    );
-  }
-  // Author
-  if (notifications_content_type_enabled($node->type, 'author')) {
-    $options[] = array(
-      'name' => t('Posts by @name', array('@name' => $node->name)),
-      'type' => 'author',
-      'fields' => array('author' => $node->uid),
-    );
-  }
-  
-  return $options;
-}
-
-/**
- * Subscribe / unsubscribe options for specific user
- * 
- * @param $account
- *   User who is subscribing / unsubscribing to
- * @param $author
- *   User we are subscribing too
- */
-function _notifications_content_user_options($account, $author) {
-  $options = array();
-  
-  // All posts by author
-  $options[] = array(
-    'name' => t('All posts by @name', array('@name' => $author->name)),
-    'type' => 'author',
-    'fields' => array('author' => $author->uid),
-  );
-  // Content types with author subscriptions
-  foreach (notifications_content_types('name', 'typeauthor') as $type => $name) {
-    $options[] = array(
-      'name' => t('@type posts by @name', array('@name' => $author->name, '@type' => $name)),
-      'type' => 'typeauthor',
-      'fields' => array('author' => $author->uid, 'type' => $type),
-    );
-  }
-  
-  return $options;
 }
 
 /**

@@ -41,6 +41,8 @@ class Notifications_Subscription extends Messaging_Object {
   protected $destination_object;
   protected $format;
   protected $objects;
+  // Name for this subscription that will be quite dependent on context
+  public $name;
   // Mark if incomplete loading of objects
   public $incomplete;
   
@@ -250,13 +252,13 @@ class Notifications_Subscription extends Messaging_Object {
     $this->conditions++;
   }
   /**
-   * Get fields as field => value array
+   * Get fields as array of field => value pairs
    * 
    * Duplicate fields are returned as field => array(value1, value2...)
    */
   function get_conditions() {
     $list = array();
-    foreach ($this->get_fields() as $field) {
+    foreach ($this->get_fields() as $field) {      
       if (!isset($list[$field->field])) {
         $list[$field->field] = $field->value;
       }
@@ -268,6 +270,18 @@ class Notifications_Subscription extends Messaging_Object {
       }
     }
     return $list;   
+  }
+  /**
+   * Order and serialize fields so we can get a unique signature for this subscription fields
+   */
+  function serialize_fields() {
+    return notifications_array_serialize($this->get_conditions());
+  }
+  /**
+   * Serialize type and conditions
+   */
+  function serialize_type() {
+    return implode('/', array($this->type, $this->serialize_fields()));
   }
   /**
    * Add a new field with name, value
@@ -426,8 +440,17 @@ class Notifications_Subscription extends Messaging_Object {
   }
   
   /**
-   * Get subscription name.
-   *
+   * Get subscription short name.
+   */
+  function get_name() {
+    if (!isset($this->name)) {
+      // This subscription doesn't have a name, we'll find something
+      $this->name = $this->format_name(FALSE);
+    }
+    return $this->name;
+  }
+   /**
+    * 
    * If the subscription type has a name, like custom subscriptions have, that will be the name
    * Otherwise we build the name using fields and values
    */

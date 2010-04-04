@@ -40,15 +40,7 @@ function notifications_tags_perm() {
  */
 function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
-    case 'names':
-      $subs = &$arg0;
-      if ($subs->event_type == 'node') {
-        if (!empty($subs->fields['tid'])) {
-          $term = taxonomy_get_term($subs->fields['tid']);
-          $subs->names['term'] = t('Term: %name', array('%name' => $term->name));
-        }
-      }
-      break;
+
     case 'subscription types':
       $types['taxonomy'] = array(
         'event_type' => 'node',
@@ -60,7 +52,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'user page' => 'user/%user/notifications/taxonomy',
       );
       return $types;
- 
+
     case 'subscription fields':
       // Information about available fields for subscriptions
       $fields['tid'] = array(
@@ -73,7 +65,7 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
     
     case 'object types':
       // Define object types used by subscriptions and events
-      $fields['term'] = array(
+      $types['term'] = array(
         'name' => t('Taxonomy term'),
         'key' => 'tid',
         'load callback' => 'taxonomy_get_term',
@@ -83,36 +75,117 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
         'access' => 'access content',
       );
       return $types;
-     
+ 
+  }
+}
+
+/**
+ * Implementation of hook notifications_event()
+ */
+function notifications_tags_notifications_event($op, $event = NULL, $account = NULL) {
+  switch ($op) {
     case 'query':
-      if ($arg0 == 'event' && $arg1 == 'node' && ($node = $arg2->get_objects('node')) || $arg0 == 'user' && $arg1 == 'node' && ($node = $arg2)) {
-        if ($tids = notifications_tags_node_get_terms($node->nid)) {
+      // Query parameters for queueing events
+      if ($event->type == 'node' && ($node = $event->get_object('node'))) {
+        if ($tids = notifications_tags_node_get_terms($node)) {
           $query[]['fields']['tid'] = $tids;
           return $query;
         }
       }
       break;
-    
-    case 'node options':
-      return _notifications_tags_node_options($arg0, $arg1);
-   
-    case 'access': 
-      $type = $arg0;
-      $object = &$arg2;
-      $access = TRUE;
-      if ($type == 'subscription') {
-        $access = TRUE;
-        if (!empty($object->fields['tid'])) {
-          $term = taxonomy_get_term($object->fields['tid']);
-          $allowed_vocabs = notifications_tags_vocabularies();
-          if (!array_key_exists($term->vid, $allowed_vocabs)) {
-            $access = FALSE;
+  }
+}
+
+/**
+ * Implementation of hook notifications_subscription()
+ */
+function notifications_tags_notifications_subscription($op, $subscription = NULL, $account = NULL) {
+  switch ($op) {
+    case 'access':
+      // Check access control for subscription to taxonomy term
+      if (($conditions = $subscription->get_conditions()) && !empty($conditions['tid'])) {
+        // This may be a singe term or an array of terms
+        $tids = is_array($conditions['tid']) ? $conditions['tid'] : array($conditions['tid']);
+        // Deny access if the term doesn't exist or the vocabulary is not allowed
+        $allowed_vocabs = notifications_tags_vocabularies();
+        foreach ($tids as $tid) {
+          $term = taxonomy_get_term($tid);
+          if (!$term || !array_key_exists($term->vid, $allowed_vocabs)) {
+            return FALSE;
           }
         }
       }
-      return array($access);      
       break;
- 
+  }  
+}
+
+
+/**
+ * Implementation of hook_notifications_object_node()
+ */
+function notifications_tags_notifications_object_node($op, $node, $account = NULL) {
+  switch ($op) {
+
+    case 'conditions':
+      if (!$account) {
+        // For a queue query, when not account, we must use our own function to retrieve terms
+        $tids = notifications_tags_node_get_terms($node);
+      }
+      elseif (user_access('subscribe to taxonomy terms', $account)) {
+        // If we are checking for a specific account, that means not a queue query, we can use
+        // the cache terms by taxonomy module, that will save some queries, esp for node listings
+        $tids = array_keys(taxonomy_node_get_terms($node));
+      }
+      if (!empty($tids)) {
+        return array('tid' => $tids);
+      }
+      break;
+
+    case 'subscriptions':
+      // Get all available subscriptions to current node
+      $options = array();
+      if (!$account || user_access('subscribe to taxonomy terms', $account)) {
+        $vocabs = notifications_tags_vocabularies();
+        if (notifications_content_type_enabled($node->type, 'taxonomy') && !empty($node->taxonomy)) {
+          foreach ($node->taxonomy as $tid => $term) {
+            if (array_key_exists($term->vid, $vocabs)) {
+              $options[] = array(
+                'name' => t('Posts tagged with @name', array('@name' => $term->name)),
+                'type' => 'taxonomy',
+                'fields' => array('tid' => $term->tid),
+                'module' => 'notifications', // The module that will handle these subscriptions
+              );
+            }
+          }
+        }
+      }
+      return $options;
+  }
+}
+
+/**
+ * Implementation of hook_notifications_object_term()
+ */
+function notifications_tags_notifications_object_term($op, $term, $account = NULL) {
+  switch ($op) {
+    case 'conditions':
+      return array('tid' => $term->tid);
+      break;
+    case 'subscriptions':
+      // Get all available subscriptions to current node
+      $options = array();
+      if (!$account || user_access('subscribe to taxonomy terms', $account)) {
+        $vocabs = notifications_tags_vocabularies();
+
+        if (notifications_content_type_enabled(NULL, 'taxonomy') && array_key_exists($term->vid, $vocabs)) {
+          $options[] = array(
+            'name' => t('Posts tagged with %name', array('%name' => $term->name)),
+            'type' => 'taxonomy',
+            'fields' => array('tid' => $term->tid),
+          );
+        }
+      }
+      return $options;
   }
 }
 
@@ -130,26 +203,6 @@ function notifications_tags_taxonomy($op, $type, $array = NULL) {
       }
       break;
   }
-}
-
-/**
- * Provide tag subscriptions on nodes.
- */
-function _notifications_tags_node_options($account, $node) {
-  $options = array();
-  $vocabs = notifications_tags_vocabularies();
-  if (notifications_content_type_enabled($node->type, 'taxonomy') && !empty($node->taxonomy)) {
-    foreach ($node->taxonomy as $tid => $term) {
-      if (array_key_exists($term->vid, $vocabs)) {
-        $options[] = array(
-          'name' => t('Posts tagged with %name', array('%name' => $term->name)),
-          'type' => 'taxonomy',
-          'fields' => array('tid' => $tid),
-        );
-      }
-    }
-  }
-  return $options;
 }
 
 /**
@@ -378,17 +431,17 @@ function notifications_tags_vocabularies($field = NULL) {
  * We cannot use the one from taxonomy module because it has static caching and we'll be sending
  * notifications right after the node has been updated
  */
-function notifications_tags_node_get_terms($nid) {
+function notifications_tags_node_get_terms($node) {
   static $terms;
 
-  if (!isset($terms[$nid])) {
+  if (!isset($terms[$node->nid])) {
     $result = db_query('SELECT tid FROM {term_node} WHERE nid = %d', $nid);
-    $terms[$nid] = array();
+    $terms[$node->nid] = array();
     while ($term = db_fetch_object($result)) {
-      $terms[$nid][] = $term->tid;
+      $terms[$node->nid][] = $term->tid;
     }
   }
-  return $terms[$nid];
+  return $terms[$node->nid];
 }
 
 /**
