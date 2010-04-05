@@ -329,6 +329,7 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
         if ($edit['status'] == 0) { // user is being blocked now
           // Delete pending notifications and block existing active subscriptions
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
+          notitications_include('process.inc');
           notifications_queue_clean(array('uid' => $user->uid));
         }
         else {
@@ -338,15 +339,6 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
       }
       break;
   }
-}
-
-/**
- * Clean queue for a user and update event tracker
- */
-function notifications_queue_clean($params) {
-  notitications_include('process.inc');
-  notifications_queue_delete($params);
-  notifications_event_clean(TRUE);
 }
 
 /**
@@ -442,7 +434,7 @@ function notifications_event_build($params) {
 }
 
 /**
- * Trigger event
+ * Trigger event. Save, run queue query, etc...
  */
 function notifications_event_trigger($event) {
   // Notify other modules we are about to trigger some subscriptions event
@@ -455,8 +447,18 @@ function notifications_event_trigger($event) {
   }
   // Send event to queue for subscriptions, unless marked not to
   if ($event->queue) {
-    notifications_queue($event);
-  }  
+    notifications_include('query.inc');
+    $count = notifications_query_queue_event($event);
+    // Now update event counter with rows in notifications_queue or delete if no rows
+    if ($count) {
+      $event->update_counter($count);
+      // If immediate sending enabled, store eid for sending on page exit.
+      notifications_send_immediate($event->eid);
+    }
+    else {
+      $event->delete();
+    }
+  }
 }
 
 /**
@@ -503,6 +505,7 @@ function notifications_event_get_template($event) {
     return $info[$event];
   }
 }
+
 /**
  * Process URL arguments and return an array of field/value pairs
  * 
@@ -517,78 +520,6 @@ function notifications_field_args($fields, $values) {
   return array_combine($names, $params);  
 }
 
-/**
- * Queue events for notifications adding query conditions from plug-ins
- * 
- * This is an example of the resulting query
- *
- * INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions)
- * SELECT DISTINCT s.uid, s.sid, s.module, 34, s.send_interval, s.send_method, s.cron, 1230578161, s.conditions FROM notifications s 
- * INNER JOIN notifications_fields f ON s.sid = f.sid 
- * WHERE s.status = 1 AND s.event_type = 'node' AND s.send_interval >= 0 
- * AND ((f.field = 'nid' AND f.value = '2') OR (f.field = 'type' AND f.value = 'story') OR (f.field = 'author' AND f.value = '1'))
- * GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions 
- * HAVING s.conditions = count(f.sid)
- *
- * @param $event
- *   Event array.
- */
-function notifications_queue($event) {
-  $query = array();
-  // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
-  // If no arguments retrieved, skip this step
-  if ($query_args = module_invoke_all('notifications_event', 'query', $event)) {
-    $query['insert'] = array('uid', 'mdid', 'sid', 'module', 'eid', 'send_interval', 'language', 'cron', 'created', 'conditions');
-    $query['into'] = '{notifications_queue}';
-    $query['distinct'] = TRUE;
-    $query['select'] = array('s.uid', 's.mdid', 's.sid', 's.module', '%d', 's.send_interval', 's.language', 's.cron', '%d', 's.conditions');
-    $query['from'] = array('{notifications} s');
-    $query['select args'] = array($event->eid, $event->created);
-    // We do a left join instead of inner join to allow subscriptions with no fields to work
-    $query['join'] = array('LEFT JOIN {notifications_fields} f ON s.sid = f.sid');
-    $query['where'] = array('s.status = 1', "s.event_type = '%s'", 's.send_interval >= 0');
-    $query['where args'] = array($event->type);
-    // Add one more condition if we don't send notifications on own posts
-    if (!variable_get('notifications_sendself', 0) && !empty($event->uid)) {
-      $query['where'][] = 's.uid <> %d';
-      $query['where args'][] = $event->uid;
-    }    
-    // Some group by fields are not really needed but added for pgsql compatibility
-    $query['group'] = array('s.uid', 's.mdid', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions');
-    
-    // We throw in all the conditions and check the number of matching conditions
-    // that must be equal to the subscription conditions number    
-    $query['having'] = array('s.conditions = count(f.sid)');
-
-    // We add parameters for each module separately
-    foreach ($query_args as $query_params) {
-      $query = notifications_fields_query_build($query_params, $query);
-    }
-    
-    // Give a chance to other modules to alter the query or empty it so we don't throw it
-    drupal_alter('notifications_query', $query);
-    
-    // Finally we build the SELECT part of the query and glue it to the INSERT
-    if ($query) {
-      list($sql, $args) = notifications_query_sql($query);
-      db_query($sql, $args);
-    }
-  }
-
-  // Modules can do cleanup operations or modify the queue
-  module_invoke_all('notifications_event', 'queued', $event, $query);
-  
-  // Now update event counter with rows in notifications_queue or delete if no rows
-  if ($count = db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid))) {
-    $event->update_counter($count);
-    // If immediate sending enabled, store eid for sending on page exit.
-    notifications_send_immediate($event->eid);
-  }
-  else {
-    $event->delete();
-  }
-
-}
 
 /**
  * Store / return events for immediate sending
@@ -618,127 +549,6 @@ function notifications_exit() {
     }    
   }
 }
-
-/**
- * Query builder for subscriptions
- * 
- * This adds up query elements into a big array so they can be later rendered as SQL
- * 
- * @see notifications_query_sql()
- * 
- * Both the $params and the $query can have some special values
- *   - fields, array of field => value conditions
- *   - fields args, array of field arguments, to be added into the query after 'where args'
- *   - fields sql, sql condition for fields to be added as is
- *   - fields index, if present, current index to alias and join the fields table
- * @param $params
- *   Array of conditions to add.
- *   
- * @param $query
- *   Base query to build upon
- */
-function notifications_fields_query_build($params, $query = array()) {
-  foreach ($params as $name => $elements) {
-    if ($name == 'fields') {
-      // Fields elements have some special handling, they have the form: field => value
-      foreach ($elements as $field => $value ) {
-        if (is_numeric($field)) {
-          $field = $value['field'];
-          $value = $value['value'];
-        }
-        // Use field definition provided by hook_notifications('subscription fields') and handle array values with IN conditions
-        // Workaround to have a valid one because not all modules provide the information yet (og?)
-        if (notifications_subscription_fields($field, 'type') == 'int') {
-          $type = 'int';
-          $fieldval = 'intval';
-        }
-        else {
-          $type = 'char';
-          $fieldval = 'value';
-        }
-        if (isset($query['fields index'])) {
-          $alias = 'f' . $query['fields index']++;
-          $query['join'][] = "INNER JOIN {notifications_fields} $alias ON $alias.sid = s.sid";
-        }
-        else {
-          $alias = 'f';
-        }
-        if (is_array($value)) {
-          $query['fields'][] = "$alias.field = '%s' AND $alias.$fieldval IN (". db_placeholders($value, $type) .")";
-          $query['fields args'][] = $field;
-          $query['fields args'] = empty($query['fields args']) ? $value : array_merge($query['fields args'], $value);
-        }
-        else {
-          $query['fields'][] = "$alias.field = '%s' AND $alias.$fieldval = " . db_type_placeholder($type);
-          $query['fields args'][] = $field;
-          $query['fields args'][] = $value;
-        }
-      }
-    }
-    else {
-      if ($name == 'fields sql') {
-        // These are added as 'fields' parameters without further parsing
-        $name = 'fields';
-      }
-      if (is_array($elements)) {
-        $query[$name] = empty($query[$name]) ? $elements : array_merge($query[$name], $elements);
-      }
-      else {
-        $query[$name][] = $elements;
-      }
-    }
-  }
- 
-  return $query;
-}
-
-/**
- * Build the SQL statement from query elements
- * 
- * It will build INSERT + SELECT or SELECT queries from its elements
- * 
- * @return array()
- *   list($sql, $args);
- */
-function notifications_query_sql($query) {
-  $sql = '';
-  if (!empty($query['insert'])) {
-    $sql .= 'INSERT INTO ' . $query['into'] . ' ('. implode(', ', $query['insert']) .') ';
-  }
-  $sql .= !empty($query['distinct']) ? 'SELECT DISTINCT ' : 'SELECT ';
-  $sql .=  implode(', ', $query['select']);
-  $sql .= ' FROM '. implode(', ', $query['from']);
-  if (!empty($query['join'])) {
-    $sql .= ' '. implode(' ', $query['join']);
-  }  
-  
-  // Where conditions come from 'where' and 'fields' elements
-  // Field conditions are OR'd or AND'd and added into the other conditions
-  $where = !empty($query['where']) ? $query['where'] : array();
-  if (!empty($query['fields'])) {
-    $operator = !empty($query['fields operator']) ? $query['fields operator'] : 'OR';
-    $where[] = '('. implode(") $operator (", $query['fields']) .')';
-  }  
-  if ($where) {
-    $sql .= ' WHERE ('. implode(') AND (', $where) .')';
-  }  
-  if (!empty($query['group'])) {
-    $sql .= ' GROUP BY '. implode(', ', $query['group']);
-  }
-  if (!empty($query['having'])) {
-    $sql .= ' HAVING '. implode(' AND ', $query['having']);
-  }
-  // Merge all args, start with generic ones for subscription queries, then other groups
-  $args = !empty($query['args']) ? $query['args'] : array();
-  foreach (array('select', 'join', 'where', 'fields', 'having') as $key) {
-    if (!empty($query[$key .' args'])) {
-      $args = array_merge($args, $query[$key .' args']);
-    }
-  }
- 
-  return array($sql, $args);
-}
-
 
 /**
  * Load multiple subscriptions that match some condition
@@ -901,29 +711,32 @@ function notifications_delete_subscription($sid) {
  * 
  * @param array $params
  *   Array of multiple conditions in the notifications table to delete subscriptions
- * @param array $conditions
+ * @param array $field_conditions
  *   Array of multiple conditions in the notifications_fields table to delete subscriptions
  * @param $limit
  *   Whether to limit the result to subscriptions with exactly that condition fields
  */
-function notifications_delete_subscriptions($params, $conditions = array(), $limit = FALSE) {
-  $subscriptions = &messaging_static('notifications_load_subscription');
-  // Build query conditions using the query builder
-  $query = notifications_subscriptions_query_build($params, $conditions, $limit);
-  $query['select'][] = 's.sid';
-  list($sql, $args) = notifications_query_sql($query);
-  // Query notifications that meet these conditions and build an array
-  $result = db_query($sql, $args);
-  $delete = array();
-  while ($n = db_fetch_object($result)) {
-    $delete[] = $n->sid;
-    $subscriptions[$n->sid] = NULL;
+function notifications_delete_subscriptions($params, $field_conditions = array(), $limit = FALSE) {
+  notifications_include('query.inc');
+  
+  // For exact condition fields we add one more main condition.
+  if ($limit) {
+    $params += array('conditions' => count($field_conditions));
   }
+   // This will get partially loaded objects, only with sid field
+  $query['select'][] = 's.sid';
+  $subscriptions = notifications_query_subscriptions($params, $field_conditions, $query, FALSE);
+
   // This is the actual deletion. We've fetched the values from the db so this needs no escaping.
-  if ($delete) {
+  if ($subscriptions) {
+    $delete = array_keys($subscriptions);
     $placeholders = db_placeholders($delete);
     foreach (array('notifications_fields', 'notifications_queue', 'notifications') as $table) {
       db_query('DELETE FROM {' . $table . '} WHERE sid IN (' . $placeholders . ')', $delete);
+    }
+    // Now remove them from the cache too
+    if ($cache = &messaging_static('notifications_load_subscription')) {
+      $cache = array_diff_key($cache, $subscriptions);
     }
   }
 }
@@ -937,7 +750,7 @@ function notifications_delete_destination($mdid) {
 }
 
 /**
- * Get subscriptions that fit a set of conditions.
+ * Get subscriptions that match a set of conditions.
  *
  * @param $main_conditions
  *   Conditions for the main notifications table
@@ -958,31 +771,34 @@ function notifications_delete_destination($mdid) {
  * 
  * @todo Check field types for building the query
  */
-function notifications_get_subscriptions($main_conditions, $field_conditions = array(), $exact_fields = TRUE, $key = 'sid', $pager = NULL) {
-  // Build query conditions using the query builder. 
-  // If no field conditions we don't use $exact_fields which would produce only subscriptions with no conditions.
-  $query = notifications_subscriptions_query_build($main_conditions, $field_conditions, 'AND', $exact_fields && $field_conditions);
+function notifications_get_subscriptions($main_conditions, $field_conditions = NULL, $exact_fields = TRUE, $key = 'sid', $pager = NULL) {
+  notifications_include('query.inc');
+  // Build query conditions using the query builder.  
   $query['select'][] = 's.*';
-  list ($sql, $args) = notifications_query_sql($query);   
-  if ($pager) {
-    $sql .= ' ORDER BY s.sid';
-    $result = pager_query($sql, $pager, 0, NULL, $args);
+  // If we have the exact fields, make sure we match only the rows with this number of conditions
+  if ($exact_fields && isset($field_conditions)) {
+    $main_conditions += array('conditions' => count($field_conditions));
+  }
+  // Query for the notifications table
+  $result = notifications_query_subscriptions($main_conditions, $field_conditions, $query);
+
+  // Build list with results, we may need to index by a different field
+  if ($key == 'sid') {
+    $subscriptions = $result;
   }
   else {
-    $result = db_query($sql, $args);
-  }
-  // Build list with results
-  $subscriptions = array();
-  while ($load = db_fetch_object($result)) {
-    $subs = notifications_load_subscription($load);
-    if ($key == 'value' || $key == 'intval') {
-      $field = array_shift($subs->get_fields());
-      $subscriptions[$field->value] = $subs;
+    $subscriptions = array();
+    foreach ($result as $subs) {
+      if ($key == 'value' || $key == 'intval') {
+        $field = array_shift($subs->get_fields());
+        $subscriptions[$field->value] = $subs;
+      }
+      else {
+        $subscriptions[$subs->$key] = $subs;
+      }      
     }
-    else {
-      $subscriptions[$subs->$key] = $subs;
-    }  
   }
+
   return $subscriptions;
 }
 
@@ -1033,66 +849,6 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
     $subscriptions[$account->uid][$type][$object->$key] = $user_subscriptions;
   }
   return $subscriptions[$account->uid][$type][$object->$key];
-}
-
-/**
- * Query builder for subscriptions
- * 
- * Note these queries are just for single type subscriptions all all field conditions are AND'd
- * 
- * Builds queries for 'notifications' and 'notifications_fields' tables using schema
- * and fields (subscription fields) information.
- * 
- * @param array $main_conditions
- *   Array of multiple conditions in the notifications table. 
- * @param array $field_conditions
- *   Array of multiple conditions in the notifications_fields table. The array elements may be 
- *   - array of arrays that are field => value pairs
- *   - or key => array('type' => field, 'value' => value)
- *   If value is null, it just checks that a condition for the given field type exists
- * @param $fields_operator
- *   Operator for the field conditions: AND, OR
- *   Using AND will mean we don't need to multiple join the fields table and can query exactly for that field conditions
- *   Otherwise we need to multiple join the table (outer join to find subscriptions with no fields) 
- * @param $full_matching
- *   Check that the number of matched fields = subscription.conditions, like for queue queries
- *   It's not used when $exact_fields is TRUE, as we know the exact fields to match
- * @return array()
- *   Structured array with 'join', 'where', 'args' elements
- */
-function notifications_subscriptions_query_build($main_conditions, $field_conditions = array(), $fields_operator = 'AND', $full_matching = TRUE) {
-  $query['distinct'] = TRUE;
-  $select = "s.sid, s.type, s.event_type, s.send_interval, s.cron, s.module, s.status, s.destination, s.mdid, s.language, s.conditions";
-  $query['select'][] = $select;
-  // The messaging query builder knows about table schemas
-  $conditions = _messaging_query_conditions('notifications', $main_conditions, 's');
-  $query['where'] = $conditions['conditions'];
-  $query['where args'] = $conditions['args'];
-  $query['from'] = array('{notifications} s');
-
-  if ($field_conditions) {
-    $query['fields operator'] = $fields_operator;
-    if ($fields_operator == 'AND') {
-      // We must multiple join fields table and the field conditions should be AND
-      $query['fields index'] = 0;
-      if ($full_matching) {
-        $query['where'][] = 'conditions = %d';
-        $query['where args'][] = count($field_conditions);       
-      }
-    }
-    else {
-      // The field conditions will be OR'd so we can use a single join
-       $query['join'][] = "LEFT JOIN {notifications_fields} f ON s.sid = f.sid";
-       if ($full_matching) {
-         // But if we want to limit the subscriptions to that ones that match fully...
-         $query['group'][] = $select;
-         $query['having'][] = 's.conditions = count(f.sid)';  
-       }       
-    }
-    // Add in field conditions
-    $query = notifications_fields_query_build(array('fields' => $field_conditions), $query);
-  }
-  return $query;
 }
 
 /**
@@ -1179,17 +935,18 @@ function notifications_object_subscribe_options($type, $object, $account = NULL)
 /**
  * Get field conditions for this specific object
  */
-function notifications_object_condition_fields($type, $object, $account = NULL) {
-  $object = notifications_object_load($type, $object);
-  $hook = 'notifications_object_' .$type;
-  $fields = array();
-  foreach (module_implements($hook) as $module) {
-    if ($more = module_invoke($module, $hook, 'conditions', $object, $account)) {
-      // Each module will return a separate array of fields
-      $fields[] = $more;
+function notifications_object_condition_fields($type, $object) {
+  if ($object = notifications_object_load($type, $object)) {
+    // As this does an array_merge_recursive() we get grouped field => array(value1, value2..)
+    $fields = module_invoke_all('notifications_object_' .$type, 'conditions', $object);
+    // Now we just need to filter out duplicate values
+    foreach ($fields as $key => $value) {
+      if (is_array($value)) {
+        $fields[$key] = array_unique($value);
+      }
     }
+    return $fields;
   }
-  return $fields;
 }
 
 /**
@@ -1440,7 +1197,7 @@ function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2
           $value += array('module' => $module);
         }
       }
-      // Note we use array_merge isntead of array_merge_recursive()
+      // Note we use array_merge instead of array_merge_recursive()
       $result = array_merge($result, $return);
     }
   }
@@ -1969,10 +1726,23 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
  * 
  * Invoke hook notifications with old parameters
  */
-function notifications_notifications_event($op, $event = NULL, $account = NULL) {
+function notifications_notifications_event($op, $event, $account = NULL) {
   switch ($op) {
     case 'query':
-      return notifications_module_information('query', 'event', $event->type, $event);
+      $query = array();
+      // First get all the condition fields for the event object type
+      // I.e. for a node event, we get all condition fields for the event's node
+      if ($object = $event->get_object($event->type)) {
+        if ($fields = notifications_object_condition_fields($event->type, $object)) {
+          // We get a merged array with field => array(value1, value2...);
+          $query[]['fields'] = $fields;
+        }        
+      }
+      // Add in other conditions invoking the old hook
+      if ($more = notifications_module_information('query', 'event', $event->type, $event)) {
+        $query = array_merge($query, $more);
+      }
+      return $query;
     case 'access':
       return notifications_module_information('access', 'event', $event, $account);
   }
@@ -2363,4 +2133,30 @@ function notifications_locale_refresh() {
  */
 function notifications_include($file, $module = 'notifications') {
   return messaging_include($file, $module);
+}
+
+/**
+ * Invoke a notifications_* hook on all modules
+ * 
+ * This is like module_invoke all with two differences:
+ * - We can save the 'notifications_' prefix for hooks
+ * - The results are just merged (not recursively)
+ */
+function notifications_invoke_all() {
+  $args = func_get_args();
+  $hook = 'notifications_' . $args[0];
+  unset($args[0]);
+  $return = array();
+  foreach (module_implements($hook) as $module) {
+    $function = $module .'_'. $hook;
+    $result = call_user_func_array($function, $args);
+    if (isset($result) && is_array($result)) {
+      $return = array_merge($return, $result);
+    }
+    else if (isset($result)) {
+      $return[] = $result;
+    }
+  }
+
+  return $return;
 }

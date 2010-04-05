@@ -107,8 +107,9 @@ class NotificationsBasicTests extends NotificationsTestCase {
    * Test query builder
    */
   function testNotificationsQueryBuilder() {
+    notifications_include('query.inc');
     // Test query builder, first basic query, then add some fields
-    $query = notifications_fields_query_build(array('select' => 'field1', 'from' => 'table1', 'join' => 'JOIN table2'));
+    $query = notifications_query_build(array('select' => 'field1', 'from' => 'table1', 'join' => 'JOIN table2'));
     list($sql, $args) = notifications_query_sql($query);
     $this->assertEqual($sql, 'SELECT field1 FROM table1 JOIN table2', 'Build basic query with SELECT and JOIN.');
     
@@ -116,7 +117,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
       'f1' => 1,
       'f2' => 'value2',
     );
-    $query = notifications_fields_query_build(array('fields' => $fields), $query);
+    $query = notifications_query_build(array('fields' => $fields), $query);
     list($sql, $args) = notifications_query_sql($query);
     $fields_sql = "(f.field = '%s' AND f.value = '%s') OR (f.field = '%s' AND f.value = '%s')";
     $target = "SELECT field1 FROM table1 JOIN table2 WHERE ($fields_sql)";
@@ -127,7 +128,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
       'f3' => array(1, 2),  
       'f4' => array('value3', 'value4'),
     );
-    $query = notifications_fields_query_build(array('fields' => $fields), $query);
+    $query = notifications_query_build(array('fields' => $fields), $query);
     list($sql, $args) = notifications_query_sql($query);
     $fields_sql .= " OR (f.field = '%s' AND f.value IN ('%s','%s'))";
     $fields_sql .= " OR (f.field = '%s' AND f.value IN ('%s','%s'))";

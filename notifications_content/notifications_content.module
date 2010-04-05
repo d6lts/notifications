@@ -336,25 +336,6 @@ function notifications_content_notifications_subscription($op, $subscription = N
 }
 
 /**
- * Implementation of hook notifications_event()
- */
-function notifications_content_notifications_event($op, $event = NULL, $account = NULL) {
-  switch ($op) {
-    case 'query':
-      // Query parameters for queueing events
-      if ($event->type == 'node' && ($node = $event->get_object('node'))) {
-        $query[]['fields'] = array(
-            'nid' => $node->nid,
-            'type' => $node->type,
-            'author' => $node->uid,
-        );
-        return $query;
-      }
-      break;
-  }
-}
-
-/**
  * Implementation of hook_notifications_object_node()
  */
 function notifications_content_notifications_object_node($op, $node, $account = NULL) {

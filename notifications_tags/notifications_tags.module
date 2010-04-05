@@ -80,23 +80,6 @@ function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NUL
 }
 
 /**
- * Implementation of hook notifications_event()
- */
-function notifications_tags_notifications_event($op, $event = NULL, $account = NULL) {
-  switch ($op) {
-    case 'query':
-      // Query parameters for queueing events
-      if ($event->type == 'node' && ($node = $event->get_object('node'))) {
-        if ($tids = notifications_tags_node_get_terms($node)) {
-          $query[]['fields']['tid'] = $tids;
-          return $query;
-        }
-      }
-      break;
-  }
-}
-
-/**
  * Implementation of hook notifications_subscription()
  */
 function notifications_tags_notifications_subscription($op, $subscription = NULL, $account = NULL) {
@@ -127,15 +110,8 @@ function notifications_tags_notifications_object_node($op, $node, $account = NUL
   switch ($op) {
 
     case 'conditions':
-      if (!$account) {
-        // For a queue query, when not account, we must use our own function to retrieve terms
-        $tids = notifications_tags_node_get_terms($node);
-      }
-      elseif (user_access('subscribe to taxonomy terms', $account)) {
-        // If we are checking for a specific account, that means not a queue query, we can use
-        // the cache terms by taxonomy module, that will save some queries, esp for node listings
-        $tids = array_keys(taxonomy_node_get_terms($node));
-      }
+      // For a queue query, when not account, we must use our own function to retrieve terms
+      $tids = notifications_tags_node_get_terms($node);
       if (!empty($tids)) {
         return array('tid' => $tids);
       }
@@ -426,7 +402,7 @@ function notifications_tags_vocabularies($field = NULL) {
 }
 
 /**
- * Helper function to get latest node terms.
+ * Helper function to get latest node terms that belong to our vocabularies for subscriptions
  * 
  * We cannot use the one from taxonomy module because it has static caching and we'll be sending
  * notifications right after the node has been updated
@@ -435,10 +411,15 @@ function notifications_tags_node_get_terms($node) {
   static $terms;
 
   if (!isset($terms[$node->nid])) {
-    $result = db_query('SELECT tid FROM {term_node} WHERE nid = %d', $nid);
     $terms[$node->nid] = array();
-    while ($term = db_fetch_object($result)) {
-      $terms[$node->nid][] = $term->tid;
+    if ($vocabularies = notifications_tags_vocabularies()) {
+      // We just get terms for allowed vocabularies
+      $vids = array_keys($vocabularies);
+      $args = array_merge(array($node->nid), $vids);
+      $result = db_query('SELECT t.tid FROM {term_node} t INNER JOIN {term_data} d ON t.tid = d.tid WHERE t.nid = %d AND d.vid IN(' . db_placeholders($vids) . ')', $args);      
+      while ($term = db_fetch_object($result)) {
+        $terms[$node->nid][] = $term->tid;
+      }
     }
   }
   return $terms[$node->nid];
