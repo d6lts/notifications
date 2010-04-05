@@ -76,11 +76,10 @@ function notifications_custom_form($form_state, $subs) {
     '#description' => t('The title of the new subscription that will be shown to the user along with a subscribe checkbox.'),
     '#required' => TRUE,
   );
-  $event_types = notifications_module_information('event objects');
   $form['subscription']['event_type'] = array(
     '#title' => t('Event type'),
     '#type' => 'select',
-    '#options' => $event_types,
+    '#options' => notifications_custom_event_types(),
     '#default_value' => $subs->event_type,
     '#description' => t('The type of events that will trigger this subscription.'),
   );
@@ -339,4 +338,11 @@ function notifications_custom_delete_confirm_submit($form, &$form_state) {
 
   $form_state['redirect'] = 'admin/messaging/customsubs';
   return;
+}
+
+/**
+ * Get list of possible event types
+ */
+function notifications_custom_event_types() {
+  return notifications_module_information('event classes');
 }

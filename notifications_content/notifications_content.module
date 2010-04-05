@@ -316,7 +316,10 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
         'description' => t('Node comment'),
         'template' => 'notifications-event-node-comment',
       );
-      return $types;     
+      return $types;
+    
+    case 'event classes':
+      return array('node' => t('Node'));
   }
 }
 

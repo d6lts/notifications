@@ -104,6 +104,12 @@ class Notifications_Subscription extends Messaging_Object {
     }
   }
   /**
+   * Build from subscription options
+   */
+  public static function build_options($options) {
+    
+  }
+  /**
    * Build from form submission
    */
   public static function build_submission($form_state) {
@@ -367,6 +373,13 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function get_type($property = NULL) {
     return empty($this->type) ? NULL : notifications_subscription_types($this->type, $property);
+  }
+
+  /**
+   * Check whether this is a subscription instance or just a type template
+   */
+  function is_instance() {
+    return !empty($this->sid);
   }
 
   /**
