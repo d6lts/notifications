@@ -57,5 +57,5 @@ function notifications_content_update_6002() {
     variable_set('notifications_event_enabled', $enabled);
     variable_del('notifications_events');
   }
-  return $array();
+  return array();
 }
