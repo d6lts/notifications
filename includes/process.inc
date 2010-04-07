@@ -458,16 +458,9 @@ function notifications_process_compose($destination, $events, $subscriptions, $s
  *   Ditest information for that interval, or all the information if no interval
  */
 function notifications_process_build_method($send_interval = NULL, $refresh = FALSE) {
-  static $intervals;
-  $build_methods = &messaging_static(__FUNCTION__);
-  if (!isset($build_methods) || $refresh) {
-    // Method information
-    foreach (notifications_module_information('build methods') as $method) {
-      $build_methods[$method['type']] = $method;
-    }
-    // Mapping interval -> method
-    $intervals = variable_get('notifications_digest_methods', array());
-  }
+  $build_methods = notifications_info('build methods', NULL, $refresh);
+  $intervals = variable_get('notifications_digest_methods', array());
+
   if (is_null($send_interval)) {
     return $build_methods;
   }
@@ -573,9 +566,8 @@ function notifications_event_load($id) {
     return $cached;
   }
   elseif ($event = Notifications_Event::load($id)) {
-    // Load aditional objects for the event. For backwards compatibility
-    // For modules up to date events are loaded with $event->load_objects()
-    notifications_module_invoke('event load', $event);
+    // Inform other modules, give them the chance to alter
+    module_invoke_all('notifications_event', 'load', $event);
     return $event;
   }
   else {

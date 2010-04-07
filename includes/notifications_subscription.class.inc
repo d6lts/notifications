@@ -64,9 +64,6 @@ class Notifications_Subscription extends Messaging_Object {
     }
     // Default values for new objects
     if (empty($this->sid)) {
-      if (!isset($this->fields)) {
-        $this->fields = array();
-      }
       $this->created = time();
       if (!isset($this->conditions)) {
         $this->conditions = empty($this->fields) ? 0 : count($this->fields);
@@ -82,7 +79,7 @@ class Notifications_Subscription extends Messaging_Object {
    * @param $template
    *   Template object or subscription type
    */
-  public static function build($template) {
+  public static function build($template, $default_class = 'Notifications_Subscription') {
     if (is_array($template)) {
       $type = NULL;
       $template = (object)$template;
@@ -100,15 +97,10 @@ class Notifications_Subscription extends Messaging_Object {
       return new $class($object);
     }
     else {
-      return new Notifications_Subscription($object);
+      return new $default_class($object);
     }
   }
-  /**
-   * Build from subscription options
-   */
-  public static function build_options($options) {
-    
-  }
+
   /**
    * Build from form submission
    */
@@ -185,8 +177,11 @@ class Notifications_Subscription extends Messaging_Object {
    * Delete from db
    */
   function delete() {
-    db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $this->sid);
-    return parent::delete();
+    if ($this->is_instance()) {
+      module_invoke_all('notifications_subscription', 'delete', $this);
+      db_query("DELETE FROM {notifications_fields} WHERE sid = %d", $this->sid);
+      return parent::delete();
+    }
   }
   /**
    * Check destination or create it if new
@@ -264,8 +259,9 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function get_conditions() {
     $list = array();
-    foreach ($this->get_fields() as $field) {      
-      if (!isset($list[$field->field])) {
+    foreach ($this->get_fields() as $field) {
+      // We cannot simply use isset() because the value may be NULL
+      if (!array_key_exists($field->field, $list)) {
         $list[$field->field] = $field->value;
       }
       elseif (is_array($list[$field->field])) {
@@ -292,27 +288,22 @@ class Notifications_Subscription extends Messaging_Object {
   /**
    * Add a new field with name, value
    */
-  function add_field($name, $value) {
-    if (is_object($value)) {
-      $field = $value;
-    }
-    else {
-      $field = new Stdclass();
-      $field->field = $name;
-      $field->value = $value;
-    }
-    $this->set_field($field);
+  function add_field($type, $value = NULL) {
+    $this->set_field($this->build_field($type, $value));
   }
   /**
-   * Set a field
+   * Set a field. 
+   * - If the field has already a key (index) it will replace an existing one with the same key
+   * - If not key, it will be added to the field list with an ordinary key generated
+   * 
+   * @param $field
+   *   Field object with one or more of these properties: key, type, field, value
    */
-  function set_field($field) {
-    if (!isset($field->key)) {
+  function set_field($field, $replace = FALSE) {
+    if (!isset($field->key) || !$replace) {
       $field->key = isset($this->fields) ? count($this->fields) : 0;
     }
-    if (!isset($field->type)) {
-      $field->type = $field->field;
-    }
+    // Add to the fields array, may replace an old one
     $this->fields[$field->key] = $field;
   }
   /**
@@ -320,9 +311,112 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function get_fields() {
     if (!isset($this->fields)) {
-      $this->load_fields();
+      if ($this->is_instance()) {
+        $this->load_fields();
+      }
+      else {
+        $this->set_fields();
+      }
     }
     return $this->fields;
+  }
+  /**
+   * Check all fields are there and optinally that they have a value
+   */
+  function check_fields($check_values = TRUE) {
+    $this->set_fields();
+    $instance_fields = array();
+    foreach ($this->get_fields() as $field) {
+      if ($check_values && !isset($field->value)) {
+        return FALSE;
+      }
+      else {
+        $instance_fields[] = $field->field;
+      }
+    }
+    $type_fields = $this->get_type('fields');
+    if (count($instance_fields) != count($type_fields)) {
+      return FALSE;
+    }
+    else {
+      // Order the arrays so we can compare them. Note that we can have the same field name more than once
+      asort($instance_fields);
+      asort($type_fields);
+      return array_values($instance_fields) == array_values($type_fields);
+    }
+  }
+  /**
+   * Set field values, all at a time
+   * 
+   * Each field item may have different formats:
+   * - Numeric key => field type. Like array(nid, tid)
+   * - Numeric key => array('type' => type, 'value' => value)
+   * - Numeric key => Object ($field object with field, value properties)
+   * @param $fields
+   *   Fields is an array of field items, each of them with many possible formats:
+   *   NULL to set the fields from the subscription type or template if not set
+   */
+  function set_fields($fields = NULL, $normalize = TRUE) {
+    if (isset($fields)) {
+      $this->fields = array();
+      if ($normalize) {
+        $fields = $this->normalize_fields($fields);
+      }
+      foreach ($fields as $key => $value) {
+        $this->set_field($value);
+      }
+    }
+    elseif (!isset($this->fields)) {
+      if ($fields = $this->get_type_fields()) {
+        // Set the fields from the subscription type or template
+        $this->set_fields($fields, FALSE);
+      }
+      else {
+        // We have nothing better, set empty array()
+        $this->fields = array();
+      }
+    }
+  }
+  /**
+   * Get fields from subscription type as normalized array of objects
+   */
+  function get_type_fields() {
+    return $this->normalize_fields($this->get_type('fields'));
+  }
+  /**
+   * Convert fields to a standard format: arrray of object fields
+   */
+  public static function normalize_fields($fields) {
+    $normal = array();
+    if ($fields && is_array($fields)) {
+      foreach ($fields as $key => $value) {
+        if (is_object($value)) {
+          $normal[] = $value;
+        }
+        elseif (is_array($value)) {
+          // Object or Array with type, value keys
+          $normal[] = self::build_field($value['type'], $value['value']);
+        }
+        elseif (is_numeric($key) && is_string($value)) {
+          // In this case the value is the field type
+          $normal[] = self::build_field($value, NULL);
+        }
+        else {
+          // Default, key should be field type, value may be NULL
+          $normal[] = self::build_field($key, $value);
+        }
+      }
+    }
+    return $normal;    
+  }
+  /**
+   * Build field from type, value
+   */
+  public static function build_field($type, $value) {
+    return (object)array(
+      'field' => $type,
+      'value' => $value,
+    );
   }
   /**
    * Get destination object
@@ -380,6 +474,25 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function is_instance() {
     return !empty($this->sid);
+  }
+
+  /**
+   * Get instance of this one for certain conditions
+   * 
+   * @param $params
+   *   Parameters to add to the subscription type to get an instance of itself
+   * @param $return_self
+   *   Return itself if no instance found
+   */
+  function get_instance($params = array(), $return_self = FALSE) {
+    $params += array('type' => $this->type);
+    $cache = &messaging_static('Notifications_Subscription_instances');
+    $cache_key = notifications_array_serialize($params);
+    if (!isset($cache[$cache_key])) {
+      $subs = notifications_get_subscriptions($params);
+      $cache[$cache_key] = $subs ? current($subs) : FALSE;      
+    }
+    return $cache[$cache_key] ? $cache[$cache_key] : ($return_self ? $this : NULL);
   }
 
   /**
@@ -481,7 +594,7 @@ class Notifications_Subscription extends Messaging_Object {
    * Format all fields
    *
    * @return array();
-   *   Array of arrrays with 'names', 'values'
+   *   Array of arrrays with (name, value)
    */
   function format_fields($format = 'plain') {
     if (!isset($this->format[$format])) {
@@ -490,7 +603,7 @@ class Notifications_Subscription extends Messaging_Object {
       $this->format[$format]['names'] = array();
       $this->format[$format]['values'] = array();
       foreach ($this->get_fields() as $field) {
-        $item = $this->format_field($field->type, $field->value, $html, $this->type);
+        $item = $this->format_field($field->field, $field->value, $html, $this->type);
         $this->format[$format]['names'][] = $item['name'];
         $this->format[$format]['values'][] = $item['value'];
       }      
@@ -505,6 +618,7 @@ class Notifications_Subscription extends Messaging_Object {
    *   Array with 'name' and 'value' elements
    */
   public static function format_field($type, $value, $html = TRUE, $subscription_type = NULL) {
+    notifications_include('object.inc');
     $format_name = $format_value = t('Unknown');
     
     if ($info = notifications_subscription_fields($type)) {
@@ -530,10 +644,17 @@ class Notifications_Subscription extends Messaging_Object {
   /**
    * Subscription information field for several forms
    */
-  public static function form_info($subscription) {
-    $info = notifications_subscription_types($subscription->type);
+  function form_info() {
+    $info = $this->get_type();
     //$format = $subscription->format_array(TRUE);
-    $format = notifications_format_subscription($subscription, 'array');
+
+    $fields = $this->format_fields($html ? 'html' : 'plain');
+    $format = array(
+      'type' => $this->get_type('title'),
+      'name' => $this->format_name($html), 
+      'names' => $fields['names'],
+      'values' => $fields['values'],
+    );
     if (!empty($info['name'])) {
       // This subscription type already have a name
       $value = $info['name'];
@@ -611,10 +732,7 @@ class Notifications_Subscription extends Messaging_Object {
   public function __set($name, $value) {
     switch ($name) {
       case 'fields':
-        $this->fields = array();
-        foreach ($value as $key => $field_value) {
-          $this->add_field($key, $field_value);
-        }
+        $this->set_fields($this->normalize_fields($value));
         break;
       case 'destination':
         if (is_object($value)) {

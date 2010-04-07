@@ -187,7 +187,7 @@ function notifications_content_theme() {
 /**
  * Implementation of hook_notifications()
  */
-function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
+function notifications_content_notifications($op) {
   switch ($op) {
     case 'subscription types':
       // Some types may be globally disabled (for all content types), mark as such
@@ -320,6 +320,13 @@ function notifications_content_notifications($op, $arg0 = NULL, $arg1 = NULL, $a
     
     case 'event classes':
       return array('node' => t('Node'));
+      
+    case 'event actions':
+      return array(
+        'insert' => t('Creation'),
+        'update' => t('Update'),
+        'comment' => t('Comment'),
+      );
   }
 }
 

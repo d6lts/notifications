@@ -63,7 +63,7 @@ function notifications_user_overview($form_state, $account) {
 }
 
 /**
- * Form for creating new subscriptions
+ * Form for creating new subscriptions with variable fields
  */
 function notifications_add_subscription_form($form_state, $account, $type, $destination = NULL) {
   $destination = $destination ? $destination : 'user/' . $account->uid . '/notifications';
@@ -397,7 +397,7 @@ function notifications_subscription_edit_page($subscription) {
  * @todo Improve for handling anonymous subscriptions
  */
 function notifications_subscription_form($form_state, $subscription) {
-  $account = notifications_load_user($subscription->uid);
+  $account = $subscription->get_account();
   // The subscription description will be added here
   $form['info'] = notifications_subscription_info_field($subscription);
   // Subscription values  

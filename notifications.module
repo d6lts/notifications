@@ -852,7 +852,20 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
 }
 
 /**
- * Get info about subscription types
+ * Entry point for the object API
+ * 
+ * @param
+ *   Variable number of arguments, the first one is the notifications_object_* function to invoke
+ */
+function notifications_object() {
+  $args = func_get_args();
+  $function = 'notifications_object_' . array_shift($args);
+  if (!function_exists($function)) notifications_include('object.inc');
+  return call_user_func_array($function, $args);
+}
+
+/**
+ * Get info about object types
  *
  * @param $type
  *   String, the subscriptions type OPTIONAL
@@ -863,11 +876,7 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
  *   or information for a given field for all types
  */
 function notifications_object_type($type = NULL, $field = NULL) {
-  $types = &messaging_static(__FUNCTION__);
-  if (!isset($types)) {
-    $types = notifications_module_information('object types');
-    drupal_alter('notifications_object_types', $types);
-  }
+  $types = notifications_info('object types');
   return notifications_array_info($types, $type, $field);
 }
 
@@ -888,120 +897,6 @@ function notifications_object_load($type, $value) {
   }
 }
 
-/**
- * Check access to an object for user account
- * 
- * @param $type
- *   Object type
- * @param $object
- *   Object or object id
- * @param $account
- *   User account to check access to the object
- */
-function notifications_object_access($type, $object, $account) {
-  $object = notifications_object_load($type, $object);
-  // If object not properly loaded, always false
-  if (!$object) {
-    return FALSE;
-  }
-  elseif (($info = notifications_object_type($type)) && ($key = $info['key_field']) && isset($object->$key)) {
-    $access = &messaging_static(__FUNCTION__);
-    if (!isset($access[$type][$account->uid][$object->$key])) {
-      if (isset($info['access callback'])) {
-        $access[$type][$account->uid][$object->$key] = _notifications_object_callback($type, 'access callback', $object, $account);
-      }
-      elseif (isset($info['access'])) {
-        $access[$type][$account->uid][$object->$key] = user_access($info['access'], $account);
-      }
-      else {
-        // Not defined, so we allow user access
-        $access[$type][$account->uid][$object->$key] = TRUE;
-      }
-    }
-    return $access[$type][$account->uid][$object->$key];
-  }
-  // If not object information we cannot determine anything 
-}
-
-/**
- * Get subscription options for object, account
- */
-function notifications_object_subscribe_options($type, $object, $account = NULL) {
-  $account = $account ? $account : $GLOBALS['user'];
-  $object = notifications_object_load($type, $object);
-  return module_invoke_all('notifications_object_' . $type, 'subscriptions', $object, $account);
-}
-
-/**
- * Get field conditions for this specific object
- */
-function notifications_object_condition_fields($type, $object) {
-  if ($object = notifications_object_load($type, $object)) {
-    // As this does an array_merge_recursive() we get grouped field => array(value1, value2..)
-    $fields = module_invoke_all('notifications_object_' .$type, 'conditions', $object);
-    // Now we just need to filter out duplicate values
-    foreach ($fields as $key => $value) {
-      if (is_array($value)) {
-        $fields[$key] = array_unique($value);
-      }
-    }
-    return $fields;
-  }
-}
-
-/**
- * Get list of possible and existing subscriptions for user/object
- * 
- * @param $type
- *   Subscription type to get options: 'user', 'node'
- * @param $object
- *   The object to subscribe. It may be $node or $user
- * @param $account
- *   User account to get options/subscriptions for
- * 
- * @return
- *   Array of subscription options
- *   The enabled ones will have a 'subscriptions' element loaded
- */
-function notifications_object_user_subscriptions($type, $object, $account = NULL) {
-  $cache = &messaging_static(__FUNCTION__);
-  $account = $account ? $account : $GLOBALS['user'];
-  $object = notifications_object_load($type, $object);
-  
-  // Get allowed subscription options for this account to this object
-  $subscribe_options = notifications_object_subscribe_options($type, $object, $account);
-  $allowed_options = array();
-  foreach ($subscribe_options as $option) {
-    // So far this is not a subscription but a subscription template
-    $subscription = notifications_build_subscription($option);
-    $type_key = $subscription->serialize_type();
-    // If we have this type cached we don't search more
-    if (!isset($cache[$account->uid][$type_key])) {
-      if (notifications_user_allowed('subscription', $account, $subscription)) {
-        $find = notifications_get_subscriptions(
-          array('uid' => $account->uid, 'type' => $subscription->type),
-          $subscription->get_conditions()
-        );
-        // Allowed subscription type, we store the subscription or the template
-        if ($find) {
-          $cache[$account->uid][$type_key] = array_shift($find);
-          $cache[$account->uid][$type_key]->name = $subscription->name;
-        }
-        else {
-          $cache[$account->uid][$type_key] = $subscription;
-        }
-      }
-      else {
-        // Not allowed subscription type for this user
-        $cache[$account->uid][$type_key] = FALSE;
-      }
-    }
-    if ($cache[$account->uid][$type_key]) {
-      $allowed_options[] = $cache[$account->uid][$type_key];
-    }
-  }
-  return $allowed_options;
-}
 
 /**
  * Invoke a callback for an object type
@@ -1038,7 +933,9 @@ function _notifications_subscription_callback() {
 }
 
 /**
- * Invoke a callback for a field type
+ * Invoke a callback for a field type. 
+ * 
+ * If the field has no callback it will default to the field object type callback
  * 
  * @param $type
  *   Subscription type
@@ -1095,12 +992,7 @@ function _notifications_info_callback($info, $name, $args) {
  *   or information for a given field for all types
  */
 function notifications_subscription_types($type = NULL, $field = NULL, $check_access = FALSE) {
-  $types = &messaging_static(__FUNCTION__);
-  
-  if (!isset($types)) {
-    $types = notifications_module_information('subscription types');
-    drupal_alter('notifications_subscription_types', $types);
-  }
+  $types = notifications_info('subscription types');
 
   $result = $types;
   if ($check_access) {
@@ -1118,11 +1010,7 @@ function notifications_subscription_types($type = NULL, $field = NULL, $check_ac
  * Get information about subscriptions fields
  */
 function notifications_subscription_fields($type = NULL, $property = NULL) {
-  $fields = &messaging_static(__FUNCTION__); ;
-  if (!isset($fields)) {
-    $fields = notifications_module_information('subscription fields');
-    drupal_alter('notifications_subscription_fields', $fields);
-  }
+  $fields = notifications_info('subscription fields');
   return notifications_array_info($fields, $type, $property);
 }
 
@@ -1131,7 +1019,7 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
  * Subscription information field for several forms
  */
 function notifications_subscription_info_field($subscription) {
-  return Notifications_Subscription::form_info($subscription);
+  return $subscription->form_info();
 }
 
 /**
@@ -1198,23 +1086,6 @@ function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2
         }
       }
       // Note we use array_merge instead of array_merge_recursive()
-      $result = array_merge($result, $return);
-    }
-  }
-  return $result;
-}
-
-/**
- * Invokes hook_notifications() in every module.
- *
- * We cannot use module_invoke() for this, because the arguments need to
- * be passed by reference.
- */
-function notifications_module_invoke($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
-  $result = array();
-  foreach (module_implements('notifications') as $module) {
-    $function = $module .'_notifications';
-    if ($return = $function($op, $arg0, $arg1, $arg2)) {
       $result = array_merge($result, $return);
     }
   }
@@ -1479,11 +1350,9 @@ function notifications_token_list($type = 'all') {
  *   Whether to return also disabled events
  */
 function notifications_event_types($typekey = NULL, $property = NULL, $disabled = TRUE) {
-  $info = &messaging_static(__FUNCTION__);
+  $info = &notifications_info('event types');
   $enabled = &messaging_static(__FUNCTION__ . '_enabled');
-  if (!isset($info)) {
-    $info = notifications_module_information('event types');
-    drupal_alter('notifications_event_types', $info);
+  if (!isset($enabled)) {
     $enabled = array();
     foreach ($info as $key => &$event) {
       if (empty($event['disabled']) && notifications_event_enabled($key)) {
@@ -1612,7 +1481,8 @@ function _notifications_get_link($elements, $params = array()) {
  *   - 'event', will check access to event objects
  *   - 'subscription', will check access to subscribed objects
  */
-function notifications_user_allowed($type, $account, $object = NULL) { 
+function notifications_user_allowed($type, $account, $object = NULL) {
+  notifications_include('object.inc');
   // First invoke the hook for 'event'  or 'subscription'. If we get any false return value, that's it
   $hook = 'notifications_' . $type;
   foreach (module_implements($hook) as $module) {   
@@ -1646,7 +1516,7 @@ function notifications_user_allowed($type, $account, $object = NULL) {
  * 
  * Check access permissions to subscriptions and take care of some backwards compatibility
  */
-function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_notifications($op) {
   switch ($op) {
     case 'build methods':
       // Return array of building engines
@@ -1660,6 +1530,7 @@ function notifications_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
       return $info;
 
     case 'object types':
+      notifications_include('object.inc');
       $types['node'] = array(
         'name' => t('Node'),
         'key_field' => 'nid',
@@ -1745,8 +1616,12 @@ function notifications_notifications_event($op, $event, $account = NULL) {
       return $query;
     case 'access':
       return notifications_module_information('access', 'event', $event, $account);
+    case 'load':
+      // Invoke old hook for backwards compatibility
+      return module_invoke_all('notifications', 'event load', $event);
   }
 }
+
 /**
  * List of send intervals. These may be overriden in a variable.
  */
@@ -2136,27 +2011,32 @@ function notifications_include($file, $module = 'notifications') {
 }
 
 /**
- * Invoke a notifications_* hook on all modules
+ * Invoke hook_notifications($name) on all modules
  * 
- * This is like module_invoke all with two differences:
- * - We can save the 'notifications_' prefix for hooks
+ * This is like module_invoke all with some differences:
  * - The results are just merged (not recursively)
+ * - The module name is added to each resulting array
+ * - We cache all the results 
  */
-function notifications_invoke_all() {
-  $args = func_get_args();
-  $hook = 'notifications_' . $args[0];
-  unset($args[0]);
-  $return = array();
-  foreach (module_implements($hook) as $module) {
-    $function = $module .'_'. $hook;
-    $result = call_user_func_array($function, $args);
-    if (isset($result) && is_array($result)) {
-      $return = array_merge($return, $result);
+function &notifications_info($name, $param = NULL, $refresh = FALSE) {
+  $info = &messaging_static($name);
+  if (!isset($info) || $refresh) {
+    $info = array();
+    foreach (module_implements('notifications') as $module) {
+      $function = $module .'_notifications';
+      if ($return = $function($name, $param)) {
+        // Add module name to each result if it is an info array
+        foreach ($return as $key => &$value) {
+          if (is_array($value)) {
+            $value += array('module' => $module);
+          }
+        }
+        // Note we use array_merge instead of array_merge_recursive()
+        $info = array_merge($info, $return);
+      }
     }
-    else if (isset($result)) {
-      $return[] = $result;
-    }
-  }
-
-  return $return;
+    // Provide alter hook
+    drupal_alter('notifications_' . strtr(' ', '_', $name), $info);
+  }      
+  return $info;
 }

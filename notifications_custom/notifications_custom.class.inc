@@ -11,7 +11,18 @@
 class Notifications_Custom_Subscription extends Notifications_Subscription {
   // Unique custom subscription id
   public $csid;
+  // Array of field values, each is an array with type and value
+  public $field_values;
 
+  /**
+   * Build for a subscription type
+   * 
+   * @param $template
+   *   Template object or subscription type
+   */
+  public static function build($template, $default_class = 'Notifications_Custom_Subscription') {
+    return parent::build($template, $default_class);
+  }
   // Get name
   function get_name() {
     return check_plain(notifications_translate("custom:$this->type:name", $this->get_type('name')));
@@ -31,17 +42,22 @@ class Notifications_Custom_Subscription extends Notifications_Subscription {
     return $this->is_instance() || $user_registration && $this->get_type('default_value');
   }
   /**
-   * Get instance of this one for a given user
+   * Get fields as arrays
    */
-  function get_instance($account) {
-    if ($instance = notifications_custom_get_subscription($this->type, $account->uid)) {
-      return $instance;
+  function get_fields_array() {
+    $list = array();
+    foreach ($this->get_fields() as $field) {
+      $list[] = array('type' => $field->field, 'value' => $field->value);
     }
-    else {
-      // If not instance, returns itself, which is a template
-      return $this;
-    }
+    return $list;
   }
+  /**
+   * Get fields from subscription type
+   */
+  function get_type_fields() {
+    return $this->normalize_fields($this->get_type('fields_instance'));
+  }  
+
   /**
    * Check visibility of this subscription type
    */

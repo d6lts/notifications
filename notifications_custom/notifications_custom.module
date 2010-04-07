@@ -114,11 +114,15 @@ function notifications_custom_notifications($op) {
       if ($custom = notifications_custom_list()) {
         foreach ($custom as $subs) {
           $type = array(
+            'type' => $subs->type,
             'title' => $subs->title,
             'name' => $subs->name,
             'description' => $subs->description,
             'custom' => TRUE,
+            // This is a simple list of fields
             'fields' => array(),
+            // This is an array of fields that have type and value
+            'fields_instance' => $subs->fields,
             'class' => 'Notifications_Custom_Subscription',
           );
           // Subscription type fields are just field types, but in this case we have type and value
@@ -130,8 +134,40 @@ function notifications_custom_notifications($op) {
         return $types;
       }
       break;
+
+    case 'subscription fields':
+      // To create custom subscriptions to specific event actions
+      $fields['event-action'] = array(
+        'name' => t('Action'),
+        'field' => 'event-action',
+        'type' => 'string',
+        'options callback' => 'notifications_custom_event_actions',
+      );
+      return $fields;
+
   }
 }
+
+/**
+ * List event actions
+ */
+function notifications_custom_event_actions() {
+  return notifications_info('event actions');
+}
+
+/**
+ * Implementation of hook notifications_event()
+ * 
+ * Retrieve event action so we can create subscriptions to all node/action
+ */
+function notifications_custom_notifications_event($op, $event, $account = NULL) {
+  switch ($op) {
+    case 'query':
+      $query[]['fields'] = array('event-action' => $event->action);
+      return $query;
+  }
+}
+
 /**
  * Build user account form
  */
@@ -211,18 +247,18 @@ function notifications_custom_user_overview_submit($form, $form_state) {
 function notifications_custom_account_update($account, $update) {
   $changed = 0;
   foreach ($update as $type => $value) {
-    $user_subs =  notifications_custom_get_subscription($type, $account->uid);
-    if ($value && !$user_subs) {
-      // Add new subscription
-      $subscription = notifications_custom_build_subscription($type);
-      $subscription->uid = $account->uid;
-      notifications_save_subscription($subscription);
-      $changed++;
-    }
-    elseif (!$value && $user_subs) {
-      // Disable existing subscription
-      notifications_delete_subscription($user_subs->sid);
-      $changed++;
+    if ($subscription = notifications_custom_get_subscription($type, $account, TRUE)) {
+      if ($value && !$subscription->is_instance()) {
+        // Add new subscription       
+        $subscription->set_account($account);
+        notifications_save_subscription($subscription);
+        $changed++;
+      }
+      elseif (!$value && $subscription->is_instance()) {
+        // Disable existing subscription
+        notifications_delete_subscription($subscription->sid);
+        $changed++;
+      }
     }
   }
   return $changed;
@@ -230,17 +266,17 @@ function notifications_custom_account_update($account, $update) {
 /**
  * Retrieve list of custom subscription types true objects
  *
- * @param $params
- *   Optional query conditions. It only works with integer values
+ * @param $filter
+ *   Optional filter conditions. It only works with integer values
  * @param $account
  *   User account to get subscriptions for
  */
-function notifications_custom_build_list($params = array(), $account = NULL) {
+function notifications_custom_build_list($filter = array(), $account = NULL) {
   $list = array();
   // Now try to match all the parameters against each object in the list
   foreach (notifications_custom_list() as $type => $custom) {
     $match = TRUE;
-    foreach ($params as $field => $value) {
+    foreach ($filter as $field => $value) {
       if ($custom->$field != $value) {
         $match = FALSE;
         break;
@@ -248,7 +284,7 @@ function notifications_custom_build_list($params = array(), $account = NULL) {
     }
     if ($match) {
       $subscription = notifications_custom_build_subscription($custom);
-      $list[$custom->type] = $account ? $subscription->get_instance($account) : $subscription;
+      $list[$custom->type] = $account ? $subscription->get_instance(array('uid' => $account->uid), TRUE) : $subscription;
     }
   }
   return $list;
@@ -338,17 +374,9 @@ function notifications_custom_load($key) {
  *   Custom subscription template (object) or type (string)
  */
 function notifications_custom_build_subscription($template) {
-  $template = is_object($template) ? $template : (object)notifications_subscription_types($template);
+  $template = is_object($template) ? $template : notifications_subscription_types($template);
   if ($template) {
-    $subscription = Notifications_Custom_Subscription::build($template->type);
-    if (!is_array($template->fields)) {
-      $template->fields = !empty($template->fields) ? unserialize($templat->fields) : array();
-    }
-    // Add fields, each field is an array with 'type' and 'value' elements
-    foreach ($template->fields as $field) {
-      $subscription->add_condition($field['type'], $field['value']);
-    }
-    return $subscription;
+    return Notifications_Custom_Subscription::build($template);
   }
   else {
     return NULL;
@@ -356,16 +384,19 @@ function notifications_custom_build_subscription($template) {
 }
 
 /**
- * Get user subscription for a custom one
+ * Get user subscription for a custom one or subscription type if not available
  *
  * @param $type
  *   Custom subscription type
- * @param $uid
- *   User id
+ * @param $account
+ *   User account
+ * @param $return_template
+ *   Return subscription template if not found for this user
  */
-function notifications_custom_get_subscription($type, $uid) {
-  $subs = notifications_get_subscriptions(array('uid' => $uid, 'type' => $type));
-  return $subs ? current($subs) : NULL;
+function notifications_custom_get_subscription($type, $account, $return_template = FALSE) {
+  if ($subscription = notifications_custom_build_subscription($type)) {
+    return $subscription->get_instance(array('uid' => $account->uid), $return_template);
+  }
 }
 
 /**
@@ -421,24 +452,7 @@ function notifications_custom_theme() {
   return array(
     'notifications_custom_fields' => array(
       'arguments' => array('element' => NULL),
+      'file' => 'notifications_custom_admin.inc',
     ),
   );
-}
-
-/**
- * Theme function for fields in form
- */
-function theme_notifications_custom_fields($elements) {
-  $header = array(t('Delete'), t('Field type'), t('Value'));
-  $rows = array();
-  foreach (element_children($elements['name']) as $key) {
-    $rows[] = array(
-      drupal_render($elements['delete'][$key]),
-      drupal_render($elements['name'][$key]),
-      drupal_render($elements['value'][$key]),
-    );
-  }
-  $output = theme('table', $header, $rows);
-  $output .= drupal_render($elements);
-  return $output;
 }

@@ -79,7 +79,7 @@ function notifications_custom_form($form_state, $subs) {
   $form['subscription']['event_type'] = array(
     '#title' => t('Event type'),
     '#type' => 'select',
-    '#options' => notifications_custom_event_types(),
+    '#options' => notifications_info('event classes'),
     '#default_value' => $subs->event_type,
     '#description' => t('The type of events that will trigger this subscription.'),
   );
@@ -168,6 +168,8 @@ function notifications_custom_form_submit($form, &$form_state) {
  * Fields form
  */
 function notifications_custom_fields_form($form_state, $subscription) {
+  notifications_include('object.inc');
+
   $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
   // Now the hard part, which are the fields. Only when subscriptions is created.
   $form['fields'] = array(
@@ -178,21 +180,12 @@ function notifications_custom_fields_form($form_state, $subscription) {
   );
 
   // Take the values from form state (if submitted) or from the subscription itself
+  $fields = array();
   if (!empty($form_state['submitted'])) {
-    if (!empty($form_state['values']['fields']['type'])) {
-      foreach ($form_state['values']['fields']['type'] as $key => $type) {
-        if (empty($form_state['values']['fields']['delete'][$key])) {
-          // Add field to the list and mark as formatted so we can use this value for the form
-          $fields[] = array('type' => $type, 'value' => $form_state['values']['fields']['value'][$key], 'parsed' => TRUE);  
-        }
-      }
-    }
-    if (!empty($form_state['values']['newfield'])) {
-      $fields[] = array('type' => $form_state['values']['newfield'], 'value' => '');
-    }
+    $fields = notifications_field_parse_submitted($form_state, 'fields');
   }
   else {
-    $fields = $subscription->fields;
+    $fields = $subscription->get_fields_array();
   }
 
   // Build the form with current fields
@@ -208,13 +201,16 @@ function notifications_custom_fields_form($form_state, $subscription) {
         '#type' => 'checkbox',
         '#default_value' => 0,
       );
-      // Generate the field and pass the value only if not parsed yet
-      if (empty($data['parsed'])) {
-        $form['fields']['value'][$fid] = notifications_subscription_form_field($data['type'], $data['value']);
+      $form['fields']['value'][$fid] = array(
+        '#type' => 'value', '#value' => $data['value'],
+      );
+      // Generate the editable field value and pass the value only if it doesn't come from a previous submission
+      if (empty($data['edit'])) {
+        $form['fields']['edit'][$fid] = notifications_subscription_form_field($data['type'], $data['value']);
       }
       else {
-        $form['fields']['value'][$fid] = notifications_subscription_form_field($data['type']);
-        $form['fields']['value'][$fid]['#default_value'] = $data['value'];
+        $form['fields']['edit'][$fid] = notifications_subscription_form_field($data['type']);
+        $form['fields']['edit'][$fid]['#default_value'] = $data['edit'];
       }
     }
   }
@@ -226,7 +222,7 @@ function notifications_custom_fields_form($form_state, $subscription) {
     '#options' => notifications_subscription_fields(NULL, 'name'),
   );
   $form['fields']['delete']['new'] = array('#value' => t('new'));
-  $form['fields']['value']['new'] = array(
+  $form['fields']['edit']['new'] = array(
     '#type' => 'submit',
     '#value' => t('Add new field'),
     '#submit' => array('notifications_custom_fields_form_add_field'),
@@ -241,7 +237,9 @@ function notifications_custom_fields_form($form_state, $subscription) {
  * Submit callback for adding new fields
  */
 function notifications_custom_fields_form_add_field(&$form, &$form_state) {
-  $form_state['values']['newfield'] = $form_state['values']['fields']['name']['new'];
+  $form_state['values']['fields']['type'][] = $form_state['values']['fields']['name']['new'];
+  $form_state['values']['fields']['value'][] = NULL;
+  $form_state['values']['fields']['edit'][] = '';
   $form_state['rebuild'] = TRUE;
 }
 
@@ -249,53 +247,15 @@ function notifications_custom_fields_form_add_field(&$form, &$form_state) {
  * Validate field values
  */
 function notifications_custom_fields_form_validate($form, &$form_state) {
-  $field_values = array();
-  $fields = $form_state['values']['fields'];
-  if (!empty($fields['type'])) {
-    foreach ($fields['type'] as $fid => $type) {
-      $value = NULL;
-      // Remove if checked for deletion
-      if (!empty($fields['delete'][$fid])) {
-        unset($form_state['values']['fields']['type'][$fid]);
-        continue;
-      }
-      // Add if it has a value and not marked for deletion
-      elseif (!empty($fields['value'][$fid])) {
-        $value = $fields['value'][$fid];
-        // We may need additional validation or field - value mappging for some fields
-        if ($callback = notifications_subscription_fields($type, 'value callback')) {
-          if ($args = notifications_subscription_fields($type, 'value callback args')) {
-            $value = call_user_func($callback, $value, "fields][value][$fid", $args);
-          }
-          else {
-            $value = call_user_func($callback, $value, "fields][value][$fid");
-          }
-        }
-        // If we still have a value (mapping may have failed, go and save)
-        if ($value) {
-          $field_values[] = array('type' => $type, 'value' => $value);
-        }
-      }
-      if (!$value) { // We don't have a value, error message
-        form_set_error("fields][value][$fid", t('You must set a value for this field.'));
-      }
-    }
-    // Final check, we should have some valid field/value pairs
-    if ($field_values) {
-      $form_state['field_values'] = $field_values;
-    }
-    else {
-      form_set_error(NULL, t('You must set at least one field for this subscription type.'));
-    }
-  }
-
+  notifications_include('object.inc');
+  $form_state['field_values'] = notifications_field_validate_submitted(&$form_state, 'fields', TRUE, TRUE);
 }
 
 /**
  * Submit fields form
  */
 function notifications_custom_fields_form_submit($form, $form_state) {
-  $subscription = $form_state['values']['subscription'];
+  $subscription = $form_state['values']['subscription'];dsm($form_state);
   $fields = $form_state['field_values'];
   db_query("UPDATE {notifications_custom} SET fields = '%s' WHERE csid = %d", serialize($fields), $subscription->csid);
   drupal_set_message(t('The fields for this subscription have been updated.'));
@@ -341,8 +301,19 @@ function notifications_custom_delete_confirm_submit($form, &$form_state) {
 }
 
 /**
- * Get list of possible event types
+ * Theme function for fields in form
  */
-function notifications_custom_event_types() {
-  return notifications_module_information('event classes');
+function theme_notifications_custom_fields($elements) {
+  $header = array(t('Delete'), t('Field type'), t('Value'));
+  $rows = array();
+  foreach (element_children($elements['name']) as $key) {
+    $rows[] = array(
+      drupal_render($elements['delete'][$key]),
+      drupal_render($elements['name'][$key]),
+      drupal_render($elements['edit'][$key]),
+    );
+  }
+  $output = theme('table', $header, $rows);
+  $output .= drupal_render($elements);
+  return $output;
 }

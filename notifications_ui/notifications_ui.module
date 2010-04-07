@@ -446,6 +446,7 @@ function notifications_ui_allowed_types() {
  *   Array of subscription objects, that will be mixed subscription templates and actual subscriptions
  */
 function notifications_ui_subscribe_options($account, $type, $object) {
+  notifications_include('object.inc');
   return notifications_object_user_subscriptions($type, $object, $account);
 }
 

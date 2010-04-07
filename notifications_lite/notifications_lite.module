@@ -102,7 +102,7 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
 
   // Store row in notifications queue and for immediate sending
   notifications_lite_queue_event($event);
-  notifications_module_invoke('event queued', $event);
+  module_invoke_all('notifications_event', 'queued', $event);
   notifications_send_immediate($event->eid);
 }
 
