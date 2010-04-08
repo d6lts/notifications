@@ -18,6 +18,16 @@ class Notifications_Subscription extends Messaging_Object {
   const STATUS_ACTIVE = 1;
   // Temporarily disabled ones, maybe user on holidays
   const STATUS_INACTIVE = 2;
+  // Format as plaintext. Note it evaluates to false.
+  const FORMAT_PLAIN = 0;
+  // Format as html. Note it evaluates to true
+  const FORMAT_HTML = 1;
+  // Format inline, as a string of csv
+  const FORMAT_INLINE = 2;
+  // Format as HTML table
+  const FORMAT_TABLE = 4;
+  // Format as item list
+  const FORMAT_LIST = 8;
   // Unique subscription id
   public $sid = 0;
   // Destination id
@@ -117,6 +127,28 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $subscription;
   }
+
+  /**
+   * Build subscribe /unsubscribe link
+   */
+  function build_link($options = array()) {
+    if ($this->is_instance()) {
+      // Unsubscribe link
+      $title = t('Unsubscribe from: @name', array('@name' => $this->get_name()));
+      $props = notifications_get_link('unsubscribe', array('sid' => $this->sid) + $options);
+    }
+    else {
+      // Subscribe link
+      $title = t('Subscribe to: @name', array('@name' => $this->get_name()));
+      $props = notifications_get_link('subscribe', array('uid' => $this->uid, 'type' => $this->type, 'fields' => $this->get_conditions()) + $options);
+    }
+    return array(
+      'title' => $title,
+      'html' => TRUE,
+      'href' => $props['href'],
+    ) + $props['options'];
+  }
+
   /**
    * Set user account
    */
@@ -532,61 +564,42 @@ class Notifications_Subscription extends Messaging_Object {
     $this->load_objects();
     return $this->objects;
   }
-  /**
-   * Format subscription for display
-   * 
-   * @return array()
-   *   Array of formatted texts with the following properties
-   *   - type, Subscription type name (title)
-   *   - name, Subscription name or glued values if not name defined
-   *   - names, Array of field names
-   *   - values, Array of field values
-   *   
-   */
-  function format_array($html = FALSE) {
-    $fields = $this->format_fields($html ? 'html' : 'plain');
-    return array(
-      'type' => $this->get_type('title'),
-      'name' => $this->format_name($html), 
-      'names' => $fields['names'],
-      'values' => $fields['values'],
-    );
-  }
+
   /**
    * Format as short text
    */
-  function format_short($html = FALSE) {
-    return t('@type: !values', array('@type' => $this->get_type('title'), '!values' => $this->format_name($html)));
+  function format_short($format = self::FORMAT_HTML) {
+    return t('@type: !values', array('@type' => $this->get_type('title'), '!values' => $this->format_name($format | self::FORMAT_INLINE)));
   }
   /**
    * Format as long text
    */
-  function format_long($html = FALSE) {
-    return t('Subscription %id of type %type to: !values', array('%id' => $this->sid, '%type' => $this->get_type('title'), '!values' => $this->format_name($html)));
+  function format_long($format = self::FORMAT_HTML) {
+    return t('Subscription %id of type %type to: !values', array('%id' => $this->sid, '%type' => $this->get_type('title'), '!values' => $this->format_name($format | self::FORMAT_INLINE)));
   }
   
   /**
    * Get subscription short name.
    */
-  function get_name() {
+  function get_name($format = self::FORMAT_HTML) {
     if (!isset($this->name)) {
       // This subscription doesn't have a name, we'll find something
-      $this->name = $this->format_name(FALSE);
+      $this->name = $this->format_name($format | self::FORMAT_INLINE);
     }
     return $this->name;
   }
+
    /**
     * 
    * If the subscription type has a name, like custom subscriptions have, that will be the name
    * Otherwise we build the name using fields and values
    */
-  function format_name($html = FALSE) {
+  function format_name($format = self::FORMAT_PLAIN) {
     if ($name = $this->get_type('name')) {
       return $name;
     }
     else {
-      $fields = $this->format_fields($html ? 'html' : 'plain');
-      return $fields['values'] ? implode(', ', $fields['values']) : t('Unknown (no fields)');
+      return $this->format_fields($format);
     }   
   }
   
@@ -596,38 +609,68 @@ class Notifications_Subscription extends Messaging_Object {
    * @return array();
    *   Array of arrrays with (name, value)
    */
-  function format_fields($format = 'plain') {
-    if (!isset($this->format[$format])) {
-      $html = ($format == 'html');
+  function format_fields($format = self::FORMAT_HTML) {
+    if (!isset($this->format[$format]['fields'])) {
       // Get field names and values formatting each field
-      $this->format[$format]['names'] = array();
-      $this->format[$format]['values'] = array();
+      $items = array();
       foreach ($this->get_fields() as $field) {
-        $item = $this->format_field($field->field, $field->value, $html, $this->type);
-        $this->format[$format]['names'][] = $item['name'];
-        $this->format[$format]['values'][] = $item['value'];
-      }      
+        $items[] = $this->format_field($field, $format);
+      }
+      $this->format[$format]['fields'] = $this->format_items($items, $format);
     }
-    return $this->format[$format];
+    return $this->format[$format]['fields'];
   }
+  
+  /**
+   * Format items
+   *
+   * @param $items
+   *   Array of arrays with 'name' and 'value' elements
+   */
+  function format_items($items, $format = self::FORMAT_INLINE) {
+    // If no items the output will be always an empty string
+    if (!$items)  {
+      return '';
+    }
+    // Some formats need each item to be a string first 
+    if ($format & (self::FORMAT_INLINE | self::FORMAT_LIST)) {
+      foreach ($items as $key => $value) {
+        if (is_array($value)) {
+          $items[$key] = implode(': ', $value);
+        }
+      }
+    }
+    switch (TRUE) {
+      case $format & self::FORMAT_INLINE:
+        return implode(',', $items);
+      case $format & self::FORMAT_LIST:
+        return theme('item_list', $items);
+      case $format & self::FORMAT_TABLE:
+        return theme('table', array(), $items);
 
+      default:
+        // Items not formatted, return as array
+        return $items;
+    }
+  }
   /**
    * Format subscriptions field for display and get some more information
    * 
    * @return array()
    *   Array with 'name' and 'value' elements
    */
-  public static function format_field($type, $value, $html = TRUE, $subscription_type = NULL) {
+   function format_field($field, $format = self::FORMAT_HTML) {
     notifications_include('object.inc');
     $format_name = $format_value = t('Unknown');
-    
-    if ($info = notifications_subscription_fields($type)) {
+    $type = $field->field;
+    $value = $field->value;
+    if ($info = notifications_subscription_fields($field->field)) {
       $format_name = $info['name'];
       // First try format callback
-      $format_value = _notifications_field_callback($type, 'format callback', $value, $html, $subscription_type);
+      $format_value = _notifications_field_callback($type, 'format callback', $value, $format & self::FORMAT_HTML, $this->type);
       // If not we try options callback, we can get the name from the array of options
       if (!isset($format_value)) {
-        $options = _notifications_field_callback($type, 'options callback', $subscription_type);
+        $options = _notifications_field_callback($type, 'options callback', $this->type);
         if (isset($options)) {
           $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
         }
@@ -638,49 +681,37 @@ class Notifications_Subscription extends Messaging_Object {
       }
     }
   
-    return array('name' => $format_name, 'value' => $format_value);
+    return $format & self::FORMAT_INLINE ? $format_name . ': ' . $format_value : array('name' => $format_name, 'value' => $format_value);
   }
 
   /**
    * Subscription information field for several forms
+   * 
+   * @return Forms API field structure
    */
   function form_info() {
     $info = $this->get_type();
-    //$format = $subscription->format_array(TRUE);
-
-    $fields = $this->format_fields($html ? 'html' : 'plain');
-    $format = array(
-      'type' => $this->get_type('title'),
-      'name' => $this->format_name($html), 
-      'names' => $fields['names'],
-      'values' => $fields['values'],
-    );
+    $fields = $this->format_fields(self::FORMAT_HTML);
     if (!empty($info['name'])) {
-      // This subscription type already have a name
+      // This subscription type already has a name
       $value = $info['name'];
     }
-    elseif (empty($format['names'])) {
+    elseif (empty($fields)) {
       // No name, maybe no fields it should be enough with the title
       $value = '';
     }
-    elseif (count($format['names']) == 1) {
+    elseif (count($fields) == 1) {
       // If the field is unique, we don't need a table nor a name for it
-      $value = array_shift($format['values']);
+      $value = array_pop(array_shift($fields));
     }
     else {
       // Multiple fields, format as a table
-      foreach ($format['names'] as $index => $value) {
-        $rows[] = array(
-          $value,
-          $format['values'][$index],
-        );
-      }
-      $value = theme('table', array(), $rows);
+      $value = theme('table', array(), $fields);
     }
-    // Build a form field
+    // Build a form field with all these values
     $field = array(
       '#type' => 'item',
-      '#title' => t('!type subscription', array('!type' => $format['type'])),
+      '#title' => t('@type subscription', array('@type' => $this->get_type('title'))),
       '#value' => $value,
     );
     if (!empty($info['description'])) {

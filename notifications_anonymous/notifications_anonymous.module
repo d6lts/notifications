@@ -168,49 +168,6 @@ function notifications_anonymous_subscribe_options($type, $object) {
 }
 
 /**
- * Implementation of hook_link()
- * 
- * Add subscriptions links to nodes. Depends on notifications_ui enabled.
- * 
- * @todo Remove dependency on notifications_ui
- */
-function notifications_anonymous_link($type, $node = NULL, $teaser = FALSE) {
-  global $user;
-
-  if ($type == 'node' && !$user->uid && notifications_anonymous_subscription_access() && module_exists('notifications_ui') &&
-    (notifications_ui_node_options($node->type, 'teaserlinks') && $teaser || notifications_ui_node_options($node->type, 'links') && !$teaser)
-     && ($options = notifications_ui_subscribe_options($user, 'node', $node))) {
-      // Now we have the array of allowed options ready, build single links 
-      return notifications_anonymous_build_links($options);
-  }
-}
-
-/**
- * Build subscription options as an array of links
- * 
- * These links can be added as node link elements or rendered some other way
- * 
- * @param $options
- *   Array of subscription options, like the one produced by notifications_ui_subscribe_options()
- * @param $prefix
- *   Prefix to use for the link indexes
- */
-function notifications_anonymous_build_links($options, $prefix = 'notifications_anonymous_') {
-  $links = array();  
-  foreach ($options as $index => $option) {
-    // Subscribe link
-    $title = t('Subscribe to: @name', array('@name' => $option['name']));
-    $props = notifications_anonymous_get_link('subscribe', array('type' => $option['type'], 'confirm' => TRUE, 'fields' => $option['fields'], 'destination' => TRUE));
-    $links[$prefix . $index] = array(
-      'title' => $title,
-      'html' => TRUE,
-      'href' => $props['href'],
-    ) + $props['options'];      
-  }
-  return $links;  
-}
-
-/**
  * Get available sending methods for anonymous users
  */
 function notifications_anonymous_send_methods() {

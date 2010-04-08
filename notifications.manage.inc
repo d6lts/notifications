@@ -55,7 +55,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   if ($account) {
     $result = pager_query('SELECT n.*, d.method, d.address FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] . $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   } else {
-    $result = pager_query('SELECT n.*, d.method, d.address, u.name FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] .' INNER JOIN {users} u ON n.uid = u.uid '. $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
+    $result = pager_query('SELECT n.*, d.method, d.address, u.name AS user_name FROM {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid '. $filter['join'] .' INNER JOIN {users} u ON n.uid = u.uid '. $filter['where'] .' ORDER BY n.sid DESC', 50, 0, NULL, $filter['args']);
   }
   $form = notifications_manage_subscriptions_form_options($account);
   $form_destination = drupal_get_destination();
@@ -71,12 +71,12 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
     // If full loading, load full subscription and add description
     if ($full) {
       //$format = notifications_format_subscription($sub, 'array');
-      $form['description'][$sub->sid] = array('#value' => $sub->format_name());
+      $form['description'][$sub->sid] = array('#value' => $sub->get_name());
     }
     // If not account, this is an admin form for multiple users, print full account and address
     if (!$account) {
       if ($sub->uid) {
-        $username = theme('username', $sub);
+        $username = $sub->get_user_name();
       }
       else {
         // Anonymous subscription, print destination instead

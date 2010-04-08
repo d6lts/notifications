@@ -52,6 +52,19 @@ function notifications_object_subscribe_options($type, $object, $account = NULL)
 }
 
 /**
+ * Build subscribe / unsubscribe options for object
+ */
+function notifications_object_subscribe_links($type, $object, $account, $options = array()) {
+  $links = array();
+  if ($subscriptions = notifications_object_user_subscriptions($type, $object, $account)) {
+    foreach ($subscriptions as $index => $subscription) {
+      $links['notitications_' . $index] = $subscription->build_link($options);
+    }
+  }
+  return $links;
+}
+
+/**
  * Get field conditions for this specific object
  */
 function notifications_object_condition_fields($type, $object) {
@@ -97,18 +110,21 @@ function notifications_object_user_subscriptions($type, $object, $account = NULL
     // If we have this type cached we don't search more
     if (!isset($cache[$account->uid][$type_key])) {
       if (notifications_user_allowed('subscription', $account, $subscription)) {
-        $find = notifications_get_subscriptions(
-          array('uid' => $account->uid, 'type' => $subscription->type),
-          $subscription->get_conditions()
-        );
-        // Allowed subscription type, we store the subscription or the template
-        if ($find) {
-          $cache[$account->uid][$type_key] = array_shift($find);
-          $cache[$account->uid][$type_key]->name = $subscription->name;
+        $subscription->set_account($account);
+        // If anonymous user we don't search more because we cannot find by uid
+        if ($account->uid) {
+          $find = notifications_get_subscriptions(
+            array('uid' => $account->uid, 'type' => $subscription->type),
+            $subscription->get_conditions()
+          );
+          // Allowed subscription type, we store the subscription or the template
+          if ($find) {
+            $usersubs = current($find);
+            $usersubs->name = $subscription->name;
+            $subscription = $usersubs;
+          }
         }
-        else {
-          $cache[$account->uid][$type_key] = $subscription;
-        }
+        $cache[$account->uid][$type_key] = $subscription;
       }
       else {
         // Not allowed subscription type for this user
@@ -120,6 +136,47 @@ function notifications_object_user_subscriptions($type, $object, $account = NULL
     }
   }
   return $allowed_options;
+}
+
+
+/**
+ * Get full info array for field_type that has the property
+ * 
+ * @param $type
+ *   Field type
+ * @param $property
+ *   Property we are looking for
+ * 
+ * @return array()
+ *   Info array from field or from object type
+ */
+function notifications_field_info($type, $property) {
+  if ($info = notifications_field_type($type)) {
+    if (isset($info[$property])) {
+      return $info;
+    }
+    elseif (!empty($info['object_type']) && notifications_object_type($info['object_type'], $property)) {
+      return notifications_object_type($info['object_type']);
+    }
+  }
+}
+
+/**
+ * Format field value
+ */
+function notifications_field_format_value($type, $value, $html = TRUE, $subscription_type = NULL) {
+  $format_value = _notifications_field_callback($type, 'format callback', $value, $html, $subscription_type);
+  // If not we try options callback, we can get the name from the array of options
+  if (!isset($format_value)) {
+    $options = _notifications_field_callback($type, 'options callback', $subscription_type);
+    if (isset($options)) {
+      $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
+    }
+  }
+  // If nothing got, we return the value
+  if (!isset($format_value)) {
+    $format_value = check_plain($value);
+  }  
 }
 
 /**
@@ -230,28 +287,6 @@ function notifications_field_valid_value($value, $type = NULL) {
   }
   else {
     return TRUE;
-  }
-}
-
-/**
- * Get full info array for field_type that has the property
- * 
- * @param $type
- *   Field type
- * @param $property
- *   Property we are looking for
- * 
- * @return array()
- *   Info array from field or from object type
- */
-function notifications_field_info($type, $property) {
-  if ($info = notifications_field_type($type)) {
-    if (isset($info[$property])) {
-      return $info;
-    }
-    elseif (!empty($info['object_type']) && notifications_object_type($info['object_type'], $property)) {
-      return notifications_object_type($info['object_type']);
-    }
   }
 }
 

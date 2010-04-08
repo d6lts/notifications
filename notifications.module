@@ -1284,7 +1284,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
         $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'absolute' => TRUE));
         $values['unsubscribe-url'] = url($link['href'], $link['options']);
         $values['subscription-type'] = $subscription->get_type('name');
-        $values['subscription-name'] = $subscription->format_name(FALSE);
+        $values['subscription-name'] = $subscription->get_name();
         $values['subscription-description-short'] = $subscription->format_short(FALSE);
         $values['subscription-description-long'] = $subscription->format_long(FALSE);
       }
@@ -1910,16 +1910,6 @@ function notifications_format_subscription($subscription, $format = 'short', $ht
   $subscription = notifications_build_subscription($subscription);
   $method = 'format_' . $format;
   return $subscription->$method($html);
-}
-
-/**
- * Format subscriptions field for display and get some more information
- * 
- * @return array()
- *   Array with 'name' and 'value' elements
- */
-function notifications_format_subscription_field($type, $value, $html = TRUE, $subscription_type = NULL) {
-  return Notifications_Subscription::format_field($type, $value, $html, $subscription_type);
 }
 
 /**
