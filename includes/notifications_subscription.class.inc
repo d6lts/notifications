@@ -324,6 +324,22 @@ class Notifications_Subscription extends Messaging_Object {
     $this->set_field($this->build_field($type, $value));
   }
   /**
+   * Add field arguments from url
+   * 
+   * @param $fields
+   *   String of field names separated by commas
+   * @param $values
+   *   String of field values separated by commas
+   */
+  function add_field_args($fields, $values) {
+    $names = explode(',', $fields);
+    $params = explode(',', $values);
+    foreach ($names as $index => $type) {
+      $this->add_field($type, isset($params[$index]) ? $params[$index] : NULL);
+    }    
+  }
+  
+  /**
    * Set a field. 
    * - If the field has already a key (index) it will replace an existing one with the same key
    * - If not key, it will be added to the field list with an ordinary key generated
@@ -718,6 +734,39 @@ class Notifications_Subscription extends Messaging_Object {
       $field['#description'] = $info['description'];
     }
     return $field;
+  }
+  
+  /**
+   * Generate a subscribe confirmation form
+   * 
+   * To handle submission from this form see method build_submission()
+   */
+  function form_subscribe() {
+    // Pass on whole subscription
+    $form['subscription'] = array('#type' => 'value', '#value' => $this);
+    // Fields to be saved on submit
+    $form['subscription_fields'] = array('#type' => 'value', '#value' => array('send_interval', 'send_method'));
+    // The subscription description will be added here
+    $form['info'] = $this->form_info(); 
+    // Additional parameters
+    $form['send_interval'] = array(
+      '#type' => 'select',
+      '#title' => t('Send interval'),
+      '#options' => notifications_send_intervals($account),
+      '#default_value' => $this->send_interval,
+    );
+    $send_methods = notifications_send_methods($account);
+    $form['send_method'] = array(
+      '#type' => 'select',
+      '#title' => t('Send method'),
+      '#options' => $send_methods,
+      '#default_value' => $this->send_method,
+      '#disabled' => count($send_methods) < 2,
+    );
+  
+    $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
+    $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
+    return $form;    
   }
   /**
    * Display a form field for a notifications_field

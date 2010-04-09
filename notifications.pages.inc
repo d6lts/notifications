@@ -198,10 +198,11 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   $subscription = notifications_build_subscription(array(
     'uid' => $account->uid,
     'type' => $type,
-    'fields' => notifications_field_args($fields, $values),
     'send_interval' => $send_interval ? $send_interval : notifications_user_setting('send_interval', $account),
     'send_method' => $send_method ? $send_method : notifications_user_setting('send_method', $account),
   ));
+  $subscription->add_field_args($fields, $values);
+  $subscription->set_account($account);
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Display subscription information
     if (!empty($_GET['confirm']) && $signed) {
@@ -213,7 +214,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
     else {
       // Ask for confirmation
       drupal_set_title(t('Confirm your subscription'));
-      return drupal_get_form('notifications_form_subscribe_confirm', $subscription, $account);
+      return drupal_get_form('notifications_form_subscribe_confirm', $subscription);
     }
   }
   else {
@@ -227,32 +228,8 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
 /**
  * Form for subscription confirmation
  */
-function notifications_form_subscribe_confirm($form_state, $subscription, $account) {
-  // Pass on whole subscription
-  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
-  // Fields to be saved on submit
-  $form['subscription_fields'] = array('#type' => 'value', '#value' => array('send_interval', 'send_method'));
-  // The subscription description will be added here
-  $form['info'] = notifications_subscription_info_field($subscription); 
-  // Additional parameters
-  $form['send_interval'] = array(
-    '#type' => 'select',
-    '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals($account),
-    '#default_value' => $subscription->send_interval,
-  );
-  $send_methods = _notifications_send_methods($account);
-  $form['send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => $send_methods,
-    '#default_value' => $subscription->send_method,
-    '#disabled' => count($send_methods) < 2,
-  );
-
-  $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
-  $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
-  return $form;
+function notifications_form_subscribe_confirm($form_state, $subscription) {
+  return $subscription->form_subscribe();
 }
 
 /**

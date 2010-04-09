@@ -17,12 +17,11 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
   $subscription = Notifications_Subscription::build((object)array(
     'uid' => $account->uid,
     'type' => $type,
-    'fields' => notifications_field_args($fields, $values),
     'send_interval' => $send_interval,
     'send_method' => $send_method,
   ));
   $subscription->set_account($account);
-
+  $subscription->add_field_args($fields, $values);
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Ask for confirmation
     drupal_set_title(t('Confirm your subscription'));
@@ -48,7 +47,7 @@ function notifications_anonymous_form_subscribe($form_state, $subscription, $acc
   $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
   
   // The subscription description will be added here
-  $form['info'] = notifications_subscription_info_field($subscription); 
+  $form['info'] = $subscription->form_info(); 
   // Additional parameters
   if ($send_intervals = notifications_send_intervals($account)) {
     if (count($send_intervals) == 1) {

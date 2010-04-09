@@ -1,0 +1,6 @@
+; $Id$
+name = Content Type extension
+description = Provides different events and templates for each content type
+package = "Notifications"
+dependencies[] = notifications_content
+core = 6.x

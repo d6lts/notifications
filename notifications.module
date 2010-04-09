@@ -452,20 +452,6 @@ function notifications_event_enabled($key, $default = TRUE) {
 }
 
 /**
- * Process URL arguments and return an array of field/value pairs
- * 
- * @param $fields
- *   Field names separated by commas.
- * @param $values
- *   Values separated by commas
- */
-function notifications_field_args($fields, $values) {
-  $names = explode(',', $fields);
-  $params = explode(',', $values);
-  return array_combine($names, $params);  
-}
-
-/**
  * Implementation of hook_exit()
  * 
  * This is where the immediate sending is done if enabled, so we are sure all other modules
