@@ -391,7 +391,7 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
 }
 
 /**
- * Process subscriptions events
+ * Pass on event to queue processing and run it to the end
  * 
  * @param $event
  *   Array with event parameters
@@ -401,6 +401,7 @@ function notifications_event($event) {
     $event = notifications_event_build($event);
   }
   if ($event) {
+    notifications_include('event.inc');
     notifications_event_trigger($event);
     return $event;
   }
@@ -408,16 +409,18 @@ function notifications_event($event) {
 }
 
 /**
- * Build event object
+ * Build event object from array
  */
 function notifications_event_build($params) {
+  notifications_include('event.inc');
   global $user, $language;
+  
   // Fill in event with default values
   $params += array(
     'uid' => $user->uid,
     'language' => $language->language,
-    'type' => '', // Object/event type
-    'action' => '', // Action that happened to the object
+    'type' => 'default', // Object/event type
+    'action' => 'default', // Action that happened to the object
     'save' => TRUE,
     'queue' => TRUE,
   );
@@ -430,34 +433,6 @@ function notifications_event_build($params) {
   else {
     // Event type not enabled, return nothing
     return NULL;
-  }
-}
-
-/**
- * Trigger event. Save, run queue query, etc...
- */
-function notifications_event_trigger($event) {
-  // Notify other modules we are about to trigger some subscriptions event
-  // Modules can do cleanup operations or modify event properties
-  module_invoke_all('notifications_event', 'trigger', $event);
-  
-  // Store event, unles marked not to be saved 
-  if ($event->save) {
-    $event->save();
-  }
-  // Send event to queue for subscriptions, unless marked not to
-  if ($event->queue) {
-    notifications_include('query.inc');
-    $count = notifications_query_queue_event($event);
-    // Now update event counter with rows in notifications_queue or delete if no rows
-    if ($count) {
-      $event->update_counter($count);
-      // If immediate sending enabled, store eid for sending on page exit.
-      notifications_send_immediate($event->eid);
-    }
-    else {
-      $event->delete();
-    }
   }
 }
 
@@ -477,36 +452,6 @@ function notifications_event_enabled($key, $default = TRUE) {
 }
 
 /**
- * Get template for event
- * 
- * @param $event
- *   It may be event object or event type key
- */
-function notifications_event_get_template($event) {
-  $info = &messaging_static(__FUNCTION__);
-  if (!isset($info)) {
-    $info = variable_get('notifications_event_template', array());
-  }
-  if (is_object($event)) {
-    // An event object will know about its template itself
-    return $event->get_template();
-  }  
-  else {
-    // $event is just the type key
-    if (!isset($info[$event])) {
-      if ($template = notifications_event_types($event, 'template')) {
-        // Use default value from event definition
-        $info[$event] = $template;
-      }
-      else {
-        $info[$event] = FALSE;
-      }
-    }
-    return $info[$event];
-  }
-}
-
-/**
  * Process URL arguments and return an array of field/value pairs
  * 
  * @param $fields
@@ -520,21 +465,6 @@ function notifications_field_args($fields, $values) {
   return array_combine($names, $params);  
 }
 
-
-/**
- * Store / return events for immediate sending
- */
-function notifications_send_immediate($eid = 0) {
-  $events = &messaging_static(__FUNCTION__); ;
-  
-  if (!$eid) {
-    return $events;
-  }
-  elseif (variable_get('notifications_send_immediate', 0)) {
-    $events[] = $eid;
-  }
-}
-
 /**
  * Implementation of hook_exit()
  * 
@@ -542,11 +472,9 @@ function notifications_send_immediate($eid = 0) {
  * have finished node processing when node update.
  */
 function notifications_exit() {
-  if ($events = notifications_send_immediate()) {
-    notifications_include('process.inc');
-    foreach ($events as $eid) {
-      notifications_process_rows(array('cron' => 1, 'eid' => $eid, 'send_interval' => 0));
-    }    
+  // We don't load the function if not loaded, which means no events were triggered
+  if (function_exists('notifications_event_process_immediate')) {
+    notifications_event_process_immediate();
   }
 }
 
@@ -1340,7 +1268,7 @@ function notifications_token_list($type = 'all') {
 }
 
 /**
- * Get event types
+ * Get event types. Invoking this function will also load the event API
  * 
  * @param $typekey
  *   Event type key
@@ -1353,6 +1281,7 @@ function notifications_event_types($typekey = NULL, $property = NULL, $disabled 
   $info = &notifications_info('event types');
   $enabled = &messaging_static(__FUNCTION__ . '_enabled');
   if (!isset($enabled)) {
+    notifications_include('event.inc');
     $enabled = array();
     foreach ($info as $key => &$event) {
       if (empty($event['disabled']) && notifications_event_enabled($key)) {
@@ -2009,7 +1938,7 @@ function notifications_include($file, $module = 'notifications') {
  * - We cache all the results 
  */
 function &notifications_info($name, $param = NULL, $refresh = FALSE) {
-  $info = &messaging_static($name);
+  $info = &messaging_static('notifications_info_' . $name);
   if (!isset($info) || $refresh) {
     $info = array();
     foreach (module_implements('notifications') as $module) {

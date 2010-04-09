@@ -240,3 +240,145 @@ function notifications_tools_queue_process($op) {
       break;      
   }
 }
+
+/**
+ * Template testing form
+ */
+function notifications_tools_template_test_form($form_state) {
+  global $user;
+  module_load_include('admin.inc', 'notifications');
+  if (!empty($form_state['values']['message'])) {
+    $form['showmessage'] = array(
+      '#title' => t('Message'),
+      '#type' => 'item',
+      '#value' => _notifications_tools_format($form_state['values']['message']),
+    );
+  }
+  /*
+  $form['event'] = array(
+    '#title' => t('Select event type'),
+    '#type' => 'select',
+    '#options' => notifications_event_types(NULL, 'description'),
+    '#default_value' => isset($form_state['values']['event']) ? $form_state['values']['event'] : NULL,
+  );
+  */
+  $form['type'] = array(
+    '#title' => t('Node type'),
+    '#type' => 'select',
+    '#options' => node_get_types('names'),
+    '#default_value' => isset($form_state['values']['type']) ? $form_state['values']['type'] : NULL,
+  );
+  $form['action'] = array(
+    '#title' => t('Action'),
+    '#type' => 'select',
+    '#options' => notifications_info('event actions'),
+    '#default_value' => isset($form_state['values']['action']) ? $form_state['values']['action'] : NULL,
+  );
+
+  $form['send_method'] = array(
+    '#title' => t('Send method'),
+    '#type' => 'select',
+    '#options' => notifications_send_methods($user),
+  );
+  $form['node'] = array(
+    '#title' => t('Select node'),
+    '#type' => 'textfield',
+    '#default_value' => isset($form_state['values']['node']) ? $form_state['values']['node'] : NULL,
+    '#description' => t("Enter a node id. If empty, a dummy node will be generated with title 'Test title' and body 'Test body line' (x 5 lines)"),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Try'),
+    '#submit' => array('notifications_tools_template_test_submit'),
+    '#description' => t('This test will generate fake events so only advised for development sites.'),
+  );
+  return $form;
+}
+
+/**
+ * Process template test
+ */
+function notifications_tools_template_test_submit(&$form, &$form_state) { 
+  global $user;
+  notifications_include('process.inc');
+
+  // Load node or build fake node
+  if ($nid = (int)$form_state['values']['node']) {
+    if ($node = node_load($nid)) {
+      drupal_set_message(t('Loaded node type @type', array('@type' => $node->type)));
+    }
+  }
+  if (empty($node)) {
+    $type = $form_state['values']['type'];
+    $node = _notifications_tools_generate($type);
+    $node->nid = 1;
+    $node->uid = $user->uid;
+    $node->type = $type;
+  }
+  // Build fake event for node/action
+  $event = notifications_event_build(array(
+     'eid' => 1,
+     'module' => 'node',
+     'type' => 'node',
+     'action' => $form_state['values']['action'],
+  ));
+  if ($event) {
+    $event->add_object('node', $node);
+    
+    // Add comment if needed
+    if ($event->action == 'comment') {
+      $comment = _notifications_tools_generate('comment');
+      $comment->cid = 1;
+      $comment->uid = $user->uid;
+      $comment->nid = $node->nid;
+      $event->add_object('comment', $comment);
+    }
+    // Give a chance to notifications_nodetype to alter this event
+    module_invoke_all('notifications_event', 'trigger', $event);
+  }
+  if (!$event) {
+    drupal_set_message(t('That event type is not enabled.'), 'warning');
+    return;
+  }
+  elseif (!$event->queue) {
+    drupal_set_message(t('That event type is not enabled though we try building a message for it.'), 'warning');
+  }
+
+  // Build the message and store it
+  $send_method = $form_state['values']['send_method'];
+  if ($destination = messaging_account_build_destination($user, $send_method)) {
+    $message = notifications_process_build_simple_message($destination, $event, array(), 'notifications', TRUE);
+    // Store message and rebuild
+    $form_state['values']['message'] = $message;
+    $form_state['rebuild'] = TRUE;  
+  }
+  else {
+    drupal_set_message(t('Cannot build destination.'), 'warning');
+  }
+
+}
+
+/**
+ * Generate fake node or comment
+ */
+function _notifications_tools_generate($type) {
+  $node = new Stdclass();
+  $node->title = t('Test title for @type', array('@type' => $type));
+  for ($i = 1; $i <= 5; $i++) {
+    $body[] = t('Test body line @number for @type.', array('@number' => $i, '@type' => $type)); 
+  }
+  $node->body = implode("\n", $body);
+  $node->teaser = node_teaser($node->body);
+  return $node;
+}
+
+/**
+ * Format resulting message array as table
+ */
+function _notifications_tools_format($message) {
+  $rows = array();
+  foreach ($message as $key => $value) {
+    $rows[] = array($key, is_array($value) ? _notifications_tools_format($value) : '<pre>' . check_plain($value) . '</pre>');
+  }
+  return theme('table', array(), $rows);
+}

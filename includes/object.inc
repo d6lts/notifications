@@ -54,10 +54,11 @@ function notifications_object_subscribe_options($type, $object, $account = NULL)
 /**
  * Build subscribe / unsubscribe options for object
  */
-function notifications_object_subscribe_links($type, $object, $account, $options = array()) {
+function notifications_object_subscribe_links($type, $object, $account, $subscribe_options = array(), $unsubscribe_options = array()) {
   $links = array();
   if ($subscriptions = notifications_object_user_subscriptions($type, $object, $account)) {
     foreach ($subscriptions as $index => $subscription) {
+      $options = $subscription->is_instance() ? $unsubscribe_options : $subscribe_options;
       $links['notitications_' . $index] = $subscription->build_link($options);
     }
   }

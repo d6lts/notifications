@@ -355,8 +355,9 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
 function notifications_ui_subscribe_links($type, $object) {
   global $user;
   notifications_include('object.inc');
-  $options = notifications_ui_link_options();
-  return notifications_object_subscribe_links($type, $object, $user, $options);
+  $subscribe = notifications_ui_link_options('subscribe');
+  $unsubscribe = notifications_ui_link_options('unsubscribe');
+  return notifications_object_subscribe_links($type, $object, $user, $subscribe, $unsubscribe);
 }
 
 /**
@@ -368,22 +369,25 @@ function notifications_ui_subscribe_links($type, $object) {
  * @see notifications_get_links()
  */
 function notifications_ui_get_link($type, $options) {
-  $options += notifications_ui_link_options();
+  $options += notifications_ui_link_options($type);
   return notifications_get_link($type, $options);
 }
 
 /**
  * Get options for links
+ * 
+ * @param $type
+ *   'subscribe' or 'unsubscribe'
  */
-function notifications_ui_link_options() {
-  $options[] = array('destination' => $_GET['q']);
+function notifications_ui_link_options($type) {
+  $links = array('destination' => $_GET['q']);
   if ($type == 'subscribe' && variable_get('notifications_ui_subscribe_links', 0)) {
-    $options[] = array('signed' => TRUE, 'confirm' => FALSE);
+    $links += array('signed' => TRUE, 'confirm' => FALSE);
   }
   if ($type == 'unsubscribe' && variable_get('notifications_ui_unsubscribe_links', 0)) {
-    $options[] = array('signed' => TRUE, 'confirm' => FALSE);
+    $links += array('signed' => TRUE, 'confirm' => FALSE);
   }  
-  return $options;
+  return $links;
 }
 
 /**

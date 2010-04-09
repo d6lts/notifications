@@ -97,13 +97,9 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
   $event['params']['text'] = array('subject' => $subject, 'main' => $body);
   $event['params']['text']['digest'] = $body ? $subject . ': ' . $body : $subject;
   $event['params'] = array_merge($event['params'], $params);
-
-  $event  = notifications_event($event);
-
-  // Store row in notifications queue and for immediate sending
+  // Build event and store row in notifications queue and for immediate sending
+  $event = notifications_event_build($event);  
   notifications_lite_queue_event($event);
-  module_invoke_all('notifications_event', 'queued', $event);
-  notifications_send_immediate($event->eid);
 }
 
 /**
@@ -137,7 +133,7 @@ function notifications_lite_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL
 }
 
 /**
- * Insert lite notification into queue.
+ * Insert lite notification into queue if we have a valid destination
  * 
  * This just insert a row into notifications_queue table for this event, so it will be processed on cron
  * The message information (subject, body) will be in the event itself, as serialized parameters
@@ -146,6 +142,7 @@ function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
   $account = notifications_load_user($uid);
   if ($destination = messaging_account_build_destination($account)) {
+    $event->save();
     $queue = array(
       'mdid' => $destination->mdid,
       'uid' => $uid,
@@ -159,7 +156,10 @@ function notifications_lite_queue_event($event) {
       'created' => time(),
       'conditions' => 0,
     );
-    return drupal_write_record('notifications_queue', $queue);
+    drupal_write_record('notifications_queue', $queue);
+    // Run hooks and store for immediate sending
+    module_invoke_all('notifications_event', 'queued', $event);
+    notifications_event_send_immediate($event);
   }
 }
 

@@ -50,7 +50,7 @@ function notifications_content_update_6002() {
   if ($events = variable_get('notifications_events', array())) {
     $enabled = array();
     foreach ($events as $type => $type_info) {
-      foreach ($type_info as $action => $enabled) {
+      foreach ($type_info as $action => $status) {
         $enabled[$type . '-' . $action] = 1;
       }
     }
