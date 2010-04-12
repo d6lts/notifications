@@ -304,7 +304,7 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
 
   // Load node or build fake node
   if ($nid = (int)$form_state['values']['node']) {
-    if ($node = node_load($nid)) {
+    if (($node = node_load($nid)) && node_access('view', $node)) {
       drupal_set_message(t('Loaded node type @type', array('@type' => $node->type)));
     }
   }
@@ -316,31 +316,26 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
     $node->type = $type;
   }
   // Build fake event for node/action
-  $event = notifications_event_build(array(
+  $action = $form_state['values']['action'];
+  $objects['node'] = $node;
+  // Add comment if needed
+  if ($action == 'comment') {
+    $comment = _notifications_tools_generate('comment');
+    $comment->cid = 1;
+    $comment->uid = $user->uid;
+    $comment->nid = $node->nid;
+    $objects['comment'] = $comment;
+  }
+  $event = notifications_event_build(
+    array(
      'eid' => 1,
      'module' => 'node',
      'type' => 'node',
-     'action' => $form_state['values']['action'],
-  ));
-  if ($event) {
-    $event->add_object('node', $node);
-    
-    // Add comment if needed
-    if ($event->action == 'comment') {
-      $comment = _notifications_tools_generate('comment');
-      $comment->cid = 1;
-      $comment->uid = $user->uid;
-      $comment->nid = $node->nid;
-      $event->add_object('comment', $comment);
-    }
-    // Give a chance to notifications_nodetype to alter this event
-    module_invoke_all('notifications_event', 'trigger', $event);
-  }
-  if (!$event) {
-    drupal_set_message(t('That event type is not enabled.'), 'warning');
-    return;
-  }
-  elseif (!$event->queue) {
+     'action' => $action,
+    ),
+    $objects
+  );
+  if (!$event->queue) {
     drupal_set_message(t('That event type is not enabled though we try building a message for it.'), 'warning');
   }
 
@@ -363,12 +358,19 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
  */
 function _notifications_tools_generate($type) {
   $node = new Stdclass();
-  $node->title = t('Test title for @type', array('@type' => $type));
+  $title = t('Test title for @type', array('@type' => $type));
   for ($i = 1; $i <= 5; $i++) {
     $body[] = t('Test body line @number for @type.', array('@number' => $i, '@type' => $type)); 
   }
-  $node->body = implode("\n", $body);
-  $node->teaser = node_teaser($node->body);
+  if ($type == 'comment') {
+    $node->subject = $title;
+    $node->comment = implode("\n", $body);
+  }
+  else {
+    $node->title = $title;
+    $node->body = implode("\n", $body);
+    $node->teaser = node_teaser($node->body);
+  }
   return $node;
 }
 

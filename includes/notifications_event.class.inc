@@ -32,6 +32,7 @@ class Notifications_Event extends Messaging_Cached_Object {
   // Processing options, not saved
   public $save = TRUE;
   public $queue = TRUE;
+  public $queued = FALSE;
   // Will be set if any of the objects cannot be loaded
   public $incomplete = FALSE;
   // Event text for composition

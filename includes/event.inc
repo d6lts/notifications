@@ -209,19 +209,20 @@ function notifications_event_trigger($event) {
   // Store event, unles marked not to be saved 
   if ($event->save) {
     $event->save();
-  }
-  // Send event to queue for subscriptions, unless marked not to
-  if ($event->queue) {
-    notifications_include('query.inc');
-    $count = notifications_query_queue_event($event);
-    // Now update event counter with rows in notifications_queue or delete if no rows
-    if ($count) {
-      $event->update_counter($count);
-      // If immediate sending enabled, store it for sending on page exit.
-      notifications_event_send_immediate($event);
-    }
-    else {
-      $event->delete();
+    // Send event to queue for subscriptions, unless marked not to
+    if ($event->queue) {
+      $event->queued = TRUE;
+      notifications_include('query.inc');
+      $count = notifications_query_queue_event($event);
+      // Now update event counter with rows in notifications_queue or delete if no rows
+      if ($count) {
+        $event->update_counter($count);
+        // If immediate sending enabled, store it for sending on page exit.
+        notifications_event_send_immediate($event);
+      }
+      else {
+        $event->delete();
+      }
     }
   }
 }

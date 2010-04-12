@@ -395,23 +395,29 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
  * 
  * @param $event
  *   Array with event parameters
+ * @param $objects
+ *   Array of event objects (type => $object)
  */
-function notifications_event($event) {
+function notifications_event($event, $objects = array()) {
   if (is_array($event)) {
-    $event = notifications_event_build($event);
+    $event = notifications_event_build($event, $objects);
   }
-  if ($event) {
+  if ($event->save || $event->queue) {
     notifications_include('event.inc');
-    notifications_event_trigger($event);
-    return $event;
+    notifications_event_trigger($event);   
   }
-  
+  return $event;
 }
 
 /**
- * Build event object from array
+ * Build event object from array of data
+ * 
+ * @param $params
+ *   Event properties
+ * @param $objects
+ *   Array of event objects (type => $object)
  */
-function notifications_event_build($params) {
+function notifications_event_build($params, $objects = array()) {
   notifications_include('event.inc');
   global $user, $language;
   
@@ -421,23 +427,28 @@ function notifications_event_build($params) {
     'language' => $language->language,
     'type' => 'default', // Object/event type
     'action' => 'default', // Action that happened to the object
-    'save' => TRUE,
-    'queue' => TRUE,
   );
   $params += array('typekey' => $params['type'] . '-' . $params['action']);
   // Check whether we have to save and queue this event, defaults to yes if not set
   // If not enabled, do not store nor queue this event, can be changed by plug-in modules
-  if (notifications_event_enabled($params['typekey'])) {
-    return new Notifications_Event($params);
+  $enabled = notifications_event_enabled($params['typekey']);
+  $params += array('save' => $enabled, 'queue' => $enabled);
+  $event = new Notifications_Event($params);
+  foreach ($objects as $type => $object) {
+    $event->add_object($type, $object);
   }
-  else {
-    // Event type not enabled, return nothing
-    return NULL;
-  }
+  // Modules can do cleanup operations or modify event properties
+  module_invoke_all('notifications_event', 'build', $event);
+  return $event;
 }
 
 /**
  * Check whether we have enabled events of this type
+ * 
+ * @param $key
+ *   Event type key
+ * @param $default
+ *   Default value to return if not set
  */
 function notifications_event_enabled($key, $default = TRUE) {
   $info = variable_get('notifications_event_enabled', array());

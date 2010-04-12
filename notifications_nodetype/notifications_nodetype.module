@@ -75,9 +75,9 @@ function notifications_nodetype_notifications($op, $event = NULL, $arg1 = NULL, 
  * Update event key for node events so we can handle the templates for it later.
  */
 function notifications_nodetype_notifications_event($op, $event = NULL) {
-  if ($op == 'trigger' && $event->type == 'node' && in_array($event->action, array('insert', 'update', 'comment'))) {
+  if ($op == 'build' && $event->type == 'node' && in_array($event->action, array('insert', 'update', 'comment'))) {
     $node = $event->get_object('node');
-    // Fix event key and check whether this is enabled
+    // Fix event key and check again whether this is enabled
     $event->typekey = 'node-' . $node->type . '-' . $event->action;
     if (!notifications_event_enabled($event->typekey)) {
       $event->save = $event->queue = FALSE;
