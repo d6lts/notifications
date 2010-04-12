@@ -527,51 +527,51 @@ function notifications_content_notifications_templates($op, $type = 'all', $lang
         case 'notifications-event-node':
         case 'notifications-event-node-update':          
           return array(
-            'subject' => t('Update for [type-name]: [title]'),
+            'subject' => t('Update for [type-name]: [title]', array(), $language->language),
             'main' => array(
               '[node-teaser]',
-              t('Read more [node-url]'),
+              t('Read more [node-url]', array(), $language->language),
             ),
             'digest' => array(
               '[title]',
-              'Read more [node-url]',
+              t('Read more [node-url]', array(), $language->language),
             ),
           );
         case 'notifications-event-node-insert':
           return array(
-            'subject' => t('New [type-name]: [title]'),
+            'subject' => t('New [type-name]: [title]', array(), $language->language),
             'main' => array(
               '[node-teaser]',
-              t('Read more [node-url]'),            
+              t('Read more [node-url]', array(), $language->language),            
             ),
             'digest' => array(
               '[title]',
-              'Read more [node-url]',
+              t('Read more [node-url]', array(), $language->language),
             ),
           );             
         case 'notifications-event-node-comment': 
           return array(
-            'subject' => t('Comment for [type-name]: [title]'),
+            'subject' => t('Comment for [type-name]: [title]', array(), $language->language),
             'main' => array(
-              t('Comment by [comment-author-name]: [comment-title]'),
+              t('Comment by [comment-author-name]: [comment-title]', array(), $language->language),
               '[comment-body]',
-              t('Read more [comment-url]'),
+              t('Read more [comment-url]', array(), $language->language),
             ),
             'digest' => array(
               t('New Comment on [title] by [comment-author-name] titled [comment-title]'),
-              t('Read more [comment-url]'),
+              t('Read more [comment-url]', array(), $language->language),
             ),
           );
         case 'notifications-digest-node-nid':
           // Define only group title and group footer (closing)
           // The 'closing' statement is typically a 'read more' link
           return array(
-            'title' => t('Updates for [type-name]: [title]'),
-            'closing' => t('Read more [node-url]'),
+            'title' => t('Updates for [type-name]: [title]', array(), $language->language),
+            'closing' => t('Read more [node-url]', array(), $language->language),
           );
         case 'notifications-digest-node-type':
           return array(
-            'title' => t('New content of type [type-name] has been submitted'),
+            'title' => t('New content of type [type-name] has been submitted', array(), $language->language),
             'closing' => '<none>',
           );       
       }

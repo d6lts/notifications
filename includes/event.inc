@@ -80,13 +80,13 @@ function notifications_event_get_template($event) {
  * @return
  *   Part of the message with tokens for replacement.
  */
-function notifications_event_message_part($event, $key, $method, $module = 'notifications', $debug = FALSE) {
+function notifications_event_message_part($event, $key, $method, $language, $module = 'notifications', $debug = FALSE) {
   // If event passed check for predefined text or get optional keys from event
   if ($text = $event->get_text($key)) {
     return $text;
   }
   elseif ($template = notifications_event_get_template($event)) {
-    $text = messaging_template_text_part($template, $key, $method);
+    $text = messaging_template_text_part($template, $key, $method, $language);
   }
   // Default, template not found, return some information if debugging
   if (isset($text)) {

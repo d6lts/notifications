@@ -475,6 +475,7 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $this->destination_object;
   }
+
   /**
    * Get language object
    */
@@ -490,6 +491,7 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $this->_language;
   }
+
   /**
    * Set destination object
    */
@@ -823,7 +825,7 @@ class Notifications_Subscription extends Messaging_Object {
         }
         break;
       default:
-        $this->$name = $value;
+        parent::__set($name, $value);
     }
   }
   /**
@@ -834,6 +836,8 @@ class Notifications_Subscription extends Messaging_Object {
       case 'fields':
         return $this->get_conditions();
         break;
+      default:
+        return parent::__get($name);
     }
   }
   // Get table name for storage

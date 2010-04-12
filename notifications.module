@@ -1058,7 +1058,8 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
     case 'message keys':
       return notifications_get_templates('parts', $arg1);
     case 'messages':
-      return notifications_get_templates('defaults', $arg1);
+      // The second argument should be language object
+      return notifications_get_templates('defaults', $arg1, $arg2);
     case 'tokens':
       return notifications_get_templates('tokens', $arg1);
     case 'method update':
@@ -1120,26 +1121,26 @@ function notifications_notifications_templates($op, $type = NULL, $language = NU
       // Event notifications
       if ($type == 'notifications-event') {
         return array(
-          'subject' => t('Event notification for [user] from [site-name]'),
-          'header' => t("Greetings [user],"),
-          'main' => t("A item to which you are subscribed has been updated"),
+          'subject' => t('Event notification for [user] from [site-name]', array(), $language->language),
+          'header' => t("Greetings [user],", array(), $language->language),
+          'main' => t("A item to which you are subscribed has been updated", array(), $language->language),
           'footer' => array(
-              t('This is an automatic message from [site-name]'),
-              t('To manage your subscriptions, browse to [subscriptions-manage]'),
-              t('You can unsubscribe at [unsubscribe-url]'),
+              t('This is an automatic message from [site-name]', array(), $language->language),
+              t('To manage your subscriptions, browse to [subscriptions-manage]', array(), $language->language),
+              t('You can unsubscribe at [unsubscribe-url]', array(), $language->language),
           ),
         );
       }
       // Digested messages
       if ($type == 'notifications-digest') {
         return array(
-          'subject' => t('[site-name] subscription update for [user]'),
-          'header' => t("Greetings, [user].\n\nThese are your messages"),
-          'main' => t("A [type] has been updated: [title]\n\n[event_list]"),
+          'subject' => t('[site-name] subscription update for [user]', array(), $language->language),
+          'header' => t("Greetings, [user].\n\nThese are your messages", array(), $language->language),
+          'main' => t("A [type] has been updated: [title]\n\n[event_list]", array(), $language->language),
           'closing' => '...',
           'footer' => array(
-            t('This is an automatic message from [site-name]'),
-            t('To manage your subscriptions, browse to [subscriptions-manage]'),
+            t('This is an automatic message from [site-name]', array(), $language->language),
+            t('To manage your subscriptions, browse to [subscriptions-manage]', array(), $language->language),
           ),        
         );
       }

@@ -30,6 +30,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
    * Play with creating, retrieving, deleting a pair subscriptions
    */
   function testNotificationsTemplates() {
+    global $language;
     // Create user to subscribe and get notifications
     $user = $this->drupalCreateUser(); 
     $send_method = 'simple';
@@ -83,11 +84,11 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $event1->text['test'] = 'Text part';
     $digest_line = 'type key [type-name] [title] [site-name]';
     $event1->text['digest'] = $digest_line;
-    $part = notifications_event_message_part($event1, 'test', 'test');
+    $part = notifications_event_message_part($event1, 'test', 'test', $language);
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
     $digest_info = notifications_digest_event_info($event1); // Fields will be type, action
     // function notifications_digest_message_part($key, $method, $type, $field, $module = 'notifications')
-    $part = notifications_digest_line($event1, 'test');
+    $part = notifications_digest_line($event1, 'test', $language);
     $this->assertEqual($part, $digest_line, 'Retrieved testing message part: '. $part);
     $text = messaging_template_text_replace('[title] [type-name] [site-name]', array('node' => $node1));
     $this->assertEqual($text, "$node1->title $node1->type Test Site", 'Text replacement for node object');

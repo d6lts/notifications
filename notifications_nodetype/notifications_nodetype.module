@@ -148,25 +148,25 @@ function notifications_nodetype_notifications_templates($op, $type = 'all', $lan
         );
         switch ($action) {
           case 'insert':
-            $text['subject'] = t('New @name: [title]', $variables);
+            $text['subject'] = t('New @name: [title]', $variables, $language->language);
             break;           
           case 'comment': 
             $text = array(
-              'subject' => t('Comment for @name: [title]', $variables),
+              'subject' => t('Comment for @name: [title]', $variables, $language->language),
               'main' => array(
-                t('Comment by [comment-author-name]: [comment-title]'),
+                t('Comment by [comment-author-name]: [comment-title]', array(), $language->language),
                 '[comment-body]',
-                t('Read more [comment-url]'),
+                t('Read more [comment-url]', array(), $language->language),
               ),
               'digest' => array(
-                t('New Comment on [title] by [comment-author-name] titled [comment-title]'),
-                t('Read more [comment-url]'),
+                t('New Comment on [title] by [comment-author-name] titled [comment-title]', array(), $language->language),
+                t('Read more [comment-url]', array(), $language->language),
               ),
             );
             break;
           case 'update':          
           default:
-            $text['subject'] = t('Update for @name: [title]', $variables);
+            $text['subject'] = t('Update for @name: [title]', $variables, $language->language);
             break;    
         }
         return $text;

@@ -245,7 +245,8 @@ function notifications_tools_queue_process($op) {
  * Template testing form
  */
 function notifications_tools_template_test_form($form_state) {
-  global $user;
+  global $user, $language;
+
   module_load_include('admin.inc', 'notifications');
   if (!empty($form_state['values']['message'])) {
     $form['showmessage'] = array(
@@ -279,6 +280,12 @@ function notifications_tools_template_test_form($form_state) {
     '#title' => t('Send method'),
     '#type' => 'select',
     '#options' => notifications_send_methods($user),
+  );
+  $form['language'] = array(
+    '#title' => t('Language'),
+    '#type' => 'select',
+    '#options' => messaging_template_language_list(),
+    '#default_value' => isset($form_state['values']['language']) ? $form_state['values']['language'] : $language->language,
   );
   $form['node'] = array(
     '#title' => t('Select node'),
@@ -342,6 +349,7 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
   // Build the message and store it
   $send_method = $form_state['values']['send_method'];
   if ($destination = messaging_account_build_destination($user, $send_method)) {
+    $destination->language = $form_state['values']['language'];
     $message = notifications_process_build_simple_message($destination, $event, array(), 'notifications', TRUE);
     // Store message and rebuild
     $form_state['values']['message'] = $message;

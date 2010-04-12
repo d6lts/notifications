@@ -613,12 +613,13 @@ function notifications_process_build_simple($destination, $events, $subscription
 function notifications_process_build_simple_message($destination, $event, $subscriptions, $module = 'notifications', $debug = FALSE) {
   $send_method = $destination->method;
   $account = $destination->get_account();
+  $language = $destination->get_language();
   // Create message. Do all this in one replacemente
   $text = array(
-    'subject' => notifications_event_message_part($event, 'subject', $send_method, $module, $debug),
-    'header' => notifications_event_message_part($event , 'header', $send_method, $module, $debug),
-    'event'  => notifications_event_message_part($event, 'main', $send_method, $module, $debug),
-    'footer' => notifications_event_message_part($event, 'footer', $send_method, $module, $debug),
+    'subject' => notifications_event_message_part($event, 'subject', $send_method, $language, $module, $debug),
+    'header' => notifications_event_message_part($event , 'header', $send_method, $language, $module, $debug),
+    'event'  => notifications_event_message_part($event, 'main', $send_method, $language, $module, $debug),
+    'footer' => notifications_event_message_part($event, 'footer', $send_method, $language, $module, $debug),
   );
   // We pass only the first subscription, which is at least something
   // @ TODO Handle nicely the case where there are more than one subscription
