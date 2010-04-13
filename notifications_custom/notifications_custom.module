@@ -119,6 +119,7 @@ function notifications_custom_notifications($op) {
             'name' => $subs->name,
             'description' => $subs->description,
             'custom' => TRUE,
+            'visibility' => $subs->visibility,
             // This is a simple list of fields
             'fields' => array(),
             // This is an array of fields that have type and value
@@ -193,7 +194,6 @@ function notifications_custom_user_form($edit, $account, $category, $register = 
       );
     }
   }
-  
   return $form;
 }
 
