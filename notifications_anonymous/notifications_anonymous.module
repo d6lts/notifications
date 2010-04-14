@@ -77,6 +77,16 @@ function notifications_anonymous_subscription_access($op = 'create', $subscripti
 }
 
 /**
+ * Get subscribe / unsubscribe link for subscription
+ */
+function notifications_anonymous_subscription_get_link($type, $subscription, $options = array()) {
+  if ($type == 'unsubscribe') {
+    $options += array('type' => 'subscription', 'oid' => $subscription->sid);
+  }
+  return notifications_anonymous_get_link($type, $options);  
+}
+
+/**
  * Menu access callback for destinations
  */
 function notifications_anonymous_destination_access($op, $destination = NULL, $account = NULL) {  
@@ -112,26 +122,15 @@ function notifications_anonymous_block($op = 'list', $delta = 0) {
     return;
   }
   elseif ($op == 'list') {
-    $blocks[0]['info'] = t('Anonymous subscription links');
+    $blocks[0]['info'] = t('Anonymous subscriptions');
     $blocks[0]['cache'] = BLOCK_NO_CACHE;
     return $blocks;
   }
   else if ($op == 'view' && !$user->uid) {
-    if ((arg(0) == 'node') && is_numeric(arg(1)) && ($node = node_load(arg(1))) && notifications_ui_node_options($node->type, 'block')) {
-      // Only display if we have something for the form
-      if ($node_options = notifications_ui_subscribe_options($user, 'node', $node)) {
-        $block['subject'] = t('Subscribe to');
-        $block['content'] = drupal_get_form('notifications_ui_options_form', $node_options, FALSE);
-        return $block;
-      }      
-    }
-    elseif (arg(0) == 'user' && is_numeric(arg(1)) && notifications_ui_account_options('block')) {
-      // Only display if we have something for the form
-      if (($account = user_load(arg(1))) && ($options = notifications_ui_subscribe_options($user, 'user', $account))) {
-        $block['subject'] = t('Subscribe to');
-        $block['content'] = drupal_get_form('notifications_ui_options_form', $options, FALSE);
-        return $block;
-      }       
+    if ($options = notifications_ui_block_options($user)) { 
+      $block['subject'] = t('Subscribe to');
+      $block['content'] = drupal_get_form('notifications_ui_options_form', $options, FALSE);
+      return $block;    
     }
   }  
 }
@@ -202,6 +201,25 @@ function notifications_anonymous_send_intervals() {
 }
 
 /**
+ * Build subscription options as an array of links
+ * 
+ * These links can be added as node link elements or rendered some other way
+ * 
+ * @param $subscription_types
+ *   Array of subscription objects, either actual subscriptions or subscription templates
+ * @param $prefix
+ *   Prefix to use for the link indexes
+ */
+function notifications_anonymous_subscribe_links($type, $object) {
+  global $user;
+  notifications_include('object.inc');
+  // For subscribe, we need confirmation form always, as we need destination address
+  $subscribe = array();
+  $unsubscribe = array('type' => 'subscription', 'signed' => TRUE);
+  return notifications_object_subscribe_links($type, $object, $user, $subscribe, $unsubscribe);
+}
+
+/**
  * Implementation of hook_perm()
  */
 function notifications_anonymous_perm() {
@@ -216,11 +234,11 @@ function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
   
   switch ($form_id) {
     case 'notifications_ui_options_form':
-      $account = $form['subscriptions']['account'];
-      if (!$account->uid && !$user->uid) {
+      $account = $form['subscriptions']['account']['#value'];
+      if (!$account->uid) {
         notifications_include('destination.inc');
-        $form += notifications_destination_address_subform($account);
-        //$form['destination']['#weight'] = -10;
+        $form += notifications_destination_address_subform($account, NULL, NULL, 20);
+        $form['submit']['#weight'] = 100;
       }
       break;
   }
@@ -346,26 +364,33 @@ function notifications_anonymous_url($url, $options = array()) {
 }
 
 /**
- * Implementation of notifications_hook()
- * 
- * Check access permissions to subscriptions
+ * Implementation of hook_notifications_subscription()
  */
-function notifications_anonymous_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_anonymous_notifications_subscription($op, $subscription = NULL, $account = NULL) {
   global $user;
 
   switch ($op) {
     case 'access':
-      if (!$user->uid && $arg0 == 'subscription') {
-        $account = $arg1;
-        $subscription = $arg2;
-        // Check flood control
-        if (!flood_is_allowed('notifications_anonymous', variable_get('notifications_anonymous_hourly_threshold', 3))) {
-          drupal_set_message(t("You cannot create more than %number subscriptions per hour. Please try again later.", array('%number' => variable_get('notifications_anonymous_hourly_threshold', 3))), 'warning');
-          return array(FALSE);
-        }      
+      if (!$user->uid) {
+        return notifications_anonymous_flood_control();
       }
       break;   
   } 
+}
+
+/**
+ * Check flood control, optionally printing an error message
+ */
+function notifications_anonymous_flood_control($warning = FALSE) {
+  // Check flood control
+  $threshold = variable_get('notifications_anonymous_hourly_threshold', 3);
+  if (flood_is_allowed('notifications_anonymous', $threshold)) {
+    return TRUE;
+  }
+  elseif ($warning) {
+    drupal_set_message(t("You cannot create more than %number subscriptions per hour. Please try again later.", array('%number' => $threshold)), 'warning');
+  }
+  return FALSE;
 }
 
 /**
@@ -396,7 +421,7 @@ function notifications_anonymous_notifications($op, &$arg0, $arg1 = NULL, $arg2 
  * @param $arg1, $arg2...
  *   Different parameters depending on $op
  */
-function notifications_anonymous_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+function notifications_anonymous_messaging($op, $type = 'all', $language = NULL) {
   switch ($op) {
     case 'message types':
       $info['notifications-anonymous'] = array(
@@ -417,8 +442,7 @@ function notifications_anonymous_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg
         'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
       );
       return $info;
-    case 'message keys':      
-      $type = $arg1;
+    case 'message keys':
       switch ($type) {
         case 'notifications-anonymous':
           return array(
@@ -438,59 +462,58 @@ function notifications_anonymous_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg
       }
       break;
     case 'messages':
-      switch ($arg1) {
+      switch ($type) {
         case 'notifications-anonymous':
           return array(
-            'subject' => t('Message from [site-name]'),
+            'subject' => t('Message from [site-name]', array(), $language->language),
             'footer' => array(
-                t('This is an automatic message from [site-name]'),
-                t('To manage your subscriptions, browse to [destination-manage-url]'),
-                t('You can unsubscribe at [destination-unsubscribe-url]'),
+                t('This is an automatic message from [site-name]', array(), $language->language),
+                t('To manage your subscriptions, browse to [destination-manage-url]', array(), $language->language),
+                t('You can unsubscribe at [destination-unsubscribe-url]', array(), $language->language),
             ),        
           );
         // Subscribe confirmation
         case 'notifications-anonymous-subscribe':
           return array(
-            'subject' => t('Confirm your subscription to [site-name]'),
-            'header' => t("Someone has subscribed to [site-name] using [destination-address],"),
-            'main' => t("To confirm your subscription, browse to [subscription-confirm]"),
+            'subject' => t('Confirm your subscription to [site-name]', array(), $language->language),
+            'header' => t("Someone has subscribed to [site-name] using [destination-address],", array(), $language->language),
+            'main' => t("To confirm your subscription, browse to [subscription-confirm]", array(), $language->language),
           );
         // Unsubscribe all message for a destination
         case 'notifications-anonymous-cancel':
           return array(
-            'subject' => t('Cancel all subscriptions to [site-name]'),
-            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]'),
+            'subject' => t('Cancel all subscriptions to [site-name]', array(), $language->language),
+            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]', array(), $language->language),
             'main' => array(
-              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]"),
-              t('To edit your subscriptions, browse to [destination-manage-url]'),
+              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]", array(), $language->language),
+              t('To edit your subscriptions, browse to [destination-manage-url]', array(), $language->language),
             ),      
           );
         // Unsubscribe all message for a destination
         case 'notifications-anonymous-unsubscribe':
           return array(
-            'subject' => t('Cancel subscription to [site-name]'),
-            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]'),
+            'subject' => t('Cancel subscription to [site-name]', array(), $language->language),
+            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]', array(), $language->language),
             'main' => array(
-              t("To cancel your subscription, browse to [subscription-unsubscribe-url]"),
-              t('To edit your subscription, browse to [subscription-edit-url]'),
+              t("To cancel your subscription, browse to [subscription-unsubscribe-url]", array(), $language->language),
+              t('To edit your subscription, browse to [subscription-edit-url]', array(), $language->language),
             ),      
           );
         case 'notifications-anonymous-manage':
           return array(
-            'subject' => t('Edit your subscriptions to [site-name]'),
-            'header' => t('Someone has requested to change the subscriptions for [destination-address]'),
+            'subject' => t('Edit your subscriptions to [site-name]', array(), $language->language),
+            'header' => t('Someone has requested to change the subscriptions for [destination-address]', array(), $language->language),
             'main' => array(
-              t('To edit your subscriptions, browse to [destination-manage-url]'),
-              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]"),
+              t('To edit your subscriptions, browse to [destination-manage-url]', array(), $language->language),
+              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]", array(), $language->language),
             ),      
           );
       }
       break;
     case 'tokens':
-      $type = explode('-', $arg1);
       $tokens = array();
       // These are the token groups that will be used for this module's messages
-      if (strpos($arg1, 'notifications-anonymous') === 0) {
+      if (strpos($type, 'notifications-anonymous') === 0) {
         $tokens = array('subscription', 'destination');
       }
       return $tokens;

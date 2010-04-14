@@ -72,12 +72,16 @@ function notifications_destination_method_subform($account, $destination = NULL)
 /**
  * Displays a destination field for each method
  * 
- * @param $send_methods
- *   Array method => name
+ * @param $account
+ *   User account the destination is for
  * @param $destination
  *   Destination object to populate one of the addresses
+ * @param $send_methods
+ *   Array method => name to restrict the number of sending methods
+ * @param $size
+ *   Address text field size
  */
-function notifications_destination_address_subform($account, $destination = NULL, $send_methods = NULL) {
+function notifications_destination_address_subform($account, $destination = NULL, $send_methods = NULL, $size = 40) {
   $send_methods = isset($send_methods) ? $send_methods : notifications_send_methods($account);
   if (!$send_methods) {
     $form['warning']['#value'] = '<p>' . t('No sending methods available.') . '</p>';
@@ -98,7 +102,7 @@ function notifications_destination_address_subform($account, $destination = NULL
     $form['destination_address'][$key] = array(
       '#title' => $name,
       '#type' => 'textfield',
-      '#size' => 40,
+      '#size' => $size,
       '#default_value' => $destination && $destination->method == $key ? $destination->address : '',
     );
   }

@@ -135,18 +135,20 @@ class Notifications_Subscription extends Messaging_Object {
     if ($this->is_instance()) {
       // Unsubscribe link
       $title = t('Unsubscribe from: @name', array('@name' => $this->get_name()));
-      $props = notifications_get_link('unsubscribe', array('sid' => $this->sid) + $options);
+      $options += array('sid' => $this->sid);
+      $props = notifications_subscription_get_link('unsubscribe', $this, $options);
     }
     else {
       // Subscribe link
       $title = t('Subscribe to: @name', array('@name' => $this->get_name()));
-      $props = notifications_get_link('subscribe', array('uid' => $this->uid, 'type' => $this->type, 'fields' => $this->get_conditions()) + $options);
+      $options += array('type' => $this->type, 'fields' => $this->get_conditions());
+      $props = notifications_subscription_get_link('subscribe', $this, $options);
     }
-    return array(
+    return $props ? array(
       'title' => $title,
       'html' => TRUE,
       'href' => $props['href'],
-    ) + $props['options'];
+    ) + $props['options'] : NULL;
   }
 
   /**

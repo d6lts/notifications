@@ -227,8 +227,7 @@ function notifications_access_user($account, $op = 'maintain') {
 function notifications_access_user_add($account = NULL, $type = NULL) {
   global $user;
   
-  $account = $account ? $account : $user;
-  
+  $account = $account ? $account : $user;  
   if (notifications_access_user($account)) {
     if ($type && ($access = notifications_subscription_types($type, 'access'))) {
       return user_access($access, $account);
@@ -264,9 +263,22 @@ function notifications_check_signature($params = NULL, $prefix = 'notifications'
 function notifications_access_subscribe($account) {
   global $user;
   
+  if (!$account->uid && !$user->uid) return notifications_access_anonymous();
+  
   if (user_access('administer notifications') || user_access('manage all subscriptions')) return TRUE;
   
   return $account && $account->uid && ($user->uid == $account->uid) && user_access('maintain own subscriptions');
+}
+
+/**
+ * Check access for anonymous subscriptions
+ */
+function notifications_access_anonymous() {
+  static $access;
+  if (!isset($access)) {
+    $access = module_exists('notifications_anonymous') && notifications_anonymous_send_methods() && notifications_anonymous_send_intervals();
+  }
+  return $access;
 }
 
 /**
@@ -1322,23 +1334,20 @@ function notifications_get_link($type, $params, $format = FALSE) {
 
   switch ($type) {
     case 'subscribe':
-      $elements = array(
-        'subscribe',
-        $params['uid'],
-        $params['type'],
-        implode(',', array_keys($params['fields'])),
-        implode(',', $params['fields'])
-      );
+      $elements = array('subscribe', $params['uid']);
+      $elements[] = $params['type'];
+      $elements[] = implode(',', array_keys($params['fields']));
+      $elements[] = implode(',', $params['fields']);
       $title = t('subscribe');
       break;
     case 'unsubscribe':
-      $elements[] = 'unsubscribe';
+      $elements = array('unsubscribe');      
       // The unsubscribe link can be for a single subscription or all subscriptions for a user
       if (!empty($params['sid'])) {      
         $elements[] = 'sid';
         $elements[] = $params['sid'];   
       }
-      elseif (!empty($params['uid'])) {
+      elseif ($params['uid']) {
         $elements[] = 'uid';
         $elements[] = $params['uid'];
       }
@@ -1354,6 +1363,28 @@ function notifications_get_link($type, $params, $format = FALSE) {
   $params += array('title' => $title);
   $link =  _notifications_get_link($elements, $params);
   return $format ? l($params['title'], $link['href'], $link['options']) : $link;
+}
+
+/**
+ * Get subscribe / unsubscribe link for subscription
+ */
+function notifications_subscription_get_link($type, $subscription, $options = array()) {
+  if ($subscription->uid) {
+    if ($type == 'subscribe') {
+      $options += array('uid' => $subscription->uid);
+    }
+    else {
+      $options += array('sid' => $subscription->sid);
+    }
+    return notifications_get_link($type, $options);
+  }
+  elseif (function_exists('notifications_anonymous_subscription_get_link')) {
+    return notifications_anonymous_subscription_get_link($type, $subscription, $options);
+  }
+  else {
+    // This may be the case when we need an anonymous subscription but the module is disabled
+    return array();
+  }
 }
 
 /**
@@ -1505,17 +1536,9 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
             $access = TRUE;
           }
         }
-      } 
-      if ($access) {
-        // If permissions are ok, we invoke the old callback, which returns an array
-        $old_access = notifications_module_information('access', 'subscription', $subscription, $account);
-        return !$old_access || !in_array(FALSE, $old_access, TRUE); 
       }
-      else {
-        // If this is access denied, no need for further checking
-        return FALSE;
-      }
-
+      return $access;
+      break;
   }  
 }
 
@@ -1541,8 +1564,6 @@ function notifications_notifications_event($op, $event, $account = NULL) {
         $query = array_merge($query, $more);
       }
       return $query;
-    case 'access':
-      return notifications_module_information('access', 'event', $event, $account);
     case 'load':
       // Invoke old hook for backwards compatibility
       return module_invoke_all('notifications', 'event load', $event);

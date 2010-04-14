@@ -59,7 +59,9 @@ function notifications_object_subscribe_links($type, $object, $account, $subscri
   if ($subscriptions = notifications_object_user_subscriptions($type, $object, $account)) {
     foreach ($subscriptions as $index => $subscription) {
       $options = $subscription->is_instance() ? $unsubscribe_options : $subscribe_options;
-      $links['notitications_' . $index] = $subscription->build_link($options);
+      if ($link = $subscription->build_link($options)) {
+        $links['notitications_' . $index] = $link;
+      }
     }
   }
   return $links;
