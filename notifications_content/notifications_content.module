@@ -370,29 +370,27 @@ function notifications_content_notifications_object_node($op, $node, $account = 
       // Content type subscriptions
       if (notifications_content_type_enabled($node->type, 'nodetype')) { 
         $options[] = array(
-          'name' => t('Posts of type @type', array('@type' => notifications_translate("type:$node->type:name", node_get_types('name', $node->type), NULL, 'nodetype'))),
+          'name' => t('Posts of type @type', array('@type' => _notifications_content_type_name($node->type))),
           'type' => 'nodetype',
           'fields' => array('type' => $node->type),
         );
       }
       // Node author subscriptions
       if (notifications_content_type_enabled($node->type, 'author')) {
-        // If the node comes from a page query, it may have an author name, otherwise we set it
-        if (empty($node->name)) {      
-          if ($author = messaging_load_user($node->uid)) {
-            $node->name = $author->name;
-          }
-          else {
-            $node->name = t('Unknown');
-          }
-        }
         $options[] = array(
-          'name' => t('Posts by @name', array('@name' => $node->name)),
+          'name' => t('Posts by @name', array('@name' => _notifications_content_node_username($node))),
           'type' => 'author',
           'fields' => array('author' => $node->uid),
         );
       }
-      
+      // Subscribe to content type by author
+      if (notifications_content_type_enabled($node->type, 'typeauthor')) {
+        $options[] = array(
+          'name' => t('@type posts by @name', array('@name' => _notifications_content_node_username($node), '@type' => _notifications_content_type_name($node->type))),
+          'type' => 'typeauthor',
+          'fields' => array('author' => $node->uid, 'type' => $node->type),
+        );
+      }      
       return $options;
       break;
   }
@@ -436,7 +434,7 @@ function notifications_content_notifications_object_user($op, $user, $account = 
 }
 
 /**
- * Implementation of hook_messaging()
+ * Implementation of hook_notifications_templates()
  */
 function notifications_content_notifications_templates($op, $type = 'all', $language = NULL) {
   switch ($op) {
@@ -607,6 +605,29 @@ function notifications_content_notifications_templates($op, $type = 'all', $lang
  */
 function _notifications_content_type_options() {
   return _notifications_subscription_types('long', array('event_type' => 'node'));
+}
+
+/**
+ * Get translated content type name
+ */
+function _notifications_content_type_name($type) {
+  return notifications_translate("type:$type:name", node_get_types('name', $type), NULL, 'nodetype');
+}
+
+/**
+ * Get username from node (and add it to the node object)
+ */
+function _notifications_content_node_username($node) {
+  // If the node comes from a page query, it may have an author name, otherwise we set it
+  if (empty($node->name)) {      
+    if ($author = messaging_load_user($node->uid)) {
+      $node->name = $author->name;
+    }
+    else {
+      $node->name = t('Unknown');
+    }
+  }
+  return $node->name;
 }
 
 /**
