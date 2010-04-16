@@ -375,7 +375,7 @@ function notifications_custom_load($key) {
  *   Custom subscription template (object) or type (string)
  */
 function notifications_custom_build_subscription($template) {
-  $template = is_object($template) ? $template : notifications_subscription_types($template);
+  $template = is_object($template) || is_array($template) ? $template : notifications_subscription_types($template);
   if ($template) {
     return Notifications_Custom_Subscription::build($template);
   }
