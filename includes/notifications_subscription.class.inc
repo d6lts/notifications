@@ -26,8 +26,8 @@ class Notifications_Subscription extends Messaging_Object {
   const FORMAT_INLINE = 2;
   // Format as HTML table (4 +1)
   const FORMAT_TABLE = 5;
-  // Format as item list (8 +1)
-  const FORMAT_LIST = 9;
+  // Format as item list (8 + 2(inline) + 1 (html))
+  const FORMAT_LIST = 10;
   // Unique subscription id
   public $sid = 0;
   // Destination id
@@ -653,7 +653,7 @@ class Notifications_Subscription extends Messaging_Object {
       return '';
     }
     // Some formats need each item to be a string first 
-    if ($format & (self::FORMAT_INLINE | self::FORMAT_LIST)) {
+    if ($format & self::FORMAT_INLINE) {
       foreach ($items as $key => $value) {
         if (is_array($value)) {
           $items[$key] = implode(': ', $value);
@@ -712,7 +712,8 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function form_info() {
     $info = $this->get_type();
-    $fields = $this->format_fields(self::FORMAT_HTML);
+    // Get fields formatted as array of items
+    $fields = $this->get_fields();
     if (!empty($info['name'])) {
       // This subscription type already has a name
       $value = $info['name'];
@@ -723,11 +724,11 @@ class Notifications_Subscription extends Messaging_Object {
     }
     elseif (count($fields) == 1) {
       // If the field is unique, we don't need a table nor a name for it
-      $value = array_pop(array_shift($fields));
+      $value = $this->format_fields(self::FORMAT_HTML | self::FORMAT_INLINE);
     }
     else {
       // Multiple fields, format as a table
-      $value = theme('table', array(), $fields);
+      $value = $this->format_fields(self::FORMAT_TABLE);
     }
     // Build a form field with all these values
     $field = array(

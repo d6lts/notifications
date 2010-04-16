@@ -10,6 +10,15 @@ require_once drupal_get_path('module', 'messaging') . '/tests/messaging_testcase
  */
 class NotificationsTestCase extends MessagingTestCase {
   /**
+   * Set up some required modules
+   */
+  function setUp() {
+    //parent::setUp();
+    $modules = func_get_args();
+    $modules = array_unique(array_merge($modules, array('autoload', 'messaging', 'token', 'messaging_template', 'notifications')));
+    call_user_func_array(array('parent', 'setUp'), $modules);
+  }
+  /**
    * Helper function. Simple row counting with conditions, uses query builder
    */
   function countQueued($params = NULL) {
