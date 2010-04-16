@@ -14,9 +14,9 @@ function notifications_custom_admin_page($op = NULL) {
   $base_path = 'admin/messaging/customsubs';
   if ($op == 'new') {
     drupal_set_title(t('Add custom subscription'));
-    $subs = (object)array('csid' => 0, 'type' => 'custom', 'name' => '', 'title' => '',
+    $subs = notifications_custom_build_subscription(array('csid' => 0, 'type' => 'custom', 'name' => '', 'title' => '',
       'type' => 'custom_', 'module' => 'notifications_custom',
-      'event_type' => '', 'description' => '', 'weight' => 0, 'visibility' => 0, 'fields' => array());
+      'event_type' => '', 'description' => '', 'weight' => 0, 'visibility' => 0, 'fields' => array()));
     $output .= drupal_get_form('notifications_custom_form', $subs);
   }
   else {
@@ -84,11 +84,11 @@ function notifications_custom_form($form_state, $subs) {
     '#description' => t('The type of events that will trigger this subscription.'),
   );
   if (!empty($subs->fields)) {
-    foreach ($subs->fields as $data) {  
-      $format = notifications_format_subscription_field($data['type'], $data['value']);
-      $rows[] = array($format['name'], $format['value']);
-    }
-    $form['subscription']['fields'] = array('#type' => 'item', '#title' => t('Fields'), '#value' => theme('table', array(), $rows));
+    $form['subscription']['fields'] = array(
+      '#type' => 'item',
+      '#title' => t('Fields'), 
+      '#value' => $subs->format_fields(Notifications_Subscription::FORMAT_TABLE),
+    );
   }
   $form['subscription']['description'] = array('#type' => 'textarea',
     '#title' => t('Explanation'),
@@ -255,7 +255,7 @@ function notifications_custom_fields_form_validate($form, &$form_state) {
  * Submit fields form
  */
 function notifications_custom_fields_form_submit($form, $form_state) {
-  $subscription = $form_state['values']['subscription'];dsm($form_state);
+  $subscription = $form_state['values']['subscription'];
   $fields = $form_state['field_values'];
   db_query("UPDATE {notifications_custom} SET fields = '%s' WHERE csid = %d", serialize($fields), $subscription->csid);
   drupal_set_message(t('The fields for this subscription have been updated.'));

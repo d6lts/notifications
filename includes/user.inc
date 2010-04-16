@@ -18,7 +18,7 @@
  *   Optional type of subscription for which to find allowed content types. Defaults to nodetype, can be any subscription type with event-type=node for which notifications_content handles content type settings.
  */
 function notifications_user_name_callback($uid, $subs_type = '') {
-  return notifications_user_name($uid);
+  return notifications_user_uid2name($uid);
 }
 
 /**

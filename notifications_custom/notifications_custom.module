@@ -63,7 +63,7 @@ function notifications_custom_menu() {
   );
   $items['admin/messaging/customsubs/csid/%notifications_custom/fields'] = array(
     'title' => 'Fields',
-    'description' => 'Create and manage custom subscriptions.',
+    'description' => 'Edit fields for custom subscription.',
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_custom_fields_form', 4),
@@ -88,7 +88,7 @@ function notifications_custom_menu() {
  * Menu title callback
  */
 function notifications_custom_subscription_title($subscription) {
-  return $subscription->get_name();
+  return $subscription->title;
 }
 
 /**
@@ -354,6 +354,7 @@ function notifications_custom_load($key) {
     $where = is_numeric($key) ? 'csid = %d' : "type = '%s'";
     $template = db_fetch_object(db_query('SELECT * FROM {notifications_custom} WHERE ' . $where , $key));
     if ($template) {
+      $template->fields = !empty($template->fields) ? unserialize($template->fields) : array();
       $subscription = notifications_custom_build_subscription($template);
       // Cache by type and id
       $cache[$template->csid] = $subscription;

@@ -220,7 +220,7 @@ function notifications_field_parse_submitted(&$form_state, $element_name = 'fiel
 function notifications_field_validate_submitted(&$form_state, $element_name = 'fields', $require_one = TRUE, $require_all = TRUE) {
   $checked_values = array();
   if ($field_values = notifications_field_parse_submitted($form_state, $element_name)) {
-    foreach ($field_values as $key => $field) {dsm($field_values);
+    foreach ($field_values as $key => $field) {
       $string_id = "$element_name][edit][$key";
       // We validate the field, type included
       if (notifications_field_valid_value($field['edit'])) {

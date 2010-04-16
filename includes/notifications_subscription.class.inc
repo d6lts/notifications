@@ -24,10 +24,10 @@ class Notifications_Subscription extends Messaging_Object {
   const FORMAT_HTML = 1;
   // Format inline, as a string of csv
   const FORMAT_INLINE = 2;
-  // Format as HTML table
-  const FORMAT_TABLE = 4;
-  // Format as item list
-  const FORMAT_LIST = 8;
+  // Format as HTML table (4 +1)
+  const FORMAT_TABLE = 5;
+  // Format as item list (8 +1)
+  const FORMAT_LIST = 9;
   // Unique subscription id
   public $sid = 0;
   // Destination id
@@ -690,7 +690,8 @@ class Notifications_Subscription extends Messaging_Object {
       $format_value = _notifications_field_callback($type, 'format callback', $value, $format & self::FORMAT_HTML, $this->type);
       // If not we try options callback, we can get the name from the array of options
       if (!isset($format_value)) {
-        $options = _notifications_field_callback($type, 'options callback', $this->type);
+        // For naming we don't pass subscription type, we need just to find the name
+        $options = _notifications_field_callback($type, 'options callback', NULL);
         if (isset($options)) {
           $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
         }
