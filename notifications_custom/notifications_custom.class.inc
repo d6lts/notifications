@@ -52,14 +52,6 @@ class Notifications_Custom_Subscription extends Notifications_Subscription {
     return $list;
   }
   /**
-   * Get fields from subscription type
-   */
-  /*
-  function get_type_fields() {
-    return $this->normalize_fields($this->get_type('fields_instance'));
-  }  
-  */
-  /**
    * Check visibility of this subscription type
    */
   function is_visible($user_registration = FALSE) {

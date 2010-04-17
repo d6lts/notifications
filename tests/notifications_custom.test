@@ -58,10 +58,18 @@ class NotificationsCustomTests extends NotificationsTestCase {
 
     // Create story and page node and check the user gets just two notifications (3 rows in queue though)
     // Enable this content type for thread/author/type subscriptions
-    variable_set('notifications_content_type', array('thread', 'nodetype', 'author'));
+    //variable_set('notifications_content_type', array('thread', 'nodetype', 'author'));
     $story = $this->drupalCreateNode(array('type' => 'story', 'uid' => $author->uid));
     $page = $this->drupalCreateNode(array('type' => 'page', 'uid' => $author->uid));
     $this->assertUserRows('notifications_queue', 3, $user->uid);
+    notifications_include('process.inc');
+    notifications_process_run();
+    $this->assertUserRows('notifications_queue', 0, $user->uid, 'All rows in queue have been processed');
+    $messages = messaging_simple_get_messages(array('uid' => $user->uid));
+    $this->assertTrue(count($messages), 2, 'Two messages have been sent to the user.');
+    $this->drupalGet("user/$user->uid/messages");
+    $this->assertText("New Story: $story->title", 'A notification for the story has been received.');
+    $this->assertText("New Page: $page->title", 'A notification for the page has been received.');
   }
   
   /**
