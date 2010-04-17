@@ -197,7 +197,7 @@ function notifications_anonymous_destination_page($destination, $op = 'unsubscri
  */
 function notifications_anonymous_destination_subform($destination) {
   $options = notifications_anonymous_manage_links('manage', $destination);
-  return notitications_destination_subform($destination, $options);
+  return notifications_destination_subform($destination, $options);
 }
 
 /**

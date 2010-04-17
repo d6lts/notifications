@@ -341,7 +341,7 @@ function notifications_user($type, $edit, &$user, $category = NULL) {
         if ($edit['status'] == 0) { // user is being blocked now
           // Delete pending notifications and block existing active subscriptions
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
-          notitications_include('process.inc');
+          notifications_include('process.inc');
           notifications_queue_clean(array('uid' => $user->uid));
         }
         else {

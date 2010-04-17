@@ -535,6 +535,7 @@ function notifications_queue_delete($params) {
  * Clean queue for a user and update event tracker
  */
 function notifications_queue_clean($params) {
+  notifications_include('event.inc');
   notifications_queue_delete($params);
   notifications_event_clean(TRUE);
 }
