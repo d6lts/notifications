@@ -417,7 +417,7 @@ class Notifications_Subscription extends Messaging_Object {
       }
     }
     elseif (!isset($this->fields)) {
-      if ($fields = $this->get_type_fields()) {
+      if ($fields = $this->get_type_fields()) {dsm($fields);
         // Set the fields from the subscription type or template
         $this->set_fields($fields, FALSE);
       }

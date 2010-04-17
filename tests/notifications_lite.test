@@ -17,7 +17,7 @@ class NotificationsLiteTests extends NotificationsTestCase {
   }
   
   function setUp() {
-    parent::setUp('autoload', 'token', 'messaging', 'messaging_template', 'messaging_simple', 'notifications', 'notifications_digest', 'notifications_lite');
+    parent::setUp('messaging_simple', 'notifications_digest', 'notifications_lite');
     // Set some defaults: method simple, interval immediate
     variable_set('notifications_default_send_interval', 0);
     variable_set('notifications_default_send_method', 'simple');

@@ -113,23 +113,9 @@ function notifications_custom_notifications($op) {
     case 'subscription types':
       if ($custom = notifications_custom_list()) {
         foreach ($custom as $subs) {
-          $type = array(
-            'type' => $subs->type,
-            'title' => $subs->title,
-            'name' => $subs->name,
-            'description' => $subs->description,
-            'custom' => TRUE,
-            'visibility' => $subs->visibility,
-            // This is a simple list of fields
-            'fields' => array(),
-            // This is an array of fields that have type and value
-            'fields_instance' => $subs->fields,
-            'class' => 'Notifications_Custom_Subscription',
-          );
-          // Subscription type fields are just field types, but in this case we have type and value
-          foreach ($subs->fields as $field) {
-            $type['fields'][] = $field['type'];
-          }
+          $type = (array)$subs;
+          $type['custom'] = TRUE;
+          $type['class'] = 'Notifications_Custom_Subscription';
           $types[$subs->type] = $type;
         }
         return $types;
@@ -299,7 +285,7 @@ function notifications_custom_list() {
     $cache = array();
     $result = db_query("SELECT * FROM {notifications_custom} ORDER BY weight");
     while ($custom = db_fetch_object($result)) {
-      $custom->fields = !empty($cutom->fields) ? unserialize($custom->fields) : array();
+      $custom->fields = !empty($custom->fields) ? unserialize($custom->fields) : array();
       $cache[$custom->type] = $custom;
     }
   }

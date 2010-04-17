@@ -54,21 +54,22 @@ class Notifications_Custom_Subscription extends Notifications_Subscription {
   /**
    * Get fields from subscription type
    */
+  /*
   function get_type_fields() {
     return $this->normalize_fields($this->get_type('fields_instance'));
   }  
-
+  */
   /**
    * Check visibility of this subscription type
    */
-  function is_visible() {
-    return user_access('administer users') || $this->get_type('visibility');
+  function is_visible($user_registration = FALSE) {
+    return user_access('administer users') || $user_registration ? $this->get_type('register') : $this->get_type('visibility');
   }
   /**
    * Format as a form element, which may be a visible checkbox or a hidden field
    */
   function form_element($user_registration = FALSE) {
-    return $this->is_visible() ? $this->form_checkbox($user_registration) : $this->form_value();
+    return $this->is_visible($user_registration) ? $this->form_checkbox($user_registration) : $this->form_value();
   }
   
   /**
