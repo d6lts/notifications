@@ -153,7 +153,7 @@ function notifications_object_user_subscriptions($type, $object, $account = NULL
  * @return array()
  *   Info array from field or from object type
  */
-function notifications_field_info($type, $property) {
+function notifications_field_get_info($type, $property) {
   if ($info = notifications_field_type($type)) {
     if (isset($info[$property])) {
       return $info;
@@ -249,7 +249,7 @@ function notifications_field_real_value($type, $value) {
   if (!notifications_field_valid_value($value)) {
     return NULL;
   }
-  elseif ($info = notifications_field_info($type, 'value callback')) {
+  elseif ($info = notifications_field_get_info($type, 'value callback')) {
     // We have a value callback for field or object so use it
     return _notifications_info_callback($info, 'value callback', array($value));
   }
