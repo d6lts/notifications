@@ -435,7 +435,7 @@ function notifications_custom_theme() {
   return array(
     'notifications_custom_fields' => array(
       'arguments' => array('element' => NULL),
-      'file' => 'notifications_custom_admin.inc',
+      'file' => 'notifications_custom.admin.inc',
     ),
   );
 }

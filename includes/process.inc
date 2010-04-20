@@ -28,21 +28,29 @@ define('NOTIFICATIONS_TIME_MARGIN', 5);
  * because the other ones can be added up for each period. 
  * Assumption: The bigger the interval, the longer delay it may admit (?) I.e. sending hourly email 
  * after 1 hour 15 mins may be ok if the system is overloaded.
+ * 
+ * @param $cron
+ *   Whether this is a cron run (may need special timing adjustments)
+ * 
+ * @return int
+ *   Number of rows processed
  */
-function notifications_process_run($cron = TRUE) {  
+function notifications_process_run($cron = TRUE) {
   notifications_log('Starting notifications process');
   notifications_process('start');
   // There may be special time adjustments for cron
   if ($cron) {
     notifications_process('cron');
   }
+  $count = 0;
   $stop = FALSE;
   $send_intervals = _notifications_send_intervals();
   unset($send_intervals[-1]);
   if ($max_sqid = notifications_process_prepare()) {
     foreach ($send_intervals as $interval => $name) {
       notifications_log('Processing queue', array('send interval' => $name));
-      while (notifications_process_queue($interval, $max_sqid)) {
+      while ($rows = notifications_process_queue($interval, $max_sqid)) {
+        $count += $rows;
         $stop = !notifications_process('check');
       }
       if ($stop) {
@@ -55,6 +63,8 @@ function notifications_process_run($cron = TRUE) {
   } else {
     notifications_log('No rows in queue');
   }
+  notifications_process('stop');
+  return $count;
 }
 
 /**
@@ -93,7 +103,7 @@ function notifications_process_prepare() {
  */
 function notifications_process($op = 'check', $name = NULL, $value = NULL) {
   static $limit = array(), $options = array();
-  static $current = array('message' => 0, 'step' => 0);
+  static $current = array('message' => 0, 'step' => 0, 'timer' => 0, 'row' => 0);
 
   switch ($op) {
     case 'start':
@@ -103,7 +113,12 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
           $limit[$name] = $value;
         }
       }
+      timer_start('notifications_process');
       break;
+    case 'stop':
+      $timer = timer_stop('notifications_process');
+      $current['timer'] = $timer['time'];
+      return $timer;
     case 'cron':
       // Calculate time limit. We get the smaller of all these times in seconds
       // There's an issue with poormanscron not setting the cron semaphore so it will default to current time
@@ -131,14 +146,21 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
       break;
 
     case 'option':
+      // Get / set value for option
       if (isset($value)) {
         $options[$name] = $value;
       }
-      return isset($options[$name]) ? $options[$name] : FALSE;
-      break;
+      else {
+        return isset($options[$name]) ? $options[$name] : FALSE;
+      }
     case 'limit':
-      // Return limit value for counter
-      return isset($limit[$name]) ? $limit[$name] : 0;
+      // Get / set limit value for counter
+      if (isset($value)) {
+        $limit[$name] = $value;
+      }
+      else {
+        return isset($limit[$name]) ? $limit[$name] : 0;
+      }
     case 'current':
       // Return current value for counter
       return isset($current[$name]) ? $current[$name] : 0;
@@ -156,6 +178,13 @@ function notifications_process($op = 'check', $name = NULL, $value = NULL) {
         }
       }
       return TRUE;
+    case 'results':
+      // Return array of variables needed to print out some messages
+      return array(
+        '@rows' => $current['row'],
+        '@messages' => $current['message'],
+        '@time' => $current['timer'],
+      );
   }
 
 }

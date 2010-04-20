@@ -2,6 +2,8 @@
 
 6.x-4.x-beta1 to ..........
 --------------------------------
+- New: Added drush command to process notifications queue
+- Some minor issues fixed in notifications_custom, included #775958
 - Fixed: Refactored notifications_field_info() conflicting with other hooks, #774242
 
 6.x-2.2 to 6.x-4.x-beta1

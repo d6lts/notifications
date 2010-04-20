@@ -1308,7 +1308,9 @@ function notifications_event_types($typekey = NULL, $property = NULL, $disabled 
 function notifications_cron() {
   if (variable_get('notifications_process_on_cron', TRUE)) {
     notifications_include('process.inc');
-    notifications_process_run();
+    if (notifications_process_run(TRUE)) {
+      watchdog('notifications', 'Processed notifications in queue: @rows rows, @messages messages sent, @time milliseconds.', notifications_process('results'));
+    }
   }
 }
 
