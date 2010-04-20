@@ -167,7 +167,7 @@ function notifications_custom_user_form($account, $register = FALSE) {
   if ($register) {
     $params['register'] = 1;
   }
-  if ($custom_list = notifications_custom_build_list($params, NULL)) {
+  if ($custom_list = notifications_custom_build_list($params, $account)) {
     $visible = FALSE;
     $form['notifications_custom'] = array(
       '#tree' => TRUE,
