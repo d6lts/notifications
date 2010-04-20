@@ -97,11 +97,15 @@ function notifications_custom_subscription_title($subscription) {
 function notifications_custom_user($op, &$edit, &$account, $category = NULL) {
   switch ($op) {
     case 'register':
-      return notifications_custom_user_form($edit, $account, $category, TRUE);
+      return notifications_custom_user_form($account, TRUE);
+
     case 'update':
-      return notifications_custom_user_save($edit, $account, $category);
     case 'insert':
-      return notifications_custom_user_save($edit, $account, $category, TRUE);
+      if (!empty($edit['notifications_custom'])) {
+        notifications_custom_account_update($account, $edit['notifications_custom']);
+        $edit['notifications_custom'] = NULL;        
+      }
+      break;
   }
 }
 
@@ -156,14 +160,14 @@ function notifications_custom_notifications_event($op, $event, $account = NULL) 
 }
 
 /**
- * Build user account form
+ * Build user account custom subscriptions form
  */
-function notifications_custom_user_form($edit, $account, $category, $register = FALSE) {
+function notifications_custom_user_form($account, $register = FALSE) {
   $form = $params = array();
   if ($register) {
     $params['register'] = 1;
   }
-  if ($custom_list = notifications_custom_build_list($params, $register ? $account : NULL)) {
+  if ($custom_list = notifications_custom_build_list($params, NULL)) {
     $visible = FALSE;
     $form['notifications_custom'] = array(
       '#tree' => TRUE,
@@ -181,15 +185,6 @@ function notifications_custom_user_form($edit, $account, $category, $register = 
     }
   }
   return $form;
-}
-
- /**
- * Save user subscription
- */
-function notifications_custom_user_save(&$edit, $account, $category, $register = FALSE) {
-  $enabled = !empty($edit['notifications_custom']) ? $edit['notifications_custom'] : array();
-  notifications_custom_account_update($account, $enabled);
-  $edit['notifications_custom'] = NULL;
 }
 
 /**
@@ -249,6 +244,7 @@ function notifications_custom_account_update($account, $update) {
   }
   return $changed;
 }
+
 /**
  * Retrieve list of custom subscription types true objects
  *

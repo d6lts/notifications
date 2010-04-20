@@ -69,6 +69,9 @@ function notifications_digest_theme() {
     'notifications_digest_short_body' => array(
       'arguments' => array('text' => NULL, 'list' => NULL),
     ),
+    'notifications_digest_short_list' => array(
+      'arguments' => array('lines' => NULL, 'group' => NULL),
+    ),
     'notifications_digest_short_line' => array(
       'arguments' => array('line' => NULL, 'group' => NULL),
     ),
@@ -163,12 +166,12 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
   // Build up the digested list with text replacement
   // We need text replacement for each line because it depends on different objects
   foreach ($events as $event) {
-    notifications_log('Digesting short format', array('event' => $event->eid));
+    notifications_debug('Digesting short format', array('event' => $event->eid));
     $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
     $subscription = $sid ? notifications_load_subscription($sid) : NULL;
     $objects = $event->objects + array('destination' => $destination, 'user' => $account, 'subscription' => $subscription);
     $digest = notifications_digest_event_info($event);
-    notifications_log('Digest info for event', $digest);
+    notifications_debug('Digest info for event', $digest);
     $digest_type = $digest['type'];
     $digest_value = $digest['value'];
 
@@ -179,7 +182,7 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
       );
       // The objects passed here for tokens will be the ones from the first event only
       $list[$digest_type][$digest_value]['group'] = messaging_template_text_replace($group, $objects);
-      notifications_log('Digesting object', array('type' => $digest_type, 'value' => $digest_value));
+      notifications_debug('Digesting object', array('type' => $digest_type, 'value' => $digest_value));
     }
     // Check duplicate notifications for the same event so we do some deduping
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
@@ -235,7 +238,7 @@ function notifications_digest_build_long($destination, $events, $subscriptions, 
   // Build up the digested list with text replacement, body as big array
   // We need text replacement for each line because it depends on different objects
   foreach ($events as $event) {
-    notifications_log('Digesting long format', array('event' => $event));
+    notifications_debug('Digesting long format', array('event' => $event));
     // We use the regular template for the events
     $part = array();
     $part[] = notifications_event_message_part($event, 'subject', $send_method, $language, $module);
@@ -330,7 +333,7 @@ function notifications_digest_line($event, $method, $language) {
       $line = $event->get_type('line');
     }    
     $digest[$event->eid][$method] = $line;
-    notifications_log('Created digest line for event', array('event' => $event->eid, 'line' => $line ));
+    notifications_debug('Created digest line for event', array('event' => $event->eid, 'line' => $line ));
   }
   
   return $digest[$event->eid][$method];
@@ -394,9 +397,7 @@ function theme_notifications_digest_short_body($text, $list) {
   foreach ($list as $type => $objects) {
     foreach ($objects as $oid => $data) {      
       $body['content'][] = $data['group']['title'];
-      foreach ($data['line'] as $line) {
-        $body['content'][] = theme('notifications_digest_short_line', $line, $data['group']);
-      }
+      $body['content'][] = theme('notifications_digest_short_list', $data['line'], $data['group']);
       $body['content'][] = $data['group']['footer'];
     }
   }
@@ -405,10 +406,22 @@ function theme_notifications_digest_short_body($text, $list) {
 }
 
 /**
+ * Item list with multiple lines
+ */
+function theme_notifications_digest_short_list($lines, $group) {
+  $output = '<ul>';
+  foreach ($lines as $line) {
+    $output .= theme('notifications_digest_short_line', $line, $group);
+  }
+  $output .= '</ul>';
+  return $output;
+}
+
+/**
  * Single line of text
  */
 function theme_notifications_digest_short_line($line, $group) {
-  return '- ' . $line;
+  return '<li>' . $line . '</li>';
 }
 
 /**
