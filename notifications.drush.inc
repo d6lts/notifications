@@ -7,7 +7,7 @@
  *   
  * Process the queued notifications as a stand alone shell command instead of using cron
  *  
- *  drush --uri=http://www.example.com notifications_process [rowlimit]
+ *  drush --uri=http://www.example.com notifications process [rows] [messages]
  *  
  * Notes: 
  * - To properly generate links the base url must be set. You may need to set it manually in settings.php
@@ -25,16 +25,27 @@
  *   An associative array describing your command(s).
  */
 function notifications_drush_command() {
-  $items['notifications_process'] = array(
+  $items['notifications process'] = array(
     'callback' => 'notifications_drush_queue_process',
     'description' => "Process queued notifications and send out messages.",
     'arguments' => array(
-      'rows' => 'Optional maximum number of rows to process. Zero for no limit. If not set the default from module settings will apply.',
-      'messages' => 'Optional maximum number of messages to send. Zero for no limit. If not set the default from module settings will apply.',
+      'rows' => 'Optional maximum number of rows to process. Zero for no limit.',
+      'messages' => 'Optional maximum number of messages to send. Zero for no limit.',
     ),
   );
   return $items;
 }
+
+/**
+ * Implementation of hook_drush_help().
+ */
+function notifications_drush_help($section) {
+  switch ($section) {
+    case 'drush:notifications process':
+      return dt("Process queued notifications and send out messages.");
+  }
+}
+
 
 /**
  * Drush command callback, process queue
