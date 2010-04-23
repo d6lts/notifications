@@ -428,9 +428,7 @@ function notifications_multiple_delete_confirm_validate($form, &$form_state) {
  */
 function notifications_multiple_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
-    foreach ($form_state['values']['items'] as $id => $value) {
-      notifications_delete_subscription($id);
-    }
+    notifications_subscription_delete(array_keys($form_state['values']['items']));
     drupal_set_message(t('The subscriptions have been deleted.'));
   }
   return;

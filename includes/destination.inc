@@ -98,7 +98,8 @@ function notifications_destination_address_subform($account, $destination = NULL
   }
   foreach ($send_methods as $key => $method_name) {
     // We use method name if we don't have address name
-    $name = messaging_method_info($key, 'address_name', $method_name);
+    $type = messaging_method_info($key, 'address_type');
+    $name = $type ? messaging_address_info($type, 'name') : $method_name;
     $form['destination_address'][$key] = array(
       '#title' => $name,
       '#type' => 'textfield',

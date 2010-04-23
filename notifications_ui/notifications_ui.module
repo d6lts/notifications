@@ -311,7 +311,7 @@ function notifications_ui_options_form_submit($form, &$form_state) {
     }
     elseif (!$value && !empty($subscription->sid)) {
       // we unchecked an enabled subscription
-      notifications_delete_subscription($subscription->sid);
+      notifications_subscription_delete($subscription->sid);
       $disabled++;
     }
   }

@@ -5,6 +5,9 @@
  *   Notifications for anonymous users
  */
 
+// We will reuse some of the main Notifications form
+require_once drupal_get_path('module', 'notifications') . '/notifications.pages.inc';
+
 /**
  * Menu callback add subscription
  * 
@@ -25,7 +28,7 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
   // Check permissions and if allowed, ask for confirmation
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     drupal_set_title(t('Confirm your subscription'));
-    return drupal_get_form('notifications_anonymous_form_subscribe', $subscription, $account);
+    return drupal_get_form('notifications_anonymous_form_subscribe', $subscription);
   }
   else {
     drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
@@ -38,37 +41,14 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
 /**
  * Form for subscription confirmation
  */
-function notifications_anonymous_form_subscribe($form_state, $subscription, $account) {
-  $account = $account ? $account : drupal_anonymous_user();
+function notifications_anonymous_form_subscribe($form_state, $subscription) {
   notifications_include('destination.inc');
-  // Pass on whole subscription
-  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
-  // Fields to be saved on submit
-  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
-  
-  // The subscription description will be added here
-  $form['info'] = $subscription->form_info(); 
-  // Additional parameters
-  if ($send_intervals = notifications_send_intervals($account)) {
-    if (count($send_intervals) == 1) {
-      $form['send_interval'] = array('#type' => 'value', '#value' => key($send_intervals));
-    }
-    else {
-      $form['send_interval'] = array(
-        '#type' => 'select',
-        '#title' => t('Send interval'),
-        '#options' => notifications_send_intervals($account),
-        '#default_value' => $subscription->send_interval,
-      );      
-    }
-  }
-  else {
-    drupal_set_message(t('No send intervals enabled.'), 'error');
+  $form = notifications_form_subscribe_confirm($form_state, $subscription);
+  if (!empty($form['#error'])) {
     return $form;
   }
-
-  $destination = !empty($subscription->mdid) ? Messaging_Destination::load($subscription->mdid) : NULL;
-  $form += notifications_destination_address_subform($account, $destination);
+  // Add a destination field so the user can fill in a destination address
+  $form['send_method'] = notifications_destination_address_subform($account, $subscription->get_destination());
   $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
   $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
   return $form;
@@ -83,6 +63,7 @@ function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
   list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
 
   if (!$uid && $method && $address && ($destination = Messaging_Destination::build($method, $address, 0))) {
+    $form_state['values']['send_method'] = $method;
     $form_state['values']['destination'] = $destination;
     $form_state['values']['mdid'] = $destination->mdid;
   }

@@ -232,7 +232,7 @@ function notifications_content_form_submit($form, &$form_state) {
       }
     }
     elseif (isset($current[$index])) {
-      notifications_delete_subscription($current[$index]->sid);
+      notifications_subscription_delete($current[$index]->sid);
     }
   }
   drupal_set_message(t('Your subscriptions have been updated.'));

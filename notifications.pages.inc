@@ -229,7 +229,12 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
  * Form for subscription confirmation
  */
 function notifications_form_subscribe_confirm($form_state, $subscription) {
-  return $subscription->form_subscribe();
+  $form = notifications_subscription_base_form($subscription);
+  if (empty($form['#error'])) {
+    $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
+  }
+  $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
+  return $form; 
 }
 
 /**
@@ -280,7 +285,7 @@ function notifications_page_unsubscribe($type, $id) {
     // Skip confirmation page when requested and the signature is ok
     if (!empty($_GET['confirm']) && $signed) {
       if ($subscription) {
-        notifications_delete_subscription($subscription->sid);
+        notifications_subscription_delete($subscription->sid);
         drupal_set_message(t('Your subscription has been removed.'));
       }
       elseif ($account) {
@@ -337,7 +342,7 @@ function notifications_form_unsubscribe_confirm_submit($form, &$form_state) {
   switch ($form_state['values']['op']) {
     case t('Unsubscribe'):
       if ($subscription) {
-        notifications_delete_subscription($subscription->sid);
+        notifications_subscription_delete($subscription->sid);
         drupal_set_message(t('Your subscription has been removed.'));
       }
       elseif ($account) {
@@ -374,39 +379,80 @@ function notifications_subscription_edit_page($subscription) {
  * @todo Improve for handling anonymous subscriptions
  */
 function notifications_subscription_form($form_state, $subscription) {
-  $account = $subscription->get_account();
-  $destination = $subscription->get_destination();
-  // The subscription description will be added here
-  $form['info'] = $subscription->form_info();
-  // Subscription values  
-  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
-  $form['send_interval'] = array(
-    '#type' => 'select',
-    '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals($account),
-    '#default_value' => $subscription->send_interval,
-  );
-  $send_methods = notifications_send_methods($account);
-  $form['send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => $send_methods,
-    '#default_value' => $subscription->send_method,
-  );
-  // Status, show blocked only to administrators
-  $status = _notifications_subscription_status();
-  if (!user_access('administer notifications') && !user_access('manage all subscriptions')) {
-    unset($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED]);
-  }
-  $form['status'] = array(
-    '#type' => 'radios',
-    '#title' => t('Status'),
-    '#options' => $status,
-    '#default_value' => $subscription->status,
-    '#description' => t('You can temporarily disable this subscription for not getting notifications.')
-  );
+  $form = notifications_subscription_base_form($subscription);
   $form['save'] = array('#type' => 'submit', '#value' => t('Save'));  
   $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));  
+  return $form;  
+}
+
+/**
+ * Base subscription form. Present the main fields and check all values
+ */
+function notifications_subscription_base_form($subscription, $form = array()) {
+  // Pass on whole subscription and then the fields to be saved along
+  $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
+  $account = $subscription->get_user();
+  $save_fields = array();
+
+  // The subscription description will be added here
+  $form['info'] = $subscription->form_info();
+
+  // Send interval, visible only if more than one
+  if ($send_intervals = notifications_send_intervals($account)) {
+    $save_fields[] = 'send_interval';
+    if (count($send_intervals) == 1) {
+      $form['send_interval'] = array('#type' => 'value', '#value' => key($send_intervals));
+    }
+    else {
+      $form['send_interval'] = array(
+        '#type' => 'select',
+        '#title' => t('Send interval'),
+        '#options' => $send_intervals,
+        '#default_value' => !empty($subscription->send_interval) ? $subscription->send_interval : notifications_user_setting('send_interval', $account),
+      );
+    }
+  }
+  else {
+    drupal_set_message(t('No sending intervals available.'), 'error');
+    $form['#error']['send_interval'] = TRUE;
+  }
+  // Send method, visible only if more than one
+  if ($send_methods = notifications_send_methods($account)) {
+    $save_fields[] = 'send_method';
+    if (count($send_methods) == 1) {
+      $form['send_method'] = array('#type' => 'value', '#value' => key($send_methods));
+    }
+    else {
+      $form['send_method'] = array(
+        '#type' => 'select',
+        '#title' => t('Send method'),
+        '#options' => $send_methods,
+        '#default_value' => !empty($subscription->send_method) ? $subscription->send_method : notifications_user_setting('send_method', $account),
+        '#disabled' => count($send_methods) < 2,
+      );
+    }
+  }
+  else {
+    drupal_set_message(t('No sending methods available.'), 'error');
+    $form['#error']['send_method'] = TRUE;
+  }
+  // Status field, show blocked only to administrators
+  if ($subscription->is_instance()) {
+    $save_fields[] = 'status';
+    $status = _notifications_subscription_status();
+    if (!user_access('administer notifications') && !user_access('manage all subscriptions')) {
+      unset($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED]);
+    }
+    $form['status'] = array(
+      '#type' => 'radios',
+      '#title' => t('Status'),
+      '#options' => $status,
+      '#default_value' => $subscription->status,
+      '#description' => t('You can temporarily disable this subscription for not getting notifications.')
+    );
+  }
+  // Fields to be saved on submit. If error we just show the 'Cancel' button.
+  $form['subscription_fields'] = array('#type' => 'value', '#value' => $save_fields);
   return $form;  
 }
 
@@ -430,21 +476,13 @@ function notifications_subscription_form_validate($form, &$form_state) {
  * Save edited subscription
  */
 function notifications_subscription_form_submit($form, $form_state) {
-  $subscription = $form_state['values']['subscription'];
+  $subscription = Notifications_Subscription::build_submission($form_state);
   switch($form_state['values']['op']) {
     case t('Save'):
-      foreach (array('send_interval', 'send_method', 'status', 'mdid') as $field) {
-        if (isset($form_state['values'][$field])) {
-          $subscription->$field = $form_state['values'][$field];
-        }
-      }
-      if (!empty($form_state['values']['destination'])) {
-        $subscription->set_destination($form_state['values']['destination']);
-      }
       notifications_save_subscription($subscription);
       break;
     case t('Delete'):
-      notifications_delete_subscription($subscription->sid);
+      notifications_subscription_delete($subscription->sid);
       $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
   }

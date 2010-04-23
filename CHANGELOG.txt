@@ -2,6 +2,8 @@
 
 6.x-4.x-beta1 to ..........
 --------------------------------
+- Improved subscription create / edit forms, with a reusable form function
+- Renamed notifications_delete_subscription() to notifications_subscription_delete()
 - Updated destinations on all tables, for new Messaging Destination (no send method)
 - New: Added drush command to process notifications queue
 - Some minor issues fixed in notifications_custom, included #775958

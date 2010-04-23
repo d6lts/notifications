@@ -747,39 +747,7 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $field;
   }
-  
-  /**
-   * Generate a subscribe confirmation form
-   * 
-   * To handle submission from this form see method build_submission()
-   */
-  function form_subscribe() {
-    // Pass on whole subscription
-    $form['subscription'] = array('#type' => 'value', '#value' => $this);
-    // Fields to be saved on submit
-    $form['subscription_fields'] = array('#type' => 'value', '#value' => array('send_interval', 'send_method'));
-    // The subscription description will be added here
-    $form['info'] = $this->form_info(); 
-    // Additional parameters
-    $form['send_interval'] = array(
-      '#type' => 'select',
-      '#title' => t('Send interval'),
-      '#options' => notifications_send_intervals($account),
-      '#default_value' => $this->send_interval,
-    );
-    $send_methods = notifications_send_methods($account);
-    $form['send_method'] = array(
-      '#type' => 'select',
-      '#title' => t('Send method'),
-      '#options' => $send_methods,
-      '#default_value' => $this->send_method,
-      '#disabled' => count($send_methods) < 2,
-    );
-  
-    $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
-    $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
-    return $form;    
-  }
+
   /**
    * Display a form field for a notifications_field
    */

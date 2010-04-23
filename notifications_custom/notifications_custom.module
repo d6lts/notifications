@@ -237,7 +237,7 @@ function notifications_custom_account_update($account, $update) {
       }
       elseif (!$value && $subscription->is_instance()) {
         // Disable existing subscription
-        notifications_delete_subscription($subscription->sid);
+        notifications_subscription_delete($subscription->sid);
         $changed++;
       }
     }

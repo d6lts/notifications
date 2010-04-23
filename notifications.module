@@ -546,7 +546,7 @@ function notifications_save_subscription(&$subscription) {
       $subscription->sid = $update->sid;
       // If there are more, delete, keep the table clean
       while ($dupe = array_shift($duplicate)) {
-        notifications_delete_subscription($dupe->sid);
+        notifications_subscription_delete($dupe->sid);
       }
       return notifications_save_subscription($subscription);  
     }
@@ -609,19 +609,29 @@ function notifications_load_user($uid) {
 }
 
 /**
- * Delete subscription and clean up related data.
+ * Delete subscription and clean up related data, included the static cache
  * 
  * It also removes pending notifications related to that subscription 
  * 
  * @param $sid
- *   Subscription object or id of subscriptin to delete
+ *   Subscription object or sid or array of sids of subscription/s to delete
  */
-function notifications_delete_subscription($sid) {
+function notifications_subscription_delete($sid) {
   $sid = is_object($sid) ? $sid->sid : $sid;
-  $subscriptions = &messaging_static('notifications_load_subscription');
-  $subscriptions[$sid] = NULL;
+  $cache = &messaging_static('notifications_load_subscription');
+
+  if (is_array($sid)) {
+    $where = 'sid IN (' . db_placeholders($sid) . ')';
+    if ($cache) {
+      $cache = array_diff_key($cache, array_flip($sid));;
+    }
+  }
+  else {
+    $where = "sid = %d";
+    $cache[$sid] = NULL;
+  }
   foreach (array('notifications', 'notifications_fields', 'notifications_queue') as $table) {
-    db_query("DELETE FROM {". $table ."} WHERE sid = %d", $sid);
+    db_query("DELETE FROM {". $table ."} WHERE " . $where, $sid);
   }
 }
 
@@ -651,17 +661,9 @@ function notifications_delete_subscriptions($params, $field_conditions = array()
   $query['select'][] = 's.sid';
   $subscriptions = notifications_query_subscriptions($params, $field_conditions, $query, FALSE);
 
-  // This is the actual deletion. We've fetched the values from the db so this needs no escaping.
+  // This is the actual deletion, pass the array of sids
   if ($subscriptions) {
-    $delete = array_keys($subscriptions);
-    $placeholders = db_placeholders($delete);
-    foreach (array('notifications_fields', 'notifications_queue', 'notifications') as $table) {
-      db_query('DELETE FROM {' . $table . '} WHERE sid IN (' . $placeholders . ')', $delete);
-    }
-    // Now remove them from the cache too
-    if ($cache = &messaging_static('notifications_load_subscription')) {
-      $cache = array_diff_key($cache, $subscriptions);
-    }
+    notifications_subscription_delete(array_keys($subscriptions));
   }
   return $subscriptions ? count($subscriptions) : 0;
 }
@@ -1818,7 +1820,7 @@ function notifications_user_form_submit($form, &$form_state) {
       }
     }
     elseif (isset($current[$index])) {
-      notifications_delete_subscription($current[$index]->sid);
+      notifications_subscription_delete($current[$index]->sid);
     }
   }
 }
