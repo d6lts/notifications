@@ -228,11 +228,18 @@ function notifications_anonymous_subscription_page($subscription, $op = 'unsubsc
  * Admin settings form
  */
 function notifications_anonymous_admin_settings_form() {
+  $anonymous_methods = array();
+  foreach (messaging_method_info() as $method => $info) {
+    if (!empty($info['anonymous'])) {
+      $anonymous_methods[$method] = check_plain($info['name']);
+    }
+  }
   $form['notifications_anonymous_send_methods'] = array(
     '#title' => t('Allowed messaging methods'),
     '#type' => 'checkboxes',
-    '#options' => messaging_method_list(),
+    '#options' => $anonymous_methods,
     '#default_value' => variable_get('notifications_anonymous_send_methods', array('mail')),
+    '#description' => t('Select send methods allowed for anonymous users. Only one of each type (I.e. only one mail method) is allowed.'),
   );
   $form['notifications_anonymous_send_intervals'] = array(
     '#title' => t('Allowed send intervals'),
@@ -242,7 +249,27 @@ function notifications_anonymous_admin_settings_form() {
   );
   // We cannot use form filter because of inmediate send interval is always filtered out
   //$form['array_filter'] = array('#type' => 'value', '#value' => TRUE);
-  return system_settings_form($form);
+  $form = system_settings_form($form);
+  $form['#validate'][] = 'notifications_anonymous_admin_settings_form_validate';
+  return $form;
+}
+
+/**
+ * Validate admin settings
+ */
+function notifications_anonymous_admin_settings_form_validate($form, &$form_state) {
+  $send_methods = array_filter($form_state['values']['notifications_anonymous_send_methods']);
+  $form_state['values']['notifications_anonymous_send_methods'] = $send_methods;
+  // Check we have only one of each type
+  $types = array();
+  foreach ($send_methods as $method) {
+    $type = messaging_method_info($method, 'address_type');
+    if (in_array($type, $types)) {
+      form_set_error('notifications_anonymous_send_methods', t('Only one method of each type is allowed.'));
+      break;
+    }
+    $types[] = $type;
+  }
 }
 
 /**
