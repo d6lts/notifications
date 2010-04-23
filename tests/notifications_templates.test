@@ -115,7 +115,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $event_list = array($event1->eid => $event1);
     $subscriptions[$event1->eid] = array();
     $subscriptions[$event2->eid] = array();
-    $messages = notifications_process_compose($destination, $event_list, $subscriptions, $interval_nodigest);
+    $messages = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_nodigest);
     unset($messages[0]['notifications']);
     $this->assertEqual($messages[0], $target, 'Message composition for single event'. $this->compareTexts($messages[0], $target));
 
@@ -176,7 +176,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'subject' => $texts['subject'],
       'body' => theme('notifications_digest_short_body', $texts, $lines),
     );
-    $digest = notifications_process_compose($destination, $event_list, $subscriptions, $interval_short);
+    $digest = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_short);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for short digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');
@@ -194,7 +194,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'subject' => $texts['subject'],
       'body' => theme('notifications_digest_long_body', $texts['header'], $body, $texts['footer']),
     );
-    $digest = notifications_process_compose($destination, $event_list, $subscriptions, $interval_long);
+    $digest = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_long);
     $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');

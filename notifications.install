@@ -413,10 +413,14 @@ function notifications_update_6005() {
 }
 
 /**
- * Populate messaging_destination table
+ * Populate messaging_destination table. Updated again after 6013, as we just need the address type
  */
 function notifications_update_6006() {
-  $ret[] = update_sql("INSERT INTO {messaging_destination} (uid, method, address) SELECT DISTINCT uid, send_method, destination FROM {notifications}");
+  $ret[] = array();
+  foreach (messaging_method_info() as $method => $info) {
+    $type = isset($info['address_type']) ? $info['address_type'] : $info['group']; // Best guess, will work for most cases
+    $ret[] = update_sql("INSERT INTO {messaging_destination} (uid, type, address) SELECT DISTINCT uid, '$type', destination FROM {notifications} WHERE send_method = '$method'");
+  }
   return $ret; 
 }
 
@@ -444,16 +448,19 @@ function notifications_update_6009() {
   db_add_primary_key($ret, 'notifications_sent', array('mdid', 'send_interval'));  
   return $ret; 
 }
+
 /**
  * Set type to destinations
  */
 function notifications_update_6010() {
   $ret = array();
+  /* Not needed anymore
   foreach (messaging_method_info() as $method => $info) {
     if (isset($info['group'])) {
       $ret[] = update_sql("UPDATE {messaging_destination} SET type ='" . $info['group'] . "' WHERE method = '$method'");
     }
   }
+  */
   return $ret;
 }
 /**
@@ -484,4 +491,29 @@ function notifications_update_6012() {
   // Reset enabled events
   return $ret;
 }
-// Pending update, for next version, drop fields replaced by mdid
+
+/**
+ * Add back send_method for notifications_queue and fix duplicated destinations. Break down big update in multiple steps.
+ */
+function notifications_update_6013() {
+  $ret[] = update_sql("UPDATE {notifications_queue} q INNER JOIN {notifications} s ON q.sid = s.sid SET q.send_method = s.send_method");
+  return $ret;
+}
+/**
+ * When we have two destinations of the same type, set for all the smaller of that ones
+ */
+function notifications_update_6014() {
+  $ret[] = update_sql("UPDATE {notifications} n INNER JOIN {messaging_destination} d ON n.mdid = d.mdid SET n.mdid = (SELECT MIN(d2.mdid) FROM {messaging_destination} d2 WHERE d2.address = d.address AND d2.type = d.type)");
+  return $ret;
+}
+/**
+ * Clean up messaging_destination where there may be duplicated addresses. So far, the only module using that table is notifications
+ */
+function notifications_update_6015() { 
+  $ret[] = update_sql("DELETE FROM {messaging_destination} WHERE mdid NOT IN (SELECT mdid FROM {notifications})");
+  return $ret;
+}
+function notifications_update_6016() { 
+  $ret[] = update_sql("DELETE FROM {notifications_sent} WHERE mdid NOT IN (SELECT mdid FROM {messaging_destination})");
+  return $ret;
+}

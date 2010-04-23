@@ -141,7 +141,8 @@ function notifications_lite_notifications($op, $arg0, $arg1 = NULL, $arg2 = NULL
 function notifications_lite_queue_event($event) {
   $uid = $event->params['for-uid'];
   $account = notifications_load_user($uid);
-  if ($destination = messaging_account_build_destination($account)) {
+  $send_method = messaging_method_default($account);
+  if ($destination = messaging_account_build_destination($account, $send_method)) {
     $event->save();
     $queue = array(
       'mdid' => $destination->mdid,
@@ -150,7 +151,7 @@ function notifications_lite_queue_event($event) {
       'module' => 'notifications',
       'eid' => $event->eid,
       'send_interval' => notifications_user_setting('send_interval', $account),
-      'send_method' => $destination->method,
+      'send_method' => $send_method,
       'destination' => $destination->address,
       'cron' => 1,
       'created' => time(),

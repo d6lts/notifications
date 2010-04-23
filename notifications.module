@@ -596,31 +596,15 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
 /**
  * Get users with static caching for existing users
  * 
- * If not uid passed it will return an anonymous fake user (with destination, send_method)
- * We need to pass the send method to produce the right tokens later
- * 
- * This provides some API support for user-less subscriptions, i.e. when we've got just
- * an email address but no user associated. The idea is that these fake users will be properly 
- * handled by messaging module
- * 
- * @todo Possibly all this should be handled by messaging layer
- * 
  * @param $uid
  *   Uid of the user account to load, none to use anonymous user
- * @param $destination
- *   Messaging destination (mail, sms number, etc..), just for anonymous users
- * @param $send_method
- *   Messaging send method key (mail, sms, xmpp, etc..), just for anonymous users
  */
-function notifications_load_user($uid, $destination = NULL, $send_method = NULL) {
+function notifications_load_user($uid) {
   if ($uid) {
     return messaging_load_user($uid);
   }
   else {
-    $account = drupal_anonymous_user();
-    $account->destination = $destination;
-    $account->send_method = $send_method;
-    return $account;
+    return drupal_anonymous_user();
   }
 }
 
@@ -652,10 +636,13 @@ function notifications_delete_subscription($sid) {
  *   Array of multiple conditions in the notifications_fields table to delete subscriptions
  * @param $limit
  *   Whether to limit the result to subscriptions with exactly that condition fields
+ *   
+ * @return int
+ *   Number of deleted subscriptions
  */
 function notifications_delete_subscriptions($params, $field_conditions = array(), $limit = FALSE) {
   notifications_include('query.inc');
-  
+
   // For exact condition fields we add one more main condition.
   if ($limit) {
     $params += array('conditions' => count($field_conditions));
@@ -676,6 +663,7 @@ function notifications_delete_subscriptions($params, $field_conditions = array()
       $cache = array_diff_key($cache, $subscriptions);
     }
   }
+  return $subscriptions ? count($subscriptions) : 0;
 }
 
 /**
@@ -951,14 +939,6 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
   return notifications_array_info($fields, $type, $property);
 }
 
-
-/**
- * Subscription information field for several forms
- */
-function notifications_subscription_info_field($subscription) {
-  return $subscription->form_info();
-}
-
 /**
  * Get information from an array of data
  * 
@@ -1057,7 +1037,7 @@ function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2
  * @param $arg1, $arg2...
  *   Different parameters depending on $op
  */
-function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, $arg4 = NULL) {
+function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL) {
   switch ($op) {
     case 'message types':
       $info['notifications'] = array(
@@ -1076,10 +1056,10 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL, $arg3 = NULL, 
       return notifications_get_templates('tokens', $arg1);
     case 'method update':
       // A messaging method has been disabled ($arg1) and replaced by the new one ($arg2)
-      // Update subscriptions
-      db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
-      // Purge notifications queue, we may lost some notifications but it's the safest option.
-      db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $arg1);
+      notifications_include('destination.inc');
+      notifications_destination_method_replace($arg1, $arg2);
+      // db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
+
       break;
   }
 }
@@ -1508,7 +1488,7 @@ function notifications_notifications($op) {
         'load callback' => 'notifications_load_user',
         'autocomplete path' => 'user/autocomplete',
         'autocomplete callback' => 'notifications_user_name_callback',
-        'format callback' => 'notifications_user_uid2name',
+        'format callback' => 'messaging_user_format_name',
         'value callback' => 'notifications_user_name2uid',
         'access callback' => 'notifications_user_user_access',
         'file' => 'user.inc',
@@ -1623,7 +1603,7 @@ function _notifications_send_methods($account = NULL) {
  */
 function notifications_send_methods($account) {
   // We restrict send methods for anonymous accounts when edited by regular users
-  if (empty($account->uid) && !user_access('administer notifications') && function_exists('notifications_anonymous_send_methods')) {
+  if (empty($account->uid) && function_exists('notifications_anonymous_send_methods')) {
     return notifications_anonymous_send_methods();
   }
   else {
@@ -1848,18 +1828,6 @@ function notifications_user_form_submit($form, &$form_state) {
  */
 function notifications_subscription_form_field($type, $value = NULL, $subscription_type = NULL) {
   return Notifications_Subscription::form_field($type, $value, $subscription_type);
-}
-
-/**
- * Format subscription for display
- * 
- * Just for backwards compatiblity, we use Notifications_Subscription formatting functions now
- */
-function notifications_format_subscription($subscription, $format = 'short', $html = TRUE) {
-  // Build object if not built previously
-  $subscription = notifications_build_subscription($subscription);
-  $method = 'format_' . $format;
-  return $subscription->$method($html);
 }
 
 /**

@@ -157,9 +157,8 @@ function notifications_digest_event_template($event) {
  * 
  * @return array with messages ready to be sent
  */
-function notifications_digest_build_short($destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
+function notifications_digest_build_short($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
   $account = $destination->get_account();
-  $send_method = $destination->method;
   $language = $destination->get_language();
   // Compile list of events for each object
   $list = array();
@@ -228,10 +227,10 @@ function notifications_digest_build_short($destination, $events, $subscriptions,
  * 
  * @return array with messages ready to be sent
  */
-function notifications_digest_build_long($destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
+function notifications_digest_build_long($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
   $account = $destination->get_account();
   $language = $destination->get_language();
-  $send_method = $destination->method;
+
   // Build the message body as an array of event notifications
   $body = array();
 

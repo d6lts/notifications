@@ -247,21 +247,28 @@ class Notifications_Subscription extends Messaging_Object {
    * Create destination for this subscription
    */
   function create_destination($method = NULL, $address = NULL) {
+    $account = $this->get_user();
     if ($method && $address) {
-      $destination = Messaging_Destination::create($method, $address, $this->uid);
+      $destination = Messaging_Destination::create($method, $address, $account->uid);
       $this->set_destination($destination);
       return $destination;
     }
-    elseif (!empty($this->send_method) && !empty($this->destination)) {
-      return $this->create_destination($this->send_method, $this->destination);
-    }
-    elseif (($account = $this->get_account()) && $account->uid) {
-      // We still can create a destination if this has a user id
-      $method = !empty($this->send_method) ? $this->send_method : messaging_method_default($account);
-      if ($method && ($address = messaging_user_destination($account, $method))) {
-        return $this->create_destination($method, $address);
+    elseif ($account->uid) {
+      // For registered users we have other ways to create a destination
+      if ($method) {
+        if ($address = messaging_user_destination($account, $method)) {
+          // We have a method and address for this user account, fine
+          return $this->create_destination($method, $address);
+        }
       }
-    }  
+      else {
+        // We still can have a send method or get it from account
+        $method = !empty($this->send_method) ? $this->send_method  : messaging_method_default($account);
+        if ($method) {
+          return $this->create_destination($method);
+        }
+      }
+    }
   }
   /**
    * Save condition fields to db
@@ -508,7 +515,6 @@ class Notifications_Subscription extends Messaging_Object {
       $this->mdid = $destination->mdid;
       $this->destination = $destination->address;
       $this->destination_object = $destination;
-      $this->send_method = $destination->method;
     }
     elseif (is_numeric($destination)) {
       $this->mdid = $destination;

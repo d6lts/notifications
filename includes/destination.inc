@@ -268,9 +268,8 @@ function notifications_destination_manage_subform($destination) {
   $drupal_destination = drupal_get_destination();
   foreach ($subscriptions as $subs) {
     $select[$subs->sid] = '';
-    $format = notifications_format_subscription($subs, 'array');
     $form['type'][$subs->sid] = array('#value' => notifications_subscription_types($subs->type, 'title'));
-    $form['description'][$subs->sid] = array('#value' => $format['name']);
+    $form['description'][$subs->sid] = array('#value' => $subs->get_name());
     $form['send_interval'][$subs->sid] = array('#value' => !empty($send_intervals[$subs->send_interval]) ? $send_intervals[$subs->send_interval] : $subs->send_interval);  
     $form['status'][$subs->sid] =  array('#value' => $status[$subs->status]);
     $operations = array();
@@ -366,4 +365,61 @@ function notifications_destination_subscriptions_operations($account = NULL) {
   return $operations;
 }
 
+/**
+ * Update sending destinations when disabled a send method
+ * 
+ * @todo This may be better in a batch
+ * 
+ * @param $old
+ *   Old sending method
+ * @param $new
+ *   Optional new sending method to replace the old one
+ */
+function notifications_destination_method_replace($old, $new) {
+  // Purge notifications queue, we may lose some notifications but it's the safest option.
+  db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $old);
+  $deleted = db_affected_rows();
+  if ($new) {
+    $old_type = messaging_method_info($old, 'address_type');
+    $new_type = messaging_method_info($new, 'address_type');
+    // If both methods have the same address type, just replace methods
+    if ($old_type == $new_type) {
+      db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $new, $old);
+      $replaced = db_affected_rows();
+    }
+    else {
+      // First try a bulk replacement for users that have both types of destination
+      db_query("UPDATE {notifications} s INNER JOIN {messaging_destination} d ON s.uid = d.uid SET s.mdid = d.mdid, s.send_method = '%s', s.destination = d.address WHERE s.uid > 0 AND s.send_method = '%s' AND d.type = '%s'", $new, $old, $new_type);
+      $replaced = db_affected_rows();
+      // Now find a replacement for the rest. In case there are more than one subscription for a destination, process all at once
+      // Unless this was a database field, which we should have already fixed. When no destination user has no data
+      $result = db_query("SELECT DISTINCT uid, mdid FROM {notifications} WHERE uid > 0 AND send_method = '%s'", $old);
+      if (!$new_type || !$field || !$table) {
+        while ($subs = db_fetch_object($result)) {
+          if (($account = notifications_load_user($subs->uid)) && ($dest = messaging_account_build_destination($account, $new))) {
+            db_query("UPDATE {notifications} SET mdid = %d, send_method = '%s', destination = '%s' WHERE mdid = %d", $dest->mdid, $new, $dest->address, $subs->mdid);
+            $replaced += db_affected_rows();
+            $created++;
+          }
+        }
+      }
+    }
+  }
+  // Block remaining subscriptions for old sending method
+  db_query("UPDATE {notifications} SET status = %d WHERE send_method = '%s'", NOTIFICATIONS_SUBSCRIPTION_BLOCKED, $old);
+  $blocked = db_affected_rows();
+  // Print out some messages about what's happened
+  if (!empty($replaced)) {
+    drupal_set_message(t("Updated @count user subscriptions with a new destination.", array('@count' => $replaced)));
+  }  
+  if (!empty($blocked)) {
+    drupal_set_message(t("Blocked @count subscriptions as we cannot find a replacement destination.", array('@count' => $blocked)), 'warning');
+  }
+  if (!empty($deleted)) {
+    drupal_set_message(t("Deleted @count notifications from queue, corresponding to the disabled method.", array('@count' => $deleted)));
+  }
+}
 
+/**
+ * Bulk create destinations for users in notifications table
+ */

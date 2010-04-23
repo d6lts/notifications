@@ -88,12 +88,12 @@ function notifications_tools_queue_summary() {
   $send_intervals = _notifications_send_intervals();
   $send_methods = _notifications_send_methods();
   $header = array(t('Send interval'), t('Number'));
-  $result = db_query("SELECT q.send_interval, d.method, count(*) AS count FROM {notifications_queue} q LEFT JOIN {messaging_destination} d ON q.mdid = d.mdid WHERE q.cron = 1 GROUP BY q.send_interval, d.method");    
+  $result = db_query("SELECT q.send_interval, q.send_method, count(*) AS count FROM {notifications_queue} q WHERE q.cron = 1 GROUP BY q.send_interval, q.send_method");    
   // Store by interval, method 
   $data = array();
   $count = 0;
   while ($item = db_fetch_object($result)) {
-    $data[$item->send_interval][$item->method] = $item->count;
+    $data[$item->send_interval][$item->send_method] = $item->count;
     $count += $item->count;
   }
   // Format the results in a table
@@ -252,17 +252,16 @@ function notifications_tools_template_test_form($form_state) {
     $form['showmessage'] = array(
       '#title' => t('Message'),
       '#type' => 'item',
-      '#value' => _notifications_tools_format($form_state['values']['message']),
+      '#value' => _notifications_tools_format_message($form_state['values']['message']),
     );
   }
-  /*
-  $form['event'] = array(
-    '#title' => t('Select event type'),
-    '#type' => 'select',
-    '#options' => notifications_event_types(NULL, 'description'),
-    '#default_value' => isset($form_state['values']['event']) ? $form_state['values']['event'] : NULL,
-  );
-  */
+  if (!empty($form_state['values']['templates'])) {
+    $form['showtemplate'] = array(
+      '#title' => t('Template parts'),
+      '#type' => 'item',
+      '#value' => _notifications_tools_format_template($form_state['values']['templates']),
+    );
+  }
   $form['type'] = array(
     '#title' => t('Node type'),
     '#type' => 'select',
@@ -317,7 +316,7 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
   }
   if (empty($node)) {
     $type = $form_state['values']['type'];
-    $node = _notifications_tools_generate($type);
+    $node = _notifications_tools_generate_content($type);
     $node->nid = 1;
     $node->uid = $user->uid;
     $node->type = $type;
@@ -327,7 +326,7 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
   $objects['node'] = $node;
   // Add comment if needed
   if ($action == 'comment') {
-    $comment = _notifications_tools_generate('comment');
+    $comment = _notifications_tools_generate_content('comment');
     $comment->cid = 1;
     $comment->uid = $user->uid;
     $comment->nid = $node->nid;
@@ -350,8 +349,10 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
   $send_method = $form_state['values']['send_method'];
   if ($destination = messaging_account_build_destination($user, $send_method)) {
     $destination->language = $form_state['values']['language'];
-    $message = notifications_process_build_simple_message($destination, $event, array(), 'notifications', TRUE);
-    // Store message and rebuild
+    $message = notifications_process_build_simple_message($send_method, $destination, $event, array(), 'notifications', TRUE);
+    // Store message and rebuild. The message will come with template information (debug = TRUE);
+    $form_state['values']['templates'] = $message['parts'];
+    unset($message['parts']);
     $form_state['values']['message'] = $message;
     $form_state['rebuild'] = TRUE;  
   }
@@ -364,7 +365,7 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
 /**
  * Generate fake node or comment
  */
-function _notifications_tools_generate($type) {
+function _notifications_tools_generate_content($type) {
   $node = new Stdclass();
   $title = t('Test title for @type', array('@type' => $type));
   for ($i = 1; $i <= 5; $i++) {
@@ -385,10 +386,26 @@ function _notifications_tools_generate($type) {
 /**
  * Format resulting message array as table
  */
-function _notifications_tools_format($message) {
+function _notifications_tools_format_message($message) {
   $rows = array();
   foreach ($message as $key => $value) {
-    $rows[] = array($key, is_array($value) ? _notifications_tools_format($value) : '<pre>' . check_plain($value) . '</pre>');
+    $rows[] = array($key, is_array($value) ?  _notifications_tools_format_message($value) : '<pre>' . check_plain($value) . '</pre>');
   }
   return theme('table', array(), $rows);
+}
+
+/**
+ * Format template information as table
+ */
+function _notifications_tools_format_template($parts) {
+  $rows = array();
+  $header = array('msgkey' => t('Key'), 'type' => t('Template'), 'method' => t('Method'), 'message' => t('Text'), 'language' => t('Language'), 'format' => t('Format'));
+  foreach ($parts as $key => $value) {
+    $row = array();
+    foreach (array_keys($header) as $field) {
+      $row[] = isset($value->$field) ? check_plain($value->$field) : '';
+    }
+    $rows[] = $row;
+  }
+  return theme('table', $header, $rows);
 }

@@ -313,7 +313,7 @@ function notifications_form_unsubscribe_confirm($form_state, $subscription, $acc
   if ($subscription) {
     $message = t('Are you sure you want to delete this subscription?');
     // The subscription description will be added here
-    $form['info'] = notifications_subscription_info_field($subscription);    
+    $form['info'] = $subscription->form_info();    
   }
   else {
     $message = t('Are you sure you want to remove all your subscriptions on this site?');
@@ -375,8 +375,9 @@ function notifications_subscription_edit_page($subscription) {
  */
 function notifications_subscription_form($form_state, $subscription) {
   $account = $subscription->get_account();
+  $destination = $subscription->get_destination();
   // The subscription description will be added here
-  $form['info'] = notifications_subscription_info_field($subscription);
+  $form['info'] = $subscription->form_info();
   // Subscription values  
   $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
   $form['send_interval'] = array(
@@ -410,6 +411,46 @@ function notifications_subscription_form($form_state, $subscription) {
 }
 
 /**
+ * Validate edited subscription
+ */
+function notifications_subscription_form_validate($form, &$form_state) {
+  $subscription = $form_state['values']['subscription'];
+  // If changed send method, build new destination
+  if (!empty($form_state['values']['send_method']) && $subscription->send_method != $form_state['values']['send_method']) {
+    if ($destination = $subscription->create_destination($form_state['values']['send_method'])) {
+      $form_state['values']['destination'] = $destination;
+    }
+    else {
+      form_set_error('send_method', t('We cannot find a valid destination for this method.'));
+    }
+  }
+}
+
+/**
+ * Save edited subscription
+ */
+function notifications_subscription_form_submit($form, $form_state) {
+  $subscription = $form_state['values']['subscription'];
+  switch($form_state['values']['op']) {
+    case t('Save'):
+      foreach (array('send_interval', 'send_method', 'status', 'mdid') as $field) {
+        if (isset($form_state['values'][$field])) {
+          $subscription->$field = $form_state['values'][$field];
+        }
+      }
+      if (!empty($form_state['values']['destination'])) {
+        $subscription->set_destination($form_state['values']['destination']);
+      }
+      notifications_save_subscription($subscription);
+      break;
+    case t('Delete'):
+      notifications_delete_subscription($subscription->sid);
+      $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
+      break;
+  }
+}
+
+/**
  * Bulk update all user subscriptions, confirmation form
  * 
  * @param $account
@@ -439,6 +480,9 @@ function notifications_update_user_subscriptions($form_state, $account, $operati
   }
 }
 
+/**
+ * Mass update user subscriptions
+ */
 function notifications_update_user_subscriptions_submit($form, $form_state) {
   $account = $form_state['values']['account'];
   
@@ -452,28 +496,6 @@ function notifications_update_user_subscriptions_submit($form, $form_state) {
       db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_INACTIVE, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
       notifications_queue_clean(array('uid' => $account->uid));
       drupal_set_message(t('All your subscriptions have been disabled.'));
-      break;
-  }
-}
-
-/**
- * Save edited subscription
- */
-function notifications_subscription_form_submit($form, $form_state) {
-  // Rebuild subscription object
-  $subscription = $form_state['values']['subscription'];
-  foreach (array('send_interval', 'send_method', 'status') as $field) {
-    if (isset($form_state['values'][$field])) {
-      $subscription->$field = $form_state['values'][$field];
-    }
-  }
-  switch($form_state['values']['op']) {
-    case t('Save'):
-      notifications_save_subscription($subscription);
-      break;
-    case t('Delete'):
-      notifications_delete_subscription($subscription->sid);
-      $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
       break;
   }
 }

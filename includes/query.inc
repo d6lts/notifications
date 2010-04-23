@@ -187,10 +187,10 @@ function notifications_query_queue_event($event) {
  *   Query skeleton
  */
 function notifications_query_event_queue($event) {
-  $query['insert'] = array('uid', 'mdid', 'sid', 'module', 'eid', 'send_interval', 'language', 'cron', 'created', 'conditions');
+  $query['insert'] = array('uid', 'mdid', 'send_method', 'sid', 'module', 'eid', 'send_interval', 'language', 'cron', 'created', 'conditions');
   $query['into'] = '{notifications_queue}';
   $query['distinct'] = TRUE;
-  $query['select'] = array('s.uid', 's.mdid', 's.sid', 's.module', '%d', 's.send_interval', 's.language', 's.cron', '%d', 's.conditions');
+  $query['select'] = array('s.uid', 's.mdid', 's.send_method', 's.sid', 's.module', '%d', 's.send_interval', 's.language', 's.cron', '%d', 's.conditions');
   $query['from'] = array('{notifications} s');
   $query['select args'] = array($event->eid, $event->created);
   // We do a left join instead of inner join to allow subscriptions with no fields to work
@@ -203,7 +203,7 @@ function notifications_query_event_queue($event) {
     $query['where args'][] = $event->uid;
   }    
   // Some group by fields are not really needed but added for pgsql compatibility
-  $query['group'] = array('s.uid', 's.mdid', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions');
+  $query['group'] = array('s.uid', 's.mdid', 's.send_method', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions');
   
   // We throw in all the conditions and check the number of matching conditions
   // that must be equal to the subscription conditions number    
