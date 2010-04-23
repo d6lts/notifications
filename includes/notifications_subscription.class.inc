@@ -112,22 +112,85 @@ class Notifications_Subscription extends Messaging_Object {
   }
 
   /**
-   * Build from form submission
-   */
-  public static function build_submission($form_state) {
+  * Validate form submission
+  */
+  public static function validate_submission(&$form_state) {
     // The object may be already created ir it may be an array so we use this function that handles that
     $subscription = notifications_build_subscription($form_state['values']['subscription']);
     // There may be optional fields to add
     if (!empty($form_state['values']['subscription_fields'])) {
       foreach ($form_state['values']['subscription_fields'] as $field) {
         if (isset($form_state['values'][$field])) {
-          $subscription->$field = $form_state['values'][$field];
+          switch ($field) {
+            case 'fields':
+              notifications_include('object.inc');
+              foreach ($form_state['values'][$field] as $key => $field_values) {
+                if ($value = notifications_field_real_value($field_values['type'], $field_values['edit'])) {
+                  $form_state['values']['parsed_fields'][$key] = array('type' => $field_values['type'], 'value' => $value);
+                }
+                else {
+                  form_set_error("$field]['edit", t('Invalid value for this field.'));
+                  break;
+                }
+              }
+              break;
+            case 'send_method':
+              if (!$subscription->mdid || $subscription->send_method != $form_state['values']['send_method']) {
+                if ($destination = $subscription->create_destination($form_state['values']['send_method'])) {
+                  $form_state['values']['destination'] = $destination;
+                  $form_state['values']['subscription_fields'][] = 'destination';
+                }
+                else {
+                  form_set_error('send_method', t('Cannot create a valid destination.'));
+                }
+              }
+              break;
+          }   
+        }
+      }
+    }
+  }
+
+  /**
+   * Build from form submission
+   */
+  public static function build_submission(&$form_state) {
+    // The object may be already created ir it may be an array so we use this function that handles that
+    $subscription = notifications_build_subscription($form_state['values']['subscription']);
+    // There may be optional fields to add
+    if (!empty($form_state['values']['subscription_fields'])) {
+      foreach ($form_state['values']['subscription_fields'] as $field) {
+        if (isset($form_state['values'][$field])) {
+          switch ($field) {
+            case 'fields':
+              $subscription->set_fields($form_state['values']['parsed_fields']);
+              break;
+            case 'destination':
+              $subscription->set_destination($form_state['values'][$field]);
+              break;
+            default:
+              $subscription->$field = $form_state['values'][$field];
+              break;
+          }   
         }
       }
     }
     return $subscription;
   }
 
+  /**
+   * Produce fieldset to edit field values
+   */
+  function fields_subform() {
+    $elements = array();
+    foreach ($this->get_type_fields() as $index => $field) {
+      $elements[$index]['type'] = array('#type' => 'value', '#value' => $field->field);
+      $elements[$index]['value'] = array('#type' => 'value', '#value' => $field->value);
+      $elements[$index]['edit'] = $this->field_element($field->field, $field->value, TRUE, TRUE);
+    }
+    return $elements;
+  }
+  
   /**
    * Build subscribe /unsubscribe link
    */
@@ -614,9 +677,17 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $this->name;
   }
-
-   /**
-    * 
+  /**
+   * Get description
+   */
+  function get_description($format = self::FORMAT_HTML) {
+    return $this->get_type('description');
+  }
+  // Get title
+  function get_title() {
+    return $this->get_type('title');
+  }   
+  /**
    * If the subscription type has a name, like custom subscriptions have, that will be the name
    * Otherwise we build the name using fields and values
    */
@@ -751,37 +822,9 @@ class Notifications_Subscription extends Messaging_Object {
   /**
    * Display a form field for a notifications_field
    */
-  public static function form_field($type, $value = NULL, $subtype = NULL) {
-    $field_info = notifications_subscription_fields($type);
-    $object_info = isset($field_info['object_type']) ? notifications_object_type($field_info['object_type']) : array();
-    $merged_info = $field_info + $object_info;
-  
-    if (isset($merged_info['options callback'])) {
-      $element['#type'] = 'select';
-      $element['#options'] = _notifications_field_callback($type, 'options callback');
-    }
-    elseif (!empty($merged_info['autocomplete path'])) {
-      $element['#type'] = 'textfield';
-      $element['#autocomplete_path'] = $merged_info['autocomplete path'];
-      if ($value) {     
-        if (!empty($merged_info['autocomplete callback'])) {
-          $value = _notifications_field_callback($type, 'autocomplete callback', $value, $subtype);
-        }
-        elseif (!empty($merged_info['format callback']))  {
-          $value = _notifications_field_callback($type, 'format callback', $value, FALSE, $subtype);
-        }      
-      }
-    }
-    else {
-      $element['#type'] = 'textfield';
-      if ($value) {
-        $value = check_plain($value);
-      }
-    }
-    if ($value) {
-      $element['#default_value'] = $value;
-    }
-    return $element;
+  public function field_element($type, $value = NULL, $title = FALSE, $required = FALSE ) {
+    notifications_include('object.inc');
+    return notifications_field_form_element($type, $value, $this->type, $title, $required);
   }
   
   /**

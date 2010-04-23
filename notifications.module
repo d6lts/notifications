@@ -1826,13 +1826,6 @@ function notifications_user_form_submit($form, &$form_state) {
 }
 
 /**
- * Display a form field for a notifications_field
- */
-function notifications_subscription_form_field($type, $value = NULL, $subscription_type = NULL) {
-  return Notifications_Subscription::form_field($type, $value, $subscription_type);
-}
-
-/**
  * Implementation of hook_theme()
  */
 function notifications_theme() {

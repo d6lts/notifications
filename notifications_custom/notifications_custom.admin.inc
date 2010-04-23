@@ -206,10 +206,10 @@ function notifications_custom_fields_form($form_state, $subscription) {
       );
       // Generate the editable field value and pass the value only if it doesn't come from a previous submission
       if (empty($data['edit'])) {
-        $form['fields']['edit'][$fid] = notifications_subscription_form_field($data['type'], $data['value']);
+        $form['fields']['edit'][$fid] = $subscription->field_element($data['type'], $data['value']);
       }
       else {
-        $form['fields']['edit'][$fid] = notifications_subscription_form_field($data['type']);
+        $form['fields']['edit'][$fid] = $subscription->field_element($data['type']);
         $form['fields']['edit'][$fid]['#default_value'] = $data['edit'];
       }
     }

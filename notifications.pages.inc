@@ -65,52 +65,39 @@ function notifications_user_overview($form_state, $account) {
 /**
  * Form for creating new subscriptions with variable fields
  */
-function notifications_add_subscription_form($form_state, $account, $type, $destination = NULL) {
-  $destination = $destination ? $destination : 'user/' . $account->uid . '/notifications';
+function notifications_add_subscription_form($form_state, $account, $type, $form_destination = NULL) {
+  $form_destination = $form_destination ? $form_destination : 'user/' . $account->uid . '/notifications';
   $info = notifications_subscription_types($type);
-  $form['account'] = array('#type' => 'value', '#value' => $account);
-  $form['type'] = array('#type' => 'value', '#value' => $type);
+  $subscription = Notifications_Subscription::build($type);
+  $subscription->set_account($account);
 
+  $form = notifications_subscription_base_form($subscription);
   // Display general information
   $form['info'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Create @type subscription', array('@type' => $info['title'])),
-    '#description' => !empty($info['description']) ? $info['description'] : '',
+    '#title' => t('Create @type subscription', array('@type' => $subscription->get_title())),
+    '#description' => $subscription->get_description(),
   );
-  // Build subscription fields
-  $form['info']['fields']['#tree'] = TRUE;  
-  foreach ($info['fields'] as $fid => $field_type) {
-    $field = notifications_subscription_fields($field_type);
-    $form['info']['fields'][$fid]['type'] = array('#type' => 'value', '#value' => $field_type);
-    $form['info']['fields'][$fid]['value'] = notifications_subscription_form_field($field_type, NULL, $type);
-    $form['info']['fields'][$fid]['value'] += array(
-      '#title' => $field['name'],
-      '#required' => TRUE,   
-    ); 
-  }
+
+  // Build subscription fields and add to the list of saved ones
+  $form['info']['fields'] = $subscription->fields_subform();
+  $form['info']['fields']['#tree'] = TRUE;
+  $form['subscription_fields']['#value'][] = 'fields';
+
   // Add generic subscription information for notifications
   $form['notifications'] = array(
     '#type' => 'fieldset',
     '#title' => t('Notifications'),
     '#description' => t('How often and by which channel do you want to get notifications for this subscription.')
   );
-  $form['notifications']['send_interval'] = array(
-    '#type' => 'select',
-    '#title' => t('Send interval'),
-    '#options' => notifications_send_intervals(),
-    '#default_value' => notifications_user_setting('send_interval', $account),
-  );
-  $send_methods = _notifications_send_methods($account);
-  $form['notifications']['send_method'] = array(
-    '#type' => 'select',
-    '#title' => t('Send method'),
-    '#options' => $send_methods,
-    '#default_value' => notifications_user_setting('send_method', $account),
-  );
+  $form['notifications']['send_interval'] = $form['send_interval'];
+  unset($form['send_interval']);
+  $form['notifications']['send_method'] = $form['send_method'];
+  unset($form['send_method']);
   // Other form parameters and buttons
-  $form['#redirect'] = $destination;
+  $form['#redirect'] = $form_destination;
   $form['buttons']['save'] = array('#type' => 'submit', '#value' => t('Create subscription'));  
-  $form['buttons']['cancel'] = array('#value' => l(t('Cancel'), $destination));
+  $form['buttons']['cancel'] = array('#value' => l(t('Cancel'), $form_destination));
   
   return $form;    
 }
@@ -119,34 +106,7 @@ function notifications_add_subscription_form($form_state, $account, $type, $dest
  * Validate new subscription, compute actual field values
  */
 function notifications_add_subscription_form_validate($form, &$form_state) {
-  $field_values = array();
-  foreach ($form_state['values']['fields'] as $fid => $field){
-    // We may need additional validation or field - value mappging for some fields
-    $value = $field['value'];
-    if ($callback = notifications_subscription_fields($field['type'], 'value callback')) {
-      if ($args = notifications_subscription_fields($field['type'], 'value callback args')) {
-        $value = call_user_func($callback, $value, "fields][$fid][value", $form_state['values']['type'], $args);
-      } else {
-        $value = call_user_func($callback, $value, "fields][$fid][value", $form_state['values']['type']);
-      }
-    }
-    // If we still have a value (mapping may have failed, go and save)
-    if ($value) {
-      $field_values[$fid] = array('type' => $field['type'], 'value' => $value);
-    }
-    else {
-      // We don't have a value, error message
-      form_set_error("fields][$fid][value", t('You must set a value for this field.'));
-    }
-   
-  }
-  // Final check, we should have some valid field/value pairs
-  if ($field_values) {
-    $form_state['field_values'] = $field_values;
-  }
-  else {
-    form_set_error('', t('You must provide valid values for all fields.'));
-  } 
+  Notifications_Subscription::validate_submission($form_state);
 }
 
 /**
@@ -155,13 +115,7 @@ function notifications_add_subscription_form_validate($form, &$form_state) {
 function notifications_add_subscription_form_submit($form, &$form_state) {
   $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
   if ($op == t('Create subscription')) {
-    $subscription = array(
-      'type' => $form_state['values']['type'],
-      'uid' => $form_state['values']['account']->uid,
-      'send_method' => $form_state['values']['send_method'],
-      'send_interval' => $form_state['values']['send_interval'],
-      'fields' => $form_state['field_values'],
-    );
+    $subscription = Notifications_Subscription::build_submission($form_state);
     $result = notifications_save_subscription($subscription);
     if ($result === SAVED_NEW) {
       drupal_set_message(t('Your subscription has been created.'));

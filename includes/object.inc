@@ -165,6 +165,13 @@ function notifications_field_get_info($type, $property) {
 }
 
 /**
+ * Format field type name
+ */
+function notifications_field_format_name($type) {
+  return notifications_field_type($type, 'name');
+}
+
+/**
  * Format field value
  */
 function notifications_field_format_value($type, $value, $html = TRUE, $subscription_type = NULL) {
@@ -293,3 +300,42 @@ function notifications_field_valid_value($value, $type = NULL) {
   }
 }
 
+/**
+ * Build a form element to edit a field
+ */
+function notifications_field_form_element($type, $value, $subscription_type, $title = FALSE, $required = FALSE) {
+  $field_info = notifications_subscription_fields($type);
+  $object_info = isset($field_info['object_type']) ? notifications_object_type($field_info['object_type']) : array();
+  $merged_info = $field_info + $object_info;
+
+  if (isset($merged_info['options callback'])) {
+    $element['#type'] = 'select';
+    $element['#options'] = _notifications_field_callback($type, 'options callback', $subscription_type);
+  }
+  elseif (!empty($merged_info['autocomplete path'])) {
+    $element['#type'] = 'textfield';
+    $element['#autocomplete_path'] = $merged_info['autocomplete path'];
+    if ($value) {     
+      if (!empty($merged_info['autocomplete callback'])) {
+        $value = _notifications_field_callback($type, 'autocomplete callback', $value, $subscription_type);
+      }
+      elseif (!empty($merged_info['format callback']))  {
+        $value = _notifications_field_callback($type, 'format callback', $value, FALSE, $subscription_type);
+      }      
+    }
+  }
+  else {
+    $element['#type'] = 'textfield';
+    if ($value) {
+      $value = check_plain($value);
+    }
+  }
+  if ($value) {
+    $element['#default_value'] = $value;
+  }
+  if ($title) {
+    $element['#title'] = notifications_field_format_name($type);
+  }
+  $element['#required'] = $required;
+  return $element;
+}
