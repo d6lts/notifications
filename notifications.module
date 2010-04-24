@@ -410,6 +410,29 @@ function notifications_subscription_form_submit($form, &$form_state) {
 }
 
 /**
+ * Form with multiple subscription options
+ */
+function notifications_subscriptions_options_form($form_state, $subscriptions) {
+  notifications_include('object.inc');
+  return notifications_object_options_form($form_state, $subscriptions);
+}
+
+/**
+ * Subform with multiple subscription options
+ */
+function notifications_subscriptions_options_subform($subscriptions, $buttons = TRUE) {
+  notifications_include('object.inc');
+  return notifications_object_options_subform($subscriptions, $buttons);
+}
+/**
+ * Wrapper submit callback se we can do an include before actual submission
+ */
+function notifications_subscriptions_options_form_submit($form, &$form_state) {
+  notifications_include('object.inc');
+  return notifications_object_options_form_submit($form, &$form_state);
+}
+
+/**
  * Gets a user setting, defaults to default system setting for each
  * 
  * @param $name
@@ -1553,6 +1576,12 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
       }
       return $access;
       break;
+
+    case 'page objects':
+      if (arg(0) == 'user' && is_numeric(arg(1)) && ($account = menu_get_object('user'))) {
+        return array('user' => $account);  
+      }
+      break;
   }  
 }
 
@@ -1954,20 +1983,7 @@ function notifications_include($file, $module = 'notifications') {
 function &notifications_info($name, $param = NULL, $refresh = FALSE) {
   $info = &messaging_static('notifications_info_' . $name);
   if (!isset($info) || $refresh) {
-    $info = array();
-    foreach (module_implements('notifications') as $module) {
-      $function = $module .'_notifications';
-      if ($return = $function($name, $param)) {
-        // Add module name to each result if it is an info array
-        foreach ($return as $key => &$value) {
-          if (is_array($value)) {
-            $value += array('module' => $module);
-          }
-        }
-        // Note we use array_merge instead of array_merge_recursive()
-        $info = array_merge($info, $return);
-      }
-    }
+    $info = messaging_module_invoke_all('notifications', $name, $param);
     // Provide alter hook
     drupal_alter('notifications_' . strtr(' ', '_', $name), $info);
   }      

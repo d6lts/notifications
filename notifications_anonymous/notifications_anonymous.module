@@ -127,9 +127,9 @@ function notifications_anonymous_block($op = 'list', $delta = 0) {
     return $blocks;
   }
   else if ($op == 'view' && !$user->uid) {
-    if ($options = notifications_ui_block_options($user)) { 
+    if ($options = notifications_ui_page_options('block')) { 
       $block['subject'] = t('Subscribe to');
-      $block['content'] = drupal_get_form('notifications_ui_options_form', $options, FALSE);
+      $block['content'] = drupal_get_form('notifications_anonymous_options_form', $options, FALSE);
       return $block;    
     }
   }  
@@ -227,23 +227,22 @@ function notifications_anonymous_perm() {
 }
 
 /**
- * Implementation of hook_form_alter()
+ * Form for anonymous subscriptions
  */
-function notifications_anonymous_form_alter(&$form, $form_state, $form_id) {
-  global $user;
-  
-  switch ($form_id) {
-    case 'notifications_ui_options_form':
-      $account = $form['subscriptions']['account']['#value'];
-      if (!$account->uid) {
-        notifications_include('destination.inc');
-        $form += notifications_destination_address_subform($account, NULL, NULL, 20);
-        $form['submit']['#weight'] = 100;
-      }
-      break;
-  }
+function notifications_anonymous_options_form($form_state, $subscriptions) {
+  $form = notifications_subscriptions_options_form($form_state, $subscriptions);
+  notifications_include('destination.inc');
+  $form += notifications_destination_address_subform($account, NULL, NULL, 20);
+  $form['submit']['#weight'] = 100;
+  return $form; 
 }
 
+/**
+ * Validate anonymous subscription form
+ */
+function notifications_anonymous_options_form_validate($form, &$form_state) {
+  //@todo
+}
 /**
  * Get link for anonymous subscriptions / destinations
  * 

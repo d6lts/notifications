@@ -99,6 +99,17 @@ function notifications_tags_notifications_subscription($op, $subscription = NULL
         }
       }
       break;
+ 
+    case 'page objects':
+      // Return objects on current page to which we can subscribe
+      if (arg(0) == 'taxonomy') {
+        $objects = array();
+        if (arg(1) == 'term' && is_numeric(arg(2)) && ($term = taxonomy_get_term(arg(2)))) {
+          $objects['term'] = $term;
+        }
+        return $objects;
+      }
+      break;
   }  
 }
 

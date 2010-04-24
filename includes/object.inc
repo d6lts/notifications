@@ -339,3 +339,131 @@ function notifications_field_form_element($type, $value, $subscription_type, $ti
   $element['#required'] = $required;
   return $element;
 }
+
+/**
+ * Get objects to which we can subscribe on current page
+ */
+function notifications_object_page_objects() {
+  $objects = &messaging_static(__FUNCTION__);
+  if (!isset($objects)) {
+    $objects = messaging_module_invoke_all('notifications_subscription', 'page objects');
+  }
+  return $objects;
+}
+
+/**
+ * Build subscriptions for current user to an array of objects
+ */
+function notifications_object_page_subscriptions($objects) {
+  global $user;
+  $subscriptions = array();
+  foreach ($objects as $type => $object) {
+    if ($more = notifications_object_user_subscriptions($type, $object, $user)) {
+      $subscriptions = array_merge($subscriptions, $more);
+    }
+  }
+  return $subscriptions;
+}
+
+/**
+ * Form for object (node, user, term...) subscriptions
+ *
+ * @param $subscriptions
+ *   Array of subscription options
+ */
+function notifications_object_options_form($form_state, $subscriptions) {
+  $form['subscriptions'] =  notifications_object_options_fieldset($subscriptions, FALSE);  
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Update'));
+
+  // If full form, redirect so the full page which may have subscription links is updated
+  $form['#redirect'] = $_GET['q'];
+  // Add always submit callback because the form may have a different name
+  $form['#submit'][] = 'notifications_subscriptions_options_form_submit';
+  return $form;
+}
+
+/**
+ * Process submission
+ */
+function notifications_object_options_form_submit($form, $form_state) {
+  $enabled = $disabled = 0;
+  foreach ($form_state['values']['subscriptions']['options'] as $index => $value) {
+    $subscription = $form_state['values']['subscriptions']['params'][$index];   
+    if ($value && !$subscription->is_instance()) {
+      // We checked a disabled subscription
+      notifications_save_subscription($subscription);
+      $enabled++;
+    }
+    elseif (!$value && $subscription->is_instance()) {
+      // we unchecked an enabled subscription
+      notifications_subscription_delete($subscription->sid);
+      $disabled++;
+    }
+  }
+
+  if ($enabled) {
+    drupal_set_message(format_plural($enabled, 'A subscription has been created', '@count subscriptions have been created'));
+  }
+  if ($disabled) {
+    drupal_set_message(format_plural($disabled, 'A subscription has been deleted', '@count subscriptions have been deleted'));
+  }  
+}
+
+/**
+ * Subform with subscription options so it can be reused for a fieldset on a bigger form
+ * 
+ * @param $form
+ *   Main form to add the fieldset
+ * @param $subscriptions
+ *   List of subscription objects
+ * @param $buttons
+ *   Whether to add buttons to the fieldset
+ */
+function notifications_object_options_subform($form, $subscriptions, $buttons = TRUE) {
+  $form['subscriptions'] = notifications_object_options_fieldset($subscriptions, TRUE);
+  $form['subscriptions'] += array(
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,  
+  );
+  if ($buttons) {
+    $form['subscriptions']['submit'] = array('#type' => 'submit', '#value' => t('Update'));
+    // If full form, redirect so the full page which may have subscription links is updated
+    $form['#redirect'] = $_GET['q'];
+  }
+  $form['#submit'][] = 'notifications_subscriptions_options_form_submit';
+  return $form;
+}
+
+/**
+ * Build fieldset with subscription options
+ */
+function notifications_object_options_fieldset($subscriptions, $title = FALSE) {
+  $elements = array(
+    '#tree' => TRUE,
+  );
+  // Process all options building the array of indexed params for each
+  $options = $params = $defaults = array();
+  $index = 1; // Index to map checkboxes to subscriptions
+  $number = 0; // Number of active subscriptions
+  foreach ($subscriptions as $subscription) {
+    $options[$index] = $subscription->get_name();
+    $params[$index] = $subscription;
+    // Check wether user is subscribed
+    if ($subscription->is_instance()) {
+      $defaults[] = $index;
+      $number++;
+    }
+    $index++;    
+  }
+  $elements['params'] = array('#type' => 'value', '#value' => $params);
+  $elements['options'] = array(
+    '#type' => 'checkboxes',
+    '#default_value' => $defaults,
+    '#options' => $options,
+  );
+  if ($title) {
+    $elements['#title'] = t('Subscriptions (@number)', array('@number' => $number));
+  }
+  return $elements;
+}

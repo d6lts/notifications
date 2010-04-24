@@ -342,6 +342,13 @@ function notifications_content_notifications_subscription($op, $subscription = N
         return notifications_content_type_enabled($conditions['type'], $subscription->type);
       }
       break;
+
+    case 'page objects':
+      // Return objects on current page to which we can subscribe
+      if (arg(0) == 'node' && is_numeric(arg(1)) && ($node = menu_get_object('node'))) {
+        return array('node' => $node);  
+      }
+      break;
   }  
 }
 
