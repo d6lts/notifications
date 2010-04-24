@@ -2,6 +2,7 @@
 
 6.x-4.x-beta1 to ..........
 --------------------------------
+- API improvement: Custom subscription with a blank field will now work.
 - Improved subscription create / edit forms, with a reusable form function
 - Renamed notifications_delete_subscription() to notifications_subscription_delete()
 - Updated destinations on all tables, for new Messaging Destination (no send method)

@@ -157,7 +157,7 @@ function notifications_menu() {
     'type' => MENU_LOCAL_TASK,
     'title' => 'Edit subscription',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('notifications_subscription_form', 5),
+    'page arguments' => array('notifications_subscription_edit_form', 5),
     'access callback' => 'notifications_subscription_access',
     'access arguments' => array('edit', 5),
     'file' => 'notifications.pages.inc',
@@ -376,6 +376,40 @@ function notifications_form_alter(&$form, $form_state, $form_id) {
 }
 
 /**
+ * Implementation of hook_forms()
+ */
+function notifications_forms() {
+  $forms['notifications_subscription_add_form']['callback'] = 'notifications_subscription_form';
+  $forms['notifications_subscription_edit_form']['callback'] = 'notifications_subscription_form';
+  $forms['notifications_subscription_confirm_form']['callback'] = 'notifications_subscription_form';
+  return $forms;
+}
+
+/**
+ * Main Subscription form builder
+ */
+function notifications_subscription_form(&$form_state, $subscription, $destination_path = '') {
+  module_load_include('pages.inc', 'notifications');
+  return notifications_subscription_base_form($form_state, $subscription, $destination_path);
+}
+
+/**
+ * Main subscription form validate
+ */
+function notifications_subscription_form_validate($form, &$form_state) {
+  module_load_include('pages.inc', 'notifications');
+  return notifications_subscription_base_form_validate($form, &$form_state);
+}
+
+/**
+ * Main subscriptions form submit
+ */
+function notifications_subscription_form_submit($form, &$form_state) {
+  module_load_include('pages.inc', 'notifications');
+  return notifications_subscription_base_form_submit($form, &$form_state);
+}
+
+/**
  * Gets a user setting, defaults to default system setting for each
  * 
  * @param $name
@@ -488,17 +522,13 @@ function notifications_exit() {
 }
 
 /**
- * Load multiple subscriptions that match some condition
- */
-/**
  * Build subscription object properly
+ * 
+ * @param $subscription
+ *   Subscription object, or array of properties or subscription type
  */
 function notifications_build_subscription($subscription) {
-  // Build object if not built previously
-  if (!is_object($subscription)) {
-    $subscription = (object)$subscription;
-  }
-  if (is_a($subscription, 'Notifications_Subscription')) {
+  if (is_object($subscription) && is_a($subscription, 'Notifications_Subscription')) {
     return $subscription;
   }
   else {

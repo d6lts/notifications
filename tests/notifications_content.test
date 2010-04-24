@@ -159,14 +159,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertText($ctype->name, 'User account subscriptions shows content type.');    
     
     // Create a real thread subscription for a user
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid)));
-    $this->drupalGet($link['href'], $link['options']);
-    $this->assertText('Confirm your subscription', 'Thread subscription: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Thread'), 'Confirmation page titles are ok');
-    $this->assertRaw($node->title, 'Confirmation page parameters are ok');
-    $this->drupalPost($link['href'], array(), 'Subscribe');
-    $this->assertText('Your subscription was activated', 'Confirmation message is displayed');
-    
+    $this->contentCreateSubscription($user, 'thread', array('nid' => $node->nid), array(t('Thread'), $node->title));
     // Retrieve the subscription from the database
     $subs = notifications_user_get_subscriptions($user, 'node', $node);
     $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');
@@ -187,22 +180,10 @@ class NotificationsContentTests extends NotificationsTestCase {
     $subscription = array_shift($subs);
     
     // Create content type subscription
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'nodetype', 'fields' => array('type' => $node->type)));
-    $this->drupalGet($link['href'], $link['options']);
-    $this->assertText(t('Confirm your subscription'), 'Content type: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Content type'), 'Confirmation page titles are ok');
-    $this->assertRaw($ctype->name, 'Confirmation page parameters are ok');
-    $this->drupalPost($link['href'], array(), 'Subscribe');
-    $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
+    $this->contentCreateSubscription($user, 'nodetype', array('type' => $node->type), array(t('Content type'), $ctype->name));
 
     // Create subscription for content posted by author
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'author', 'fields' => array('author' => $author->uid)));
-    $this->drupalGet($link['href'], $link['options']);
-    $this->assertText(t('Confirm your subscription'), 'Author: Subscriptions confirmation page is shown');
-    $this->assertRaw(t('Author'), 'Confirmation page titles are ok');
-    $this->assertRaw($author->name, 'Confirmation page parameters are ok');
-    $this->drupalPost($link['href'], array(), 'Subscribe');
-    $this->assertText(t('Your subscription was activated'), 'Confirmation message is displayed');
+    $this->contentCreateSubscription($user, 'author', array('author' => $author->uid), array(t('Author'), $author->name));
 
     // Check subscriptions actually being created
     $subs = notifications_user_get_subscriptions($user, 'node', $node, TRUE);
@@ -317,6 +298,22 @@ class NotificationsContentTests extends NotificationsTestCase {
     comment_save($comment);
     $this->assertRowCount('notifications_event', 2);
     $this->assertRowCount('notifications_queue', 2);        
+  }
+  
+  /**
+   * Helper function to create a subscription
+   */
+  function contentCreateSubscription($user, $type, $fields, $confirm_texts = array()) {
+    // Create a link for the subscription confirmation page
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => $type, 'fields' => $fields));
+    $this->drupalGet($link['href'], $link['options']);
+    $this->assertText(t('Confirm your subscription'), 'Subscriptions confirmation page is shown');
+    foreach ($confirm_texts as $text) {
+      $this->assertRaw($text);
+    }
+    // Submit the form and check confirmation page
+    $this->drupalPost(NULL, array(), t('Subscribe'));
+    $this->assertText(t('Your subscription has been created.')); 
   }
   
   function countUserRows($table, $uid = NULL) {

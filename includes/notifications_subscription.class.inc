@@ -55,7 +55,9 @@ class Notifications_Subscription extends Messaging_Object {
   public $name;
   // Mark if incomplete loading of objects
   public $incomplete;
-  
+  // Mark when editable
+  public $editable;
+
   /**
    * Class constructor
    */
@@ -182,7 +184,11 @@ class Notifications_Subscription extends Messaging_Object {
    * Produce fieldset to edit field values
    */
   function fields_subform() {
-    $elements = array();
+    $elements = array(
+      '#type' => 'fieldset',
+      '#tree' => TRUE,
+      '#description' => $this->get_description(),
+    );
     foreach ($this->get_type_fields() as $index => $field) {
       $elements[$index]['type'] = array('#type' => 'value', '#value' => $field->field);
       $elements[$index]['value'] = array('#type' => 'value', '#value' => $field->value);
@@ -590,6 +596,50 @@ class Notifications_Subscription extends Messaging_Object {
     return empty($this->type) ? NULL : notifications_subscription_types($this->type, $property);
   }
 
+  /**
+   * Whether this subscription's fields are editable or not
+   * 
+   * Unless preset the 'editable' property, this is how it works:
+   * - Once we have an instance we don't allow changing the fields, which may cause some consistency problems
+   * - Also if the subscription type has no fields, this is not editable
+   * - When it has fields and they've been all preset, not editable either
+   */
+  function is_editable() {
+    if (!isset($this->editable)) {
+      if (!$this->is_instance() && ($type_fields = $this->get_type_fields())) {
+        // It is editable if not all fields are set
+        $this->editable = count($type_fields) > count($this->get_instance_fields());
+      }
+      else {
+        // It is instance or the type has no fields
+        $this->editable = FALSE; 
+      }
+    }
+    return $this->editable;
+  }
+  /**
+   * Get editable fields. They're the ones in the subscription type that have no value
+   */
+  function get_editable_fields() {
+    return $this->filter_fields($this->get_type_fields(), FALSE);
+  }
+  /**
+   * Get instance fields that have a value set
+   */
+  function get_instance_fields() {
+    return $this->filter_fields($this->get_fields());
+  }
+  /**
+   * Filter out fields that have no value set ($isset = FALSE to get the ones that are set)
+   */
+  public static function filter_fields($fields, $isset = TRUE) {
+    foreach ($fields as $key => $field) {
+      if ($isset && !isset($field->value) || !$isset && isset($field->value)) {
+        unset($fields[$key]);
+      }
+    }
+    return $fields;    
+  }
   /**
    * Check whether this is a subscription instance or just a type template
    */
