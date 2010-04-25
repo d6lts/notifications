@@ -396,7 +396,7 @@ function notifications_ui_node_subscriptions($node, $display) {
  */
 function notifications_ui_node_options($type = NULL, $option = NULL) {
   // We can use global options or per content type options. The default setting will be 'links' = 1
-  $options = variable_get('notifications_ui_node', array('links'));
+  $options = variable_get('notifications_ui_node_options', array('links'));
   if ($type && variable_get('notifications_ui_per_type', 0)) {
     $options = variable_get('notifications_node_ui_' . $type, $options);
   }

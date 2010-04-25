@@ -32,7 +32,7 @@ class NotificationsContentTests extends NotificationsTestCase {
   function enableUIPages($enable = TRUE) {    
     $settings = array_keys(notifications_subscription_types());
     variable_set('notifications_ui_types', $enable ? $settings : array());
-    variable_set('notifications_ui_user', $enable ? array('page', 'create'): array());
+    variable_set('notifications_ui_user_options', $enable ? array('page', 'create'): array());
     menu_rebuild();
   }
   // Enable content Subscriptions for all

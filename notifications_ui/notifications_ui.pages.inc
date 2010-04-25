@@ -74,7 +74,7 @@ function notifications_ui_settings_form() {
     '#collapsible' => TRUE,
     '#description' => t('Check elements to display on user account pages'),
   );
-  $form['users']['notifications_ui_user'] = array(
+  $form['users']['notifications_ui_user_options'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Manage own subscriptions'),
     '#default_value' => notifications_ui_user_options(),
@@ -104,10 +104,10 @@ function notifications_ui_settings_form() {
       t('Set up for each content type on <a href="@content-type-settings">Administer Content Types</a>.', array('@content-type-settings' => url('admin/content/types'))),
     ),
   );  
-  $form['content']['notifications_ui_node'] = array(
+  $form['content']['notifications_ui_node_options'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Global settings'),
-    '#default_value' => variable_get('notifications_ui_node', array()),
+    '#default_value' => variable_get('notifications_ui_node_options', array()),
     '#options' => _notifications_ui_node_options(),
     '#description' => t('Check elements to display on each node for users to subscribe / unsubscribe.'),
        

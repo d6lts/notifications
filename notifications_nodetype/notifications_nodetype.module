@@ -6,6 +6,17 @@
  */
 
 /**
+ * Implementation of hook_help()
+ */
+function notifications_nodetype_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/notifications/events':
+      $output = '<p>' . t('When an event type has subtypes, the parent type and each of the subtypes you want to produce notifications must be enabled.') . '</p>';
+      return $output;
+  }
+}
+
+/**
  * Check if this type of event is enabled for this content type
  */
 function notifications_nodetype_enabled($type, $action) {
