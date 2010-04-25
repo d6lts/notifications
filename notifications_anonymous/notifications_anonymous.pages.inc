@@ -28,7 +28,7 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
   // Check permissions and if allowed, ask for confirmation
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     drupal_set_title(t('Confirm your subscription'));
-    return drupal_get_form('notifications_anonymous_form_subscribe', $subscription);
+    return drupal_get_form('notifications_anonymous_subscription_confirm_form', $subscription);
   }
   else {
     drupal_set_message(t('Subscription type or parameters not allowed'), 'error');
@@ -36,65 +36,6 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
   }
     
   drupal_access_denied();
-}
-
-/**
- * Form for subscription confirmation
- */
-function notifications_anonymous_form_subscribe($form_state, $subscription) {
-  notifications_include('destination.inc');
-  $form = notifications_form_subscribe_confirm($form_state, $subscription);
-  if (!empty($form['#error'])) {
-    return $form;
-  }
-  // Add a destination field so the user can fill in a destination address
-  $form['send_method'] = notifications_destination_address_subform($account, $subscription->get_destination());
-  $form['confirm'] = array('#type' => 'submit', '#value' => t('Subscribe'));
-  $form['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
-  return $form;
-}
-
-/**
- * Subscription form validation
- */
-function notifications_anonymous_form_subscribe_validate($form, &$form_state) {
-  notifications_include('destination.inc');
-  // Get destination from form
-  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
-
-  if (!$uid && $method && $address && ($destination = Messaging_Destination::build($method, $address, 0))) {
-    $form_state['values']['send_method'] = $method;
-    $form_state['values']['destination'] = $destination;
-    $form_state['values']['mdid'] = $destination->mdid;
-  }
-  elseif (empty($method) || empty($address)) {
-    form_set_error('destination_address', t('You need exactly one destination address.'));
-  }
-  else {
-    // @todo What should we do if the address is not valid?
-    form_set_error('address', t('This is not a valid destination address.'));
-  }
-}
-
-/**
- * Process form submission
- */
-function notifications_anonymous_form_subscribe_submit($form, &$form_state) {
-  switch ($form_state['values']['op']) {
-    case t('Subscribe'):
-      list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
-      $destination = Messaging_Destination::create($method, $address, $uid);
-      $subscription = Notifications_Subscription::build_submission($form_state);
-      $subscription->set_destination($destination);
-      notifications_save_subscription($subscription);
-      drupal_set_message(t('Your subscription has been saved.'));
-      //$form_state['redirect'] = 'notifications/subscription/' . $subscription->sid;
-      break;
-    case t('Cancel'):
-      drupal_set_message(t('Your subscription was cancelled'));
-      //$form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
-      break;
-  }  
 }
 
 /**
@@ -128,15 +69,15 @@ function notifications_anonymous_request_form_submit($form, $form_state) {
 
   list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
   if ($method && $address) {
-    $destination = Messaging_Destination::build($method, $address, $uid);
+    $destination = Messaging_Destination::create_method($method, $address, $uid);
     if ($destination && $destination->mdid && (!$destination->uid || $user->uid == $destination->uid)) {
       drupal_set_message(t('A message with instructions has been sent to your address.'));
       switch ($form_state['values']['op']) {
         case t('Edit my subscriptions'):
-          notifications_anonymous_message('manage', $destination);
+          notifications_anonymous_message('manage', $method, $destination);
           return TRUE;
         case t('Unsubscribe my address'):
-          notifications_anonymous_message('unsubscribe', $destination);
+          notifications_anonymous_message('unsubscribe', $method, $destination);
           return TRUE;
       }
     }
@@ -174,14 +115,6 @@ function notifications_anonymous_destination_page($destination, $op = 'unsubscri
 }
 
 /**
- * Subform for destination data
- */
-function notifications_anonymous_destination_subform($destination) {
-  $options = notifications_anonymous_manage_links('manage', $destination);
-  return notifications_destination_subform($destination, $options);
-}
-
-/**
  * Page callback. Manage anonymous subscriptions.
  */
 function notifications_anonymous_subscription_page($subscription, $op = 'unsubscribe') {
@@ -199,7 +132,7 @@ function notifications_anonymous_subscription_page($subscription, $op = 'unsubsc
       $output .= drupal_get_form('notifications_anonymous_unsubscribe_form', $subscription);
       break;
     case 'edit':
-      $output .= drupal_get_form('notifications_anonymous_subscription_form', $subscription);
+      $output .= drupal_get_form('notifications_anonymous_subscription_edit_form', $subscription);
       break;
   }
   return $output;
@@ -251,29 +184,4 @@ function notifications_anonymous_admin_settings_form_validate($form, &$form_stat
     }
     $types[] = $type;
   }
-}
-
-/**
- * Destination form submitted
- */
-function notifications_anonymous_destination_form_submit(&$form, &$form_state) {
-  $account = $form_state['values']['account'];
-  $method = $form_state['values']['method'];
-  $address = $form_state['values']['address'];
-  $destination = Messaging_Destination::get(array('method' => $method, 'address' => $address));
-  if ($destination) {
-    if ($account && $account->uid && $destination->uid == $account->uid) {
-      // The address belongs to the current user, so go for it
-      notifications_delete_destination($destination->mdid);
-      drupal_set_message(t('All the subscriptions for that address have been deleted.'));
-      return;
-    }
-    else {
-      // Will ask for confirmation if enabled always or if it belongs to a user
-      $confirm = variable_get('notifications_anonymous_unsubscribe_confirm', 1);
-      notifications_anonymous_message('unsubscribe', $destination, $confirm || $destination->uid);
-    }
-  }
-  // We print out a message without undisclosing any information about whether the address exists or not
-  drupal_set_message(t('If your address is found on this system, a message will be sent with a link to delete all subscriptions.'));
 }

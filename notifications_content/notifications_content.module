@@ -13,7 +13,8 @@ define('NOTIFICATIONS_CONTENT_PAGER', 20);
  */
 function notifications_content_menu() {
   $items['admin/messaging/notifications/content'] = array(
-    'title' => 'Content subscriptions',
+    'title' => 'Content',
+    'description' => 'Content subscriptions',
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_content_settings_form'),

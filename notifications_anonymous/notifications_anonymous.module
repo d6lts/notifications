@@ -113,44 +113,18 @@ function notifications_anonymous_destination_access($op, $destination = NULL, $a
 }
 
 /**
- * Implementation of hook_block()
+ * Get sending method for destination
+ * 
+ * This is possible because for anonymous users we have just one send method for address type
  */
-function notifications_anonymous_block($op = 'list', $delta = 0) {
-  global $user;
-  // This block needs notifications_ui
-  if (!module_exists('notifications_ui')) {
-    return;
-  }
-  elseif ($op == 'list') {
-    $blocks[0]['info'] = t('Anonymous subscriptions');
-    $blocks[0]['cache'] = BLOCK_NO_CACHE;
-    return $blocks;
-  }
-  else if ($op == 'view' && !$user->uid) {
-    if ($options = notifications_ui_page_options('block')) { 
-      $block['subject'] = t('Subscribe to');
-      $block['content'] = drupal_get_form('notifications_anonymous_options_form', $options, FALSE);
-      return $block;    
+function notifications_anonymous_destination_method($destination) {
+  $address_type = is_object($destination) ? $destination->type : $destination;
+  $allowed_methods = notifications_anonymous_send_methods();
+  foreach (messaging_send_methods() as $method => $info) {
+    if (isset($allowed_methods[$method]) && isset($info['address_type']) && $address_type == $info['address_type']) {
+      return $method;
     }
   }  
-}
-
-/**
- * Get list of possible and existing subscriptions for anonymous user
- * 
- * @param $type
- *   Subscription type to get options: 'user', 'node'
- * @param $object
- *   The object to subscribe. It may be $node or $user
- * 
- * @return
- *   Array of subscription options
- *   The enabled ones will have a 'subscriptions' element loaded
- */
-function notifications_anonymous_subscribe_options($type, $object) {
-  $account = drupal_anonymous_user();
-  notifications_include('object.inc');
-  return notifications_object_user_subscriptions($type, $object, $account);
 }
 
 /**
@@ -214,22 +188,26 @@ function notifications_anonymous_perm() {
 }
 
 /**
- * Form for anonymous subscriptions
+ * Implementation of hook_forms()
  */
-function notifications_anonymous_options_form($form_state, $subscriptions) {
-  $form = notifications_subscriptions_options_form($form_state, $subscriptions);
-  notifications_include('destination.inc');
-  $form += notifications_destination_address_subform($account, NULL, NULL, 20);
-  $form['submit']['#weight'] = 100;
-  return $form; 
+function notifications_anonymous_forms() {
+  $forms['notifications_anonymous_subscription_add_form']['callback'] = 'notifications_anonymous_subscription_form';
+  $forms['notifications_anonymous_subscription_edit_form']['callback'] = 'notifications_anonymous_subscription_form';
+  $forms['notifications_anonymous_subscription_confirm_form']['callback'] = 'notifications_anonymous_subscription_form';
+  return $forms;
 }
 
 /**
- * Validate anonymous subscription form
+ * Anonymous Subscription form builder. Adds destination subform.
  */
-function notifications_anonymous_options_form_validate($form, &$form_state) {
-  //@todo
+function notifications_anonymous_subscription_form(&$form_state, $subscription, $destination_path = '') {
+  $account = drupal_anonymous_user();
+  $form = notifications_subscription_form($form_state, $subscription, $destination_path);
+  notifications_include('destination.inc');
+  $form = notifications_subscription_destination_subform($form, $account, NULL, NULL, 20);
+  return $form;
 }
+
 /**
  * Get link for anonymous subscriptions / destinations
  * 
@@ -507,6 +485,14 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
 }
 
 /**
+ * Send message to destination
+ */
+function notifications_anonymous_message($type , $send_method, $destination, $objects = array(), $confirm = TRUE) {
+  if ($message = notifications_anonymous_message_build($type , $send_method, $destination, $objects, $confirm)) {
+    return $message->send();
+  }
+}
+/**
  * Build message for destination
  * 
  * @param $type
@@ -517,19 +503,20 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
  *   - edit, Edit a subscription
  *   - manage, Edit all subscriptions for destination
  */
-function notifications_anonymous_message_build($type , $destination, $objects = array(), $confirm = TRUE) {
+function notifications_anonymous_message_build($type , $send_method, $destination, $objects = array(), $confirm = TRUE) {
   notifications_include('process.inc');
-  $template = 'anonymous';
+  global $language;
+
+  $template = 'notifications-anonymous-' . $type;
   $objects += array('destination' => $destination);
-  $send_method = $destination->method;
-  $text = array(
-    'subject' => notifications_message_part($template, 'subject', $send_method, $type),
-    'header' => notifications_message_part($template , 'header', $send_method, $type),
-    'main'  => notifications_message_part($template, 'main', $send_method, $type),
-    'footer' => notifications_message_part($template, 'footer', $send_method, $type),
+  $parts = array(
+    'subject' => messaging_template_text_part($template, 'subject', $send_method, $language),
+    'header' => messaging_template_text_part($template, 'header', $send_method, $language),
+    'main'  => messaging_template_text_part($template, 'main', $send_method, $language),
+    'footer' => messaging_template_text_part($template, 'footer', $send_method, $language),
   );
   // Run token replacement 
-  $text = messaging_template_text_replace($text, $objects);
+  $text = messaging_template_text_replace($parts, $objects);
   // Get subject out of text and build the message array
   $subject = $text['subject'];
   unset($text['subject']);

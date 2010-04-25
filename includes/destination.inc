@@ -18,7 +18,7 @@ function notifications_destination_get_subscriptions($destination, $pager = 0) {
 function notifications_destination_validate($account, $method, $address) {
   // Check the method is valid for this account
   $valid_methods = notifications_send_methods($account);
-  return isset($valid_methods[$method]) && Messaging_Destination::validate($method, $address, $account);
+  return isset($valid_methods[$method]) && Messaging_Destination::validate_method($method, $address, $account);
 }
 
 /**
@@ -45,7 +45,7 @@ function notifications_destination_subform($destination, $links = array()) {
 /**
  * Subform with method and address
  */
-function notifications_destination_method_subform($account, $destination = NULL) {
+function notifications_destination_method_subform($account, $send_method = NULL, $destination = NULL) {
   $form['destination_account'] = array('#type' => 'value', '#value' => $account);
   $send_methods = notifications_send_methods($account);
   $form['destination_method'] = array(
@@ -56,7 +56,7 @@ function notifications_destination_method_subform($account, $destination = NULL)
     '#type' => 'select',
     '#title' => t('Send method'),
     '#options' => $send_methods,
-    '#default_value' => $destination ? $destination->method : '',
+    '#default_value' => $send_method ? $send_method : messaging_method_default($account),
     '#disabled' => count($send_methods) < 2,
   );
   $form['destination_method']['address'] = array(
@@ -96,6 +96,7 @@ function notifications_destination_address_subform($account, $destination = NULL
   if (count($send_methods) > 1) {
     $form['destination_address']['#description'] = t('Enter only a destination address.');
   }
+  
   foreach ($send_methods as $key => $method_name) {
     // We use method name if we don't have address name
     $type = messaging_method_info($key, 'address_type');
@@ -104,11 +105,12 @@ function notifications_destination_address_subform($account, $destination = NULL
       '#title' => $name,
       '#type' => 'textfield',
       '#size' => $size,
-      '#default_value' => $destination && $destination->method == $key ? $destination->address : '',
+      '#default_value' => $destination && $type == $destination->type ? $destination->address : '',
     );
   }
   return $form;
 }
+
 
 /**
  * Parse submitted destination
@@ -178,9 +180,9 @@ function notifications_destination_edit_form_submit($form, $form_state) {
   switch ($op) {
     case t('Update'):
       list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
-      $destination->method = $method;
+      $destination->type = messaging_method_info($method, 'address_type');
       $destination->address = $address;
-      $object = Messaging_Destination::build($destination);
+      $object = Messaging_Destination::build_method($destination);
       $object->save();
       drupal_set_message(t('The destination address has been updated.'));
       break;

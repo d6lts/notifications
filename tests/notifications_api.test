@@ -41,7 +41,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
     // Check a destination has been created
     $dest = $s1->get_destination();
-    $this->assertEqual(array($s1->mdid, $user->uid, 'mail', $user->mail), array($dest->mdid, $dest->uid, $dest->type, $dest->address), "A messaging destination has been created. $dest->mdid, $dest->uid, $dest->method, $dest->address");   
+    $this->assertEqual(array($s1->mdid, $user->uid, 'mail', $user->mail), array($dest->mdid, $dest->uid, $dest->type, $dest->address), "A messaging destination has been created. $dest->mdid, $dest->uid, $dest->type, $dest->address");   
     // Retrieve the subscription and check values
     $s = notifications_load_subscription($s1->sid, TRUE);
     $this->assertEqual(array($s->sid, $s->uid, $s->fields), array($s1->sid, $s1->uid, $s1->fields), 'The subscription has been retrieved and values are ok');

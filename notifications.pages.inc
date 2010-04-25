@@ -384,6 +384,8 @@ function notifications_subscription_base_form_submit($form, &$form_state) {
       elseif ($result === SAVED_UPDATED) {
         drupal_set_message(t('Your subscription has been created updating an existing one of the same type.'));
       } else {
+        dsm("result = $result");
+        dsm($subscription);
         drupal_set_message(t('Your subscription cannot be created.'), 'error');
       }
       break;

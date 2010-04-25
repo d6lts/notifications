@@ -387,10 +387,19 @@ function notifications_object_options_form($form_state, $subscriptions) {
  */
 function notifications_object_options_form_submit($form, $form_state) {
   $enabled = $disabled = 0;
+  // We may have also send method and destination in this form, like on forms from anonymous users
+  $send_method = isset($form_state['values']['send_method']) ? $form_state['values']['send_method'] : NULL;
+  $destination = isset($form_state['values']['destination']) ? $form_state['values']['destination'] : NULL;
   foreach ($form_state['values']['subscriptions']['options'] as $index => $value) {
     $subscription = $form_state['values']['subscriptions']['params'][$index];   
     if ($value && !$subscription->is_instance()) {
       // We checked a disabled subscription
+      if ($send_method) {
+        $subscription->send_method = $send_method;
+      }
+      if ($destination) {
+        $subscription->set_destination($destination);
+      }
       notifications_save_subscription($subscription);
       $enabled++;
     }

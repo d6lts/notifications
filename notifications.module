@@ -412,9 +412,15 @@ function notifications_subscription_form_submit($form, &$form_state) {
 /**
  * Form with multiple subscription options
  */
-function notifications_subscriptions_options_form($form_state, $subscriptions) {
+function notifications_subscriptions_options_form($form_state, $subscriptions, $account = NULL, $destination = NULL, $length = 40) {
+  $account = $account ? $account : $GLOBALS['user'];
   notifications_include('object.inc');
-  return notifications_object_options_form($form_state, $subscriptions);
+  $form = notifications_object_options_form($form_state, $subscriptions);
+  // If anonymous account, add destination subform
+  if (!$account->uid) {
+    $form = notifications_subscription_destination_subform($form, $account, $destination = NULL, NULL, $length);
+  }
+  return $form;
 }
 
 /**
@@ -430,6 +436,51 @@ function notifications_subscriptions_options_subform($subscriptions, $buttons = 
 function notifications_subscriptions_options_form_submit($form, &$form_state) {
   notifications_include('object.inc');
   return notifications_object_options_form_submit($form, &$form_state);
+}
+
+/**
+ * Add destination subform
+ */
+function notifications_subscription_destination_subform($form, $account, $destination = NULL, $send_methods = NULL, $length = 40) {
+  notifications_include('destination.inc');
+  $form['send_method'] = notifications_destination_address_subform($account, $destination, $send_methods, $length);
+  // Add our validate and submit callbacks first
+  $form['#validate'] = array_merge(array('notifications_subscription_destination_subform_validate'), isset($form['#validate']) ? $form['#validate'] : array());
+  $form['#submit'] = array_merge(array('notifications_subscription_destination_subform_submit'), isset($form['#submit']) ? $form['#submit'] : array());
+  return $form;
+}
+
+/**
+ * Validate submitted destination
+ */
+function notifications_subscription_destination_subform_validate($form, &$form_state) {
+  notifications_include('destination.inc');
+  // Get destination from form and check it is ok for an anonymous user
+  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
+  dsm("method=$method address=$address uid=$uid");
+  if ($method && $address) {
+    // Set destination field so we don't validate again send method later
+    $form_state['values']['destination'] = TRUE;
+    // Set send method in case we need some more validation for the subscription
+    $form_state['values']['send_method'] = $method;
+  }
+}
+
+/**
+ * Create submitted destination
+ */
+function notifications_subscription_destination_subform_submit($form, &$form_state) {
+  notifications_include('destination.inc');
+  // Get destination from form and check it is ok for an anonymous user
+  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], FALSE);
+  if ($method && $address && ($destination = Messaging_Destination::create_method($method, $address, $uid))) {
+    $form_state['values']['destination'] = $destination;
+    $form_state['values']['subscription_fields'][] = 'destination';
+  }
+  else {
+    // We should have trapped this on validation. Just in case print an error message.
+    drupal_set_message(t('Cannot create a destination for this subscription.'), 'error');
+  }
 }
 
 /**
@@ -572,12 +623,11 @@ function notifications_build_subscription($subscription) {
  *   Failure to write a record will return FALSE. Otherwise SAVED_NEW or SAVED_UPDATED is returned depending on the operation performed.
  */
 function notifications_save_subscription(&$subscription) {
-  global $user;  
   // Build object if not built previously
   $subscription = notifications_build_subscription($subscription);
   $subscription->conditions = count($subscription->get_fields());
   // Set account that will fill in account parameters
-  $account = $subscription->uid ? messaging_load_user($subscription->uid) : $user;
+  $account = $subscription->uid ? messaging_load_user($subscription->uid) : $GLOBALS['user'];
   $subscription->set_account($account);
   // Update existing one or save new checking for duplicates
   $result = FALSE;

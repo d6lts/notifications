@@ -123,10 +123,11 @@ class Notifications_Subscription extends Messaging_Object {
     if (!empty($form_state['values']['subscription_fields'])) {
       foreach ($form_state['values']['subscription_fields'] as $field) {
         if (isset($form_state['values'][$field])) {
+          $field_value = $form_state['values'][$field];
           switch ($field) {
             case 'fields':
               notifications_include('object.inc');
-              foreach ($form_state['values'][$field] as $key => $field_values) {
+              foreach ($field_value as $key => $field_values) {
                 if ($value = notifications_field_real_value($field_values['type'], $field_values['edit'])) {
                   $form_state['values']['parsed_fields'][$key] = array('type' => $field_values['type'], 'value' => $value);
                 }
@@ -137,9 +138,9 @@ class Notifications_Subscription extends Messaging_Object {
               }
               break;
             case 'send_method':
-              if (!$subscription->mdid || $subscription->send_method != $form_state['values']['send_method']) {
-                if ($destination = $subscription->create_destination($form_state['values']['send_method'])) {
-                  $form_state['values']['destination'] = $destination;
+              // There may be other destination validation running that sets the destination object before
+              if (empty($form_state['values']['destination']) && (!$subscription->mdid || $subscription->send_method != $field_value)) {
+                if ($subscription->validate_destination($field_value)) {
                   $form_state['values']['subscription_fields'][] = 'destination';
                 }
                 else {
@@ -163,15 +164,16 @@ class Notifications_Subscription extends Messaging_Object {
     if (!empty($form_state['values']['subscription_fields'])) {
       foreach ($form_state['values']['subscription_fields'] as $field) {
         if (isset($form_state['values'][$field])) {
+          $field_value = $form_state['values'][$field];
           switch ($field) {
             case 'fields':
               $subscription->set_fields($form_state['values']['parsed_fields']);
               break;
             case 'destination':
-              $subscription->set_destination($form_state['values'][$field]);
+              $subscription->set_destination($field_value);
               break;
             default:
-              $subscription->$field = $form_state['values'][$field];
+              $subscription->$field = $field_value;
               break;
           }   
         }
@@ -299,8 +301,8 @@ class Notifications_Subscription extends Messaging_Object {
       }
     }
     elseif ($destination = $this->get_destination()) {
-      // We may need to create a new destination if method has changed
-      if (!empty($this->send_method) && $destination->method != $this->send_method) {
+      // We may need to create a new destination if this address is not valid for method has changed
+      if (!empty($this->send_method) && messaging_method_info($this->send_method, 'address_type') != $destination->type) {
         return $this->create_destination();
       }
       else {
@@ -316,29 +318,42 @@ class Notifications_Subscription extends Messaging_Object {
    * Create destination for this subscription
    */
   function create_destination($method = NULL, $address = NULL) {
+    return $this->validate_destination($method, $address, TRUE);
+  }
+  /**
+   * Validate destination for this subscription
+   */
+  function validate_destination($method = NULL, $address = NULL, $create = FALSE) {
     $account = $this->get_user();
     if ($method && $address) {
-      $destination = Messaging_Destination::create($method, $address, $account->uid);
-      $this->set_destination($destination);
-      return $destination;
+      if ($create) {
+        $destination = Messaging_Destination::create_method($method, $address, $account->uid);
+        $this->set_destination($destination);
+        return $destination;
+      }
+      else {
+        // Just validate
+        return Messaging_Destination::validate_method($method, $address, $account->uid);
+      }
     }
     elseif ($account->uid) {
       // For registered users we have other ways to create a destination
       if ($method) {
         if ($address = messaging_user_destination($account, $method)) {
           // We have a method and address for this user account, fine
-          return $this->create_destination($method, $address);
+          return $this->validate_destination($method, $address, $create);
         }
       }
       else {
         // We still can have a send method or get it from account
         $method = !empty($this->send_method) ? $this->send_method  : messaging_method_default($account);
         if ($method) {
-          return $this->create_destination($method);
+          return $this->validate_destination($method, NULL, $create);
         }
       }
-    }
+    }    
   }
+
   /**
    * Save condition fields to db
    * 
