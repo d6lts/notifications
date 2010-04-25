@@ -1871,6 +1871,7 @@ function notifications_user_subscription_list_page($type, $account) {
   module_load_include('manage.inc', 'notifications'); // Needed for bulk operations
   return drupal_get_form('notifications_subscription_list_form', $type, $account);  
 }
+
 /**
  * Generic subscriptions content form
  * 
@@ -1884,114 +1885,27 @@ function notifications_user_subscription_list_page($type, $account) {
  *   Subscription type
  * @param $subscriptions
  *   Current subscriptions of this type. If null they'll be loaded
- * @param $list
- *   Array with available subscriptions indexed by field value
- * @param $defaults
- *   Default value for subscriptions
- * @param $options
- *   Optional, array of aditional options for the form
  */
-function notifications_user_form($form_state, $account, $type, $subscriptions, $list, $defaults, $options = array()) {
-  // Complete defaults
-  $info = notifications_subscription_types($type);
-  $field = $info['fields'][0];
-  $field_title = !empty($options['title']) ? $options['title'] : '';
-  if (is_null($subscriptions)) {
-    // Fetch subscriptions with given parameters
-    $subscriptions = notifications_get_subscriptions(array('type' => $type, 'event_type' => $info['event_type'], 'uid' => $account->uid), array(), FALSE, 'value');
-  }
-  $defaults += array(
-    'sid' => 0,
-    'type' => $type,
-    'event_type' => $info['event_type'],
-  );
-  $defaults += _notifications_subscription_defaults($account);
-  // Hide Send method column if only one
-  $send_methods = _notifications_send_methods();
-  $header = array(theme('table_select_header_cell'), $field_title, t('Send interval'));
-  if (count($send_methods) > 1) {
-    $header[] = t('Send method');
-  }  
-  $form['defaults'] = array('#type' => 'value', '#value' => $defaults);  
-  $form['account'] = array('#type' => 'value', '#value' => $account);
-  $form['current'] = array('#type' => 'value', '#value' => $subscriptions);
-  $form['subscription_fields'] = array('#type' => 'value', '#value' => array());
-  $form['subscriptions'] = array(
-    '#tree' => TRUE,
-    '#theme' => 'notifications_form_table',
-    '#header' => $header,
-  );
-  $send_intervals = notifications_send_intervals();
-  foreach ($list as $key => $title) {
-    $rowdefaults = isset($subscriptions[$key]) ? (array)($subscriptions[$key]) : $defaults;
-    $rowdefaults += $rowdefaults;
-    $form['subscriptions']['checkbox'][$key] = array(
-      '#type' => 'checkbox',
-      '#default_value' => $rowdefaults['sid'],
-    );
-    $form['subscriptions']['title'][$key] = array(
-      '#value' => $title,
-    );
-    $form['subscriptions']['send_interval'][$key] = array(
-      '#type' => 'select',
-      '#options' => $send_intervals,
-      '#default_value' => $rowdefaults['send_interval'],
-    );
-    // Hide send methods if only one available
-    if (count($send_methods) > 1) {
-      $form['subscriptions']['send_method'][$key] = array(
-        '#type' => 'select',
-        '#options' => _notifications_send_methods(),
-        '#default_value' => $rowdefaults['send_method'],
-      );
-    }
-    else {
-      $form['subscriptions']['send_method'][$key] = array('#type' => 'value', '#value' => $rowdefaults['send_method']);
-    }
-    // Pass on the fields for processing
-    $form['subscription_fields']['#value'][$key] = array($field => $key);
-  
-  }
-  $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+function notifications_user_form($form_state, $account, $type, $subscriptions) {
+  module_load_include('pages.inc', 'notifications');
+  module_load_include('manage.inc', 'notifications'); // Needed for bulk operations
+  return notifications_subscription_list_form($form_state, $type, $account, $subscriptions);
+}
 
-  return $form; 
+/**
+ * Process generic form submission
+ */
+function notifications_user_form_validate($form, &$form_state) {
+  module_load_include('pages.inc', 'notifications');
+  return notifications_subscription_list_form_validate($form, $form_state);
 }
 
 /**
  * Process generic form submission
  */
 function notifications_user_form_submit($form, &$form_state) {
-  $form_values = $form_state['values'];
-  $account = $form_values['account'];
-  $current = $form_values['current'];
-  $defaults = $form_values['defaults'];
-  $defaults += array('uid' => $account->uid);
-  $fields = $form_values['subscription_fields'];
-  $values = $form_values['subscriptions'];
-  $check = 'checkbox';
-
-  foreach ($values[$check] as $index => $value) {
-    $subscription = NULL;
-    if ($value) {
-      // Checked, save only if new or changed
-      if (!isset($current[$index])) {
-        $subscription = $defaults;
-      }
-      elseif ($current[$index]->send_interval != $values['send_interval'][$index] || $current[$index]->send_method != $values['send_method'][$index]) {
-        $subscription = (array)($current[$index]);        
-      }
-      // Complete and save
-      if ($subscription) {
-        $subscription['send_interval'] = $values['send_interval'][$index];
-        $subscription['send_method'] = $values['send_method'][$index];
-        $subscription['fields'] = $fields[$index];
-        notifications_save_subscription($subscription);
-      }
-    }
-    elseif (isset($current[$index])) {
-      notifications_subscription_delete($current[$index]->sid);
-    }
-  }
+  module_load_include('pages.inc', 'notifications');
+  return notifications_subscription_list_form_submit($form, $form_state);
 }
 
 /**
