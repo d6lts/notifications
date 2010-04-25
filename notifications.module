@@ -940,6 +940,7 @@ function _notifications_field_callback() {
     return NULL;
   }
 }
+
 /**
  * Get a callback for an objec type
  */
@@ -995,6 +996,35 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
 }
 
 /**
+ * Filter elements in an array of arrays/objects
+ * 
+ * @param $array
+ *   Data array to be filtered.
+ * @param $filter
+ *   Array of field => value pairs
+ */
+function notifications_array_filter($array, $filter) { 
+  if (!$filter) {
+    return $array;
+  }
+  foreach ($array as $key => $data) {
+    $compare = is_object($data) ? (array)$data : $data;
+    if (count(array_intersect_assoc($filter, $compare)) != count($filter)) {
+      unset($array[$key]);
+    }
+  }
+  return $array;
+}
+
+/**
+ * Array item callback to format title and description
+ */
+function notifications_format_title_description($item) {
+  $description = !empty($item['description']) ? ' ' . check_plain($item['description']) : ''; 
+  return '<strong>' . check_plain($item['title']) . '</strong>' . $description;
+}
+
+/**
  * Get information from an array of data
  * 
  * @param $data
@@ -1040,28 +1070,6 @@ function notifications_array_serialize($array) {
   // Now we sort the whole condtions array maintaining index association
   asort($array);
   return implode(',', array_keys($array)) . '/' . implode(',', $array);  
-}
-
-/**
- * Invokes hook_notifications() with a single parameter or more but not needing
- * an object to be passed as reference.
- */
-function notifications_module_information($op, $arg0 = NULL, $arg1 = NULL, $arg2 = NULL) {
-  $result = array();
-  foreach (module_implements('notifications') as $module) {
-    $function = $module .'_notifications';
-    if ($return = $function($op, $arg0, $arg1, $arg2)) {
-      // Add module name to each result if it is an info array
-      foreach ($return as $key => &$value) {
-        if (is_array($value)) {
-          $value += array('module' => $module);
-        }
-      }
-      // Note we use array_merge instead of array_merge_recursive()
-      $result = array_merge($result, $return);
-    }
-  }
-  return $result;
 }
 
 /**
@@ -1592,6 +1600,7 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
  */
 function notifications_notifications_event($op, $event, $account = NULL) {
   switch ($op) {
+
     case 'query':
       $query = array();
       // First get all the condition fields for the event object type
@@ -1602,11 +1611,8 @@ function notifications_notifications_event($op, $event, $account = NULL) {
           $query[]['fields'] = $fields;
         }        
       }
-      // Add in other conditions invoking the old hook
-      if ($more = notifications_module_information('query', 'event', $event->type, $event)) {
-        $query = array_merge($query, $more);
-      }
       return $query;
+
     case 'load':
       // Invoke old hook for backwards compatibility
       return module_invoke_all('notifications', 'event load', $event);
@@ -1708,58 +1714,6 @@ function _notifications_subscription_status() {
     NOTIFICATIONS_SUBSCRIPTION_INACTIVE => t('inactive'),
  );
 }
-
-/**
- * Build list of subscription types
- * 
- * Note: some custom types may have user defined strings, that's why the check_plain() everywhere
- */
-function _notifications_subscription_types($format = 'short', $filter = NULL) {
-  $options = array();  
-  foreach (notifications_subscription_types() as $type => $info) {
-    if (!$filter || count(array_intersect_assoc($filter, $info)) == count($filter)) {
-      switch ($format) {
-        case 'short':
-          $options[$type] = check_plain($info['title']);
-          break;
-        case 'long':
-          $options[$type] = '<strong>'. check_plain($info['title']) .'</strong>.';
-          if (!empty($info['description'])) { 
-            $options[$type] .= ' '. check_plain($info['description']);
-          }
-          break;
-      }
-    }
-  }
-  return $options;
-}
-
-/**
- * Callback for module dependent data
- * 
- * Some data stored in the notifications system is meant to be processed by other modules and
- * this is indicated by a module column in the data.
- * 
- * This function calls the module function if available, defaulting to the notifications provided
- * function when not. The arguments are passed as is
- * 
- * @param $module
- *   Module name
- * @param $function
- *   Function name in module
- */
- function notifications_callback() {
-   $args = func_get_args();
-   $module = array_shift($args);
-   $function = array_shift($args);
-   if ($module && function_exists($module .'_notifications_'. $function)) {
-     $callback = $module .'_notifications_'. $function;
-   }
-   else {
-     $callback = 'notifications_'. $function;
-   }
-   return call_user_func_array($callback, $args);
- }
 
 /**
  * Generic subscriptions content form

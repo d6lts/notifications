@@ -36,7 +36,7 @@ function notifications_ui_settings_form() {
   $form['notifications_ui_types'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Visible subscription types'),
-    '#options' => _notifications_subscription_types('long'),
+    '#options' => array_map('notifications_format_title_description', notifications_subscription_types()),
     '#default_value' => variable_get('notifications_ui_types', array()),
     '#description' => t('Check the subscription types the UI module should show. If not checked no options for this subscription type will be displayed at all.'),
   );
@@ -153,6 +153,7 @@ function theme_notifications_ui_content_types(&$elements) {
   $output .= drupal_render($elements);
   return $output;
 }
+
 /**
  * Display the list of available subscription types for creation
  *

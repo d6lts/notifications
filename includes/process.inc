@@ -20,6 +20,33 @@ define('NOTIFICATIONS_STEP_USERS', 1000);
 define('NOTIFICATIONS_TIME_MARGIN', 5);
 
 /**
+ * Callback for module dependent data
+ * 
+ * Some data stored in the notifications system is meant to be processed by other modules and
+ * this is indicated by a module column in the data.
+ * 
+ * This function calls the module function if available, defaulting to the notifications provided
+ * function when not. The arguments are passed as is
+ * 
+ * @param $module
+ *   Module name
+ * @param $function
+ *   Function name in module
+ */
+ function notifications_process_callback() {
+   $args = func_get_args();
+   $module = array_shift($args);
+   $function = array_shift($args);
+   if ($module && function_exists($module .'_notifications_'. $function)) {
+     $callback = $module .'_notifications_'. $function;
+   }
+   else {
+     $callback = 'notifications_'. $function;
+   }
+   return call_user_func_array($callback, $args);
+ }
+ 
+/**
  * Function to be called on cron by the main notifications_cron
  * 
  * It will call each subscription_process for each interval a number of times
@@ -293,11 +320,11 @@ function notifications_process_queue_group($group, $update, $params) {
   }
 
   if ($events) {
-    $messages = notifications_callback($module, 'process_compose', $send_method, $destination, $events, $subscriptions, $send_interval);
+    $messages = notifications_process_callback($module, 'process_compose', $send_method, $destination, $events, $subscriptions, $send_interval);
     notifications_log('Composed messages', array('number' => count($messages), 'send_method' => $send_method));
     // Note that we pass the testing parameter to notifications_process_send
     if ($messages) {
-      notifications_callback($module, 'process_send', $send_method, $destination, $messages, $test);
+      notifications_process_callback($module, 'process_send', $send_method, $destination, $messages, $test);
     }
     if (!$test) {          
       notifications_queue_update_sent($destination->mdid, $send_interval, time());
@@ -400,7 +427,7 @@ function notifications_process_queue($send_interval, $max_sqid, $language = NULL
 
     notifications_log('Queue processing', $batch);
     // These rows may be processed by a different module. Defaults to notifications_process_rows()
-    $processed = notifications_callback($queue->module, 'process_rows', $batch, $limit, $update);
+    $processed = notifications_process_callback($queue->module, 'process_rows', $batch, $limit, $update);
     $count += $processed;
 
     if ($processed && !$test && !$update && !$keep) {

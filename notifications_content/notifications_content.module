@@ -611,7 +611,9 @@ function notifications_content_notifications_templates($op, $type = 'all', $lang
  * List subscription options for content types
  */
 function _notifications_content_type_options() {
-  return _notifications_subscription_types('long', array('event_type' => 'node'));
+  $types = notifications_subscription_types();
+  $types = notifications_array_filter($types, array('event_type' => 'node'));
+  return array_map('notifications_format_title_description', $types);
 }
 
 /**

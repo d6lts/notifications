@@ -149,21 +149,8 @@ function notifications_anonymous_block($op = 'list', $delta = 0) {
  */
 function notifications_anonymous_subscribe_options($type, $object) {
   $account = drupal_anonymous_user();
-  // Get allowed node options and current subscriptions
-  $subscribe_options = notifications_module_information("$type options", $account, $object);
-  $allowed_options = array();
-  // Get subscription types checking for user access
-  $allowed_types = notifications_subscription_types(NULL, NULL, TRUE);
-  // We also keep track of event types for each subscription type
-  $event_types = array('node' => TRUE);
-  foreach ($subscribe_options as $index => $option) {
-    if (isset($allowed_types[$option['type']]) && notifications_user_allowed('subscription', $account, (object)$option)) {
-      $allowed_options[] = $option;
-      // We add the event type to our list
-      $event_types[$allowed_types[$option['type']]['event_type']] = TRUE;
-    }
-  }
-  return $allowed_options;
+  notifications_include('object.inc');
+  return notifications_object_user_subscriptions($type, $object, $account);
 }
 
 /**

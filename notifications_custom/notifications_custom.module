@@ -254,20 +254,11 @@ function notifications_custom_account_update($account, $update) {
  *   User account to get subscriptions for
  */
 function notifications_custom_build_list($filter = array(), $account = NULL) {
-  $list = array();
+  $list = notifications_array_filter(notifications_custom_list(), $filter);
   // Now try to match all the parameters against each object in the list
-  foreach (notifications_custom_list() as $type => $custom) {
-    $match = TRUE;
-    foreach ($filter as $field => $value) {
-      if ($custom->$field != $value) {
-        $match = FALSE;
-        break;
-      }
-    }
-    if ($match) {
-      $subscription = notifications_custom_build_subscription($custom);
-      $list[$custom->type] = $account ? $subscription->get_instance(array('uid' => $account->uid), TRUE) : $subscription;
-    }
+  foreach ($list as $type => $custom) {
+    $subscription = notifications_custom_build_subscription($custom);
+    $list[$custom->type] = $account ? $subscription->get_instance(array('uid' => $account->uid), TRUE) : $subscription;
   }
   return $list;
 }
@@ -298,7 +289,7 @@ function notifications_custom_rebuild() {
     $custom[$subs->type] = $subs;
   }
   // Get custom subscriptions defined by modules and merge with the ones in db
-  $modules = notifications_module_information('custom subscriptions');
+  $modules = notifications_info('custom subscriptions');
   foreach ($modules as $type => $subs) {
     if (empty($custom[$type])) {
       $subs = (object)$subs;
