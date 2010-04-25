@@ -20,8 +20,8 @@ function notifications_tags_menu() {
     'type' => MENU_LOCAL_TASK,
     'access callback' => FALSE,
     'title' => t('Tags'),
-    'page callback' => 'notifications_tags_user_page',
-    'page arguments' => array(1),
+    'page callback' => 'notifications_user_subscription_list_page',
+    'page arguments' => array('taxonomy', 1),
     'weight' => 10,
   );
   

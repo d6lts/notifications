@@ -870,9 +870,9 @@ function notifications_get_subscriptions($main_conditions, $field_conditions = N
  */
 function notifications_user_get_subscriptions($account, $type, $object, $refresh = FALSE) {
   $subscriptions = &messaging_static(__FUNCTION__);
-  $account = is_numeric($account) ? messaging_load_user($account) : $account;
+  $uid = messaging_user_uid($account);
   // No subscriptions for anonymous users
-  if (!$account || !$account->uid) return array();
+  if (!$uid) return array();
   
   // Check the object exists, is loaded and we've got a key field
   $object = notifications_object_load($type, $object);
@@ -880,14 +880,14 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
   if (!$object || !$key || empty($object->$key)) return array();
   
   // Now we've got the key fields for caching, try the cache or find subscriptions
-  if ($refresh || !isset($subscriptions[$account->uid][$type][$object->$key])) {
+  if ($refresh || !isset($subscriptions[$uid][$type][$object->$key])) {
     // Collect subscription types for this object and this account
     // Get allowed subscription options for this account to this object
     $user_subscriptions = array();
-    $subscribe_options = notifications_object_subscribe_options($type, $object, $account);
+    $subscribe_options = notifications_object_subscribe_options($type, $object, messaging_user_object($account));
     foreach ($subscribe_options as $template) {
       $type_subscriptions = notifications_get_subscriptions(
-        array('uid' => $account->uid, 'type' => $template['type']), // Main conditions
+        array('uid' => $uid, 'type' => $template['type']), // Main conditions
         $template['fields'], // Field conditions
         TRUE // Match exactly these condition fields, no less, no more
       );
@@ -895,9 +895,9 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
         $user_subscriptions += $type_subscriptions; //array_merge($user_subscriptions, $type_subscriptions);
       }
     }
-    $subscriptions[$account->uid][$type][$object->$key] = $user_subscriptions;
+    $subscriptions[$uid][$type][$object->$key] = $user_subscriptions;
   }
-  return $subscriptions[$account->uid][$type][$object->$key];
+  return $subscriptions[$uid][$type][$object->$key];
 }
 
 /**
@@ -1864,6 +1864,14 @@ function _notifications_subscription_status() {
 }
 
 /**
+ * Generic user page for a subscription type
+ */
+function notifications_user_subscription_list_page($type, $account) {
+  module_load_include('pages.inc', 'notifications');
+  module_load_include('manage.inc', 'notifications'); // Needed for bulk operations
+  return drupal_get_form('notifications_subscription_list_form', $type, $account);  
+}
+/**
  * Generic subscriptions content form
  * 
  * Builds a form for a user to manage its own subscriptions with
@@ -1991,10 +1999,6 @@ function notifications_user_form_submit($form, &$form_state) {
  */
 function notifications_theme() {
   return array(
-    'notifications_form_table' => array(
-      'arguments' => array('element' => NULL),
-      'file' => 'notifications.admin.inc',
-    ),
     'notifications_send_intervals_form' => array(
       'arguments' => array('element' => NULL),
       'file' => 'notifications.admin.inc',
@@ -2008,8 +2012,8 @@ function notifications_theme() {
       'file' => 'notifications.manage.inc',
     ),
     'notifications_table_form' => array(
-      'arguments' => array('form' => NULL),
-      'file' => 'notifications.admin.inc',
+      'arguments' => array('elements' => NULL),
+      'file' => 'notifications.pages.inc',
     ),
     'notifications_subscription_fields' => array(
       'arguments' => array('form' => NULL),

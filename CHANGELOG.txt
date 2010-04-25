@@ -2,6 +2,8 @@
 
 6.x-4.x-beta1 to ..........
 --------------------------------
+- Reworked link generation for both registered and anonymous
+- More robust signed links with timestamp and query string
 - API improvement: Custom subscription with a blank field will now work.
 - Improved subscription create / edit forms, with a reusable form function
 - Renamed notifications_delete_subscription() to notifications_subscription_delete()

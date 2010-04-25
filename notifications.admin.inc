@@ -352,32 +352,3 @@ function theme_notifications_form_table($element) {
   $output .= drupal_render($element);
   return $output;
 }
-
-/** Administration pages **/
-
-/**
- * Generic table formatting for forms
- */
-function theme_notifications_table_form(&$form) {
-  $output = '';
-
-  // Get table information from special form properties
-  $index = !empty($form['#table_index']) ? $form['#table_index'] : $form['#table_fields'][0];
-  $header = !empty($form['#table_header']) ? $form['#table_header'] : array();
- 
-  foreach (element_children($form[$index]) as $key) {
-    $row = array();
-    foreach ($form['#table_fields'] as $field) {
-      $row[] = drupal_render($form[$field][$key]);
-    }
-    $rows[] = $row;
-  }
-
-  if ($rows) {
-    $output .= theme('table', $header, $rows);
-  } else {
-    $output .= '<p>' . t('No elements') . '</p>';
-  }
-  $output .= drupal_render($form);
-  return $output;
-}

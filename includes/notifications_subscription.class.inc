@@ -162,26 +162,34 @@ class Notifications_Subscription extends Messaging_Object {
     $subscription = notifications_build_subscription($form_state['values']['subscription']);
     // There may be optional fields to add
     if (!empty($form_state['values']['subscription_fields'])) {
-      foreach ($form_state['values']['subscription_fields'] as $field) {
-        if (isset($form_state['values'][$field])) {
-          $field_value = $form_state['values'][$field];
-          switch ($field) {
-            case 'fields':
-              $subscription->set_fields($form_state['values']['parsed_fields']);
-              break;
-            case 'destination':
-              $subscription->set_destination($field_value);
-              break;
-            default:
-              $subscription->$field = $field_value;
-              break;
-          }   
-        }
-      }
+      $subscription->set_properties($form_state['values'], $form_state['values']['subscription_fields']);
     }
     return $subscription;
   }
-
+  
+  /**
+   * Save fields from form submission
+   */
+  public function set_properties($values, $fields) {
+    foreach ($fields as $key) {
+      if (isset($values[$key])) {
+        switch ($key) {
+          case 'fields':
+            if (!empty($values['parsed_fields'])) {
+              $this->set_fields($values['parsed_fields']);
+            }
+            else {
+              $this->set_fields($values['fields']);
+            }
+            break;
+          default:
+            $this->__set($key, $values[$key]);
+            break;         
+        }
+      }
+    }
+  }
+  
   /**
    * Produce fieldset to edit field values
    */
@@ -293,12 +301,7 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function check_destination() {
     if (empty($this->mdid)) {
-      if (!empty($this->destination_object)) {
-        return $this->create_destination($this->destination_object->method, $this->destination_object->address);
-      }
-      else {
-        return $this->create_destination();
-      }
+      return $this->create_destination();
     }
     elseif ($destination = $this->get_destination()) {
       // We may need to create a new destination if this address is not valid for method has changed
@@ -500,23 +503,24 @@ class Notifications_Subscription extends Messaging_Object {
   function set_fields($fields = NULL, $normalize = TRUE) {
     if (isset($fields)) {
       $this->fields = array();
-      if ($normalize) {
-        $fields = $this->normalize_fields($fields);
-      }
-      foreach ($fields as $key => $value) {
-        $this->set_field($value);
-      }
+      $this->add_fields($fields, $normalize);
     }
     elseif (!isset($this->fields)) {
-      if ($fields = $this->get_type_fields()) {
-        // Set the fields from the subscription type or template
-        $this->set_fields($fields, FALSE);
-      }
-      else {
-        // We have nothing better, set empty array()
-        $this->fields = array();
-      }
+      // Set the fields from the subscription type or template
+      $this->fields = array();
+      $this->add_fields($this->get_type_fields(), FALSE);
     }
+  }
+  /**
+   * Add field values to existing ones
+   */
+  function add_fields($fields, $normalize = TRUE) {
+    if ($normalize) {
+      $fields = $this->normalize_fields($fields);
+    }
+    foreach ($fields as $key => $value) {
+      $this->set_field($value);
+    }    
   }
   /**
    * Get fields from subscription type as normalized array of objects

@@ -156,7 +156,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     variable_set('notifications_content_type', array('thread', 'nodetype', 'author'));
 
     $this->drupalGet('user/'. $user->uid .'/notifications/nodetype');
-    $this->assertText($ctype->name, 'User account subscriptions shows content type.');    
+    $this->assertText(t('Node type'), 'User account subscriptions shows content type.');    
     
     // Create a real thread subscription for a user
     $this->contentCreateSubscription($user, 'thread', array('nid' => $node->nid), array(t('Thread'), $node->title));

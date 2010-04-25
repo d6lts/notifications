@@ -27,28 +27,25 @@ function notifications_content_menu() {
     'access callback' => FALSE, 
     'access arguments' => FALSE,
     'title' => 'Thread',
-    'page callback' => 'notifications_content_page_thread',
-    'page arguments' => array(1),
     'weight' => 10,
-    'file' => 'notifications_content.pages.inc',
+    'page callback' => 'notifications_user_subscription_list_page',
+    'page arguments' => array('thread', 1),
   );
   $items['user/%user/notifications/nodetype'] = array(
     'type' => MENU_LOCAL_TASK,
     'access callback' => FALSE,
     'title' => 'Content type',
-    'page callback' => 'notifications_content_page_nodetype',
-    'page arguments' => array(1),
+    'page callback' => 'notifications_user_subscription_list_page',
+    'page arguments' => array('nodetype', 1),
     'weight' => 10,
-    'file' => 'notifications_content.pages.inc',
   );
   $items['user/%user/notifications/author'] = array(
     'type' => MENU_LOCAL_TASK,
     'access callback' => FALSE,
     'title' => t('Author'),
-    'page callback' => 'notifications_content_page_author',
-    'pàge arguments' => array(1),
+    'page callback' => 'notifications_user_subscription_list_page',
+    'page arguments' => array('author', 1),
     'weight' => 10,
-    'file' => 'notifications_content.pages.inc',
   );
 
   return $items;

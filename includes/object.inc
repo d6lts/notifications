@@ -186,7 +186,8 @@ function notifications_field_format_value($type, $value, $html = TRUE, $subscrip
   // If nothing got, we return the value
   if (!isset($format_value)) {
     $format_value = check_plain($value);
-  }  
+  }
+  return $format_value;
 }
 
 /**
@@ -303,7 +304,7 @@ function notifications_field_valid_value($value, $type = NULL) {
 /**
  * Build a form element to edit a field
  */
-function notifications_field_form_element($type, $value, $subscription_type, $title = FALSE, $required = FALSE) {
+function notifications_field_form_element($type, $value, $subscription_type, $title = FALSE, $required = FALSE, $size = 40) {
   $field_info = notifications_subscription_fields($type);
   $object_info = isset($field_info['object_type']) ? notifications_object_type($field_info['object_type']) : array();
   $merged_info = $field_info + $object_info;
@@ -314,6 +315,7 @@ function notifications_field_form_element($type, $value, $subscription_type, $ti
   }
   elseif (!empty($merged_info['autocomplete path'])) {
     $element['#type'] = 'textfield';
+    $element['#size'] = $size;
     $element['#autocomplete_path'] = $merged_info['autocomplete path'];
     if ($value) {     
       if (!empty($merged_info['autocomplete callback'])) {

@@ -237,3 +237,4 @@ function notifications_content_form_submit($form, &$form_state) {
   }
   drupal_set_message(t('Your subscriptions have been updated.'));
 }
+
