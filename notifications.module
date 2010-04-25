@@ -243,16 +243,36 @@ function notifications_access_user_add($account = NULL, $type = NULL) {
  * 
  * @param $params
  *   Optional array of path elements. If not specified the current URL will be used
+ * @param $query
+ *   Query string array, will be taken from request if empty
  * @param $prefix
  *   When using the path this must match the first part of it, which is not used in the signature
  */
-function notifications_check_signature($params = NULL, $prefix = 'notifications') {
+function notifications_check_signature($params = NULL, $query = array(), $prefix = 'notifications') {
   // If not parameters passed, get them from path, discard the first one that must match $prefix
-  if (!$args && arg(0) == $prefix) {
-    $params = arg();
-    array_shift($params);
+  if (!$params) {
+    if (arg(0) == $prefix) {
+      $params = arg();
+      array_shift($params);
+    }
+    $query = $query ? $query : $_GET;
   }
-  return $params && !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));  
+  // Check timestamp < 7 days
+  if (!empty($query['timestamp']) && time() - 24 * 7 * 3600 > (int)$query['timestamp']) {
+    drupal_set_message(t('This link has expired. Please get a new one or contact the site administrator.'), 'error');
+    return FALSE;
+  }
+  if (!empty($_GET['signature'])) {
+    unset($query['signature']);
+    unset($query['q']);
+    if ($_GET['signature'] === _notifications_signature($params, $query)) {
+      return TRUE;
+    }
+    else {
+      drupal_set_message(t('This link is not valid anymore. Please get a new one or contact the site administrator.'), 'error');
+      return FALSE;
+    }
+  }
 }
 
 /**
@@ -457,7 +477,6 @@ function notifications_subscription_destination_subform_validate($form, &$form_s
   notifications_include('destination.inc');
   // Get destination from form and check it is ok for an anonymous user
   list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
-  dsm("method=$method address=$address uid=$uid");
   if ($method && $address) {
     // Set destination field so we don't validate again send method later
     $form_state['values']['destination'] = TRUE;
@@ -1104,7 +1123,9 @@ function notifications_array_info($data, $type = NULL, $field = NULL) {
 }
 
 /**
- * Serialize an array ordering the keys before. This is useful for cache indexes
+ * Serialize an array ordering the keys before.
+ * 
+ * This is useful for cache indexes and signatures.
  */
 function notifications_array_serialize($array) {
   if (!$array) {
@@ -1113,12 +1134,12 @@ function notifications_array_serialize($array) {
   // First we sort and serialize multiple conditions
   foreach ($array as $key => $value) {
     if (is_array($value)) {
-      sort($value);
+      asort($value);
       $array[$key] = implode(':', $value);
     }
   }
   // Now we sort the whole condtions array maintaining index association
-  asort($array);
+  ksort($array);
   return implode(',', array_keys($array)) . '/' . implode(',', $array);  
 }
 
@@ -1408,10 +1429,57 @@ function notifications_cron() {
 }
 
 /**
- * Return link array for subscriptions
+ * Return link array for subscriptions. OBSOLETED.
+ * 
+ * This one is kept just for backwards compatibility. Use notifications_build_link() instead.
  * 
  * @param $type
- *   Link type: 'subscribe' | 'unsubscribe'
+ *   Object type: 'subscribe', 'unsubscribe'
+ * @param $params
+ *   Aditional parameters for the subscription, may be
+ *   - uid, the user for which the link is generated
+ *   - confirm, whether to show confirmation page or not
+ *   - destination, form destination or TRUE to use current path
+ *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
+ *   - type, object type
+ *   - Other subscription parameters: type, fields...
+ * @param $format
+ *   Whether to return a formatted link instead of a raw one (array)
+ */
+function notifications_get_link($op, $params, $format = FALSE) {
+  // Add some default values
+  $params += array('uid' => 0);
+  $elements = array();
+
+  switch ($op) {
+    case 'subscribe':
+      $type = 'subscription';
+      break;
+    case 'unsubscribe':     
+      // The unsubscribe link can be for a single subscription or all subscriptions for a user
+      if (!empty($params['sid'])) {
+        $type = 'subscription';
+        $params['oid'] = $params['sid'];
+      }
+      elseif ($params['uid']) {
+        $type = 'user';
+        $params['oid'] = $params['uid'];
+      }
+      break;
+    case 'edit': // Edit subscription
+      $type = 'subscription';
+      $params['oid'] = $params['sid'];
+      break;  
+  }
+
+  return notifications_build_link($op, $params, $type, NULL, $format ? 'link' : 'array');
+}
+
+/**
+ * Return link array for notifications objects
+ * 
+ * @param $op
+ *   Link operation: 'subscribe', 'unsubscribe', 'edit', 'manage'
  * @param $params
  *   Aditional parameters for the subscription, may be
  *   - uid, the user for which the link is generated
@@ -1419,67 +1487,95 @@ function notifications_cron() {
  *   - destination, form destination or TRUE to use current path
  *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
  *   - Other subscription parameters: type, fields...
+ * @param $type
+ *   Object type: 'subscription', 'destination'
  * @param $format
- *   Whether to return a formatted link instead of a raw one (array)
+ *   Optional format string to return a formatted link/url instead or a raw one (array)
+ *   - 'link' => Return a link
+ *   - 'url' => Only the URL (no link)
  */
-function notifications_get_link($type, $params, $format = FALSE) {
-  // Add some default values
-  $params += array('uid' => 0);
-  $elements = array();
+function notifications_build_link($op, $params, $type = 'subscription', $object = NULL, $format = 'array') {
+  // Find the key fields and adjust parameters for each object type
+  $key = array_search($type, array('sid' => 'subscription', 'mid' => 'destination', 'uid' => 'user'));
 
-  switch ($type) {
+  if ($object) {
+    $params += array('oid' => $object->$key, 'uid' => $object->uid);
+  }
+  else {
+    $params += array('uid' => 0);
+  }
+  // Build path elements that won't include the fixed prefix 'notifications'
+  $elements = array();
+  // Anonymous operations will be handled differently and the path will be notifications/anonymous
+  if (!$params['uid']) {
+    $params += array('signed' => TRUE);
+  }
+  $title = isset($params['title']) ? $params['title'] : NULL;
+  // Build path elements depending on object type and operation
+  switch ($op) {
     case 'subscribe':
-      $elements = array('subscribe', $params['uid']);
+      if ($object && !isset($params['type']) && !isset($params['fields'])) {
+        $params += array('type' => $object->type, 'fields' => $object->get_conditions());
+      }
+      if ($params['uid']) {
+        $elements = array('subscribe', $params['uid']);
+      }
+      else {
+        $elements = array('anonymous', 'subscribe');
+      }
       $elements[] = $params['type'];
       $elements[] = implode(',', array_keys($params['fields']));
       $elements[] = implode(',', $params['fields']);
-      $title = t('subscribe');
+      $title = $title ? $title : t('subscribe');
       break;
     case 'unsubscribe':
-      $elements = array('unsubscribe');      
-      // The unsubscribe link can be for a single subscription or all subscriptions for a user
-      if (!empty($params['sid'])) {      
-        $elements[] = 'sid';
-        $elements[] = $params['sid'];   
-      }
-      elseif ($params['uid']) {
-        $elements[] = 'uid';
-        $elements[] = $params['uid'];
-      }
-      $title = t('unsubscribe');
+      // The unsubscribe link can be for a single subscription or all subscriptions for a user or a destination
+      $elements[] = 'unsubscribe';     
+      $elements[] = $key;
+      $elements[] = $params['oid'];
+      $title = $title ? $title : t('unsubscribe');
       break;
-    case 'edit': // Edit subscription
-      $elements[] = 'subscription';
-      $elements[] = $params['sid'];
-      $elements[] = 'edit';
-      $title = t('edit');
-      break;  
+      
+    case 'confirm':
+      // For this andnext cases we just set title if not set and fallback to default
+      $title = $title ? $title : t('confirm');
+    case 'edit':
+       $title = $title ? $title : t('edit');
+    case 'manage':
+       $title = $title ? $title : t('manage');
+    case 'delete':
+       $title = $title ? $title : t('delete');
+    default:
+      if (!$params['uid']) {
+        $elements[] = 'anonymous';
+      }
+      // This is a generic operation like 'subscription/sid/edit' or 'destination/mdid/manage'
+      $elements[] = $type;
+      $elements[] = $params['oid'];
+      $elements[] = $op;
+      break;
   }
   $params += array('title' => $title);
+  
   $link =  _notifications_get_link($elements, $params);
-  return $format ? l($params['title'], $link['href'], $link['options']) : $link;
+  
+  // Finally, format as requested or return full array
+  switch ($format) {
+    case 'link':
+      return l($params['title'], $link['href'], $link['options']);
+    case 'url':
+      return url($link['href'], $link['options']);
+    default:
+      return $link;
+  }
+  
 }
 
 /**
  * Get subscribe / unsubscribe link for subscription
  */
 function notifications_subscription_get_link($type, $subscription, $options = array()) {
-  if ($subscription->uid) {
-    if ($type == 'subscribe') {
-      $options += array('uid' => $subscription->uid);
-    }
-    else {
-      $options += array('sid' => $subscription->sid);
-    }
-    return notifications_get_link($type, $options);
-  }
-  elseif (function_exists('notifications_anonymous_subscription_get_link')) {
-    return notifications_anonymous_subscription_get_link($type, $subscription, $options);
-  }
-  else {
-    // This may be the case when we need an anonymous subscription but the module is disabled
-    return array();
-  }
+  return notifications_build_link($type, $options, 'subscription', $subscription);
 }
 
 /**
@@ -1508,7 +1604,8 @@ function _notifications_get_link($elements, $params = array()) {
     $params['signed'] = 1;
   }
   if ($params['signed']) {
-    $query['signature'] =  _notifications_signature($elements, !$params['confirm']);
+    $query += array('timestamp' => time());
+    $query['signature'] =  _notifications_signature($elements, $query);
   }
   // Build final link parameters
   $options['query'] = $query;
@@ -1732,12 +1829,13 @@ function notifications_send_methods($account) {
  * Signature for url parameters
  * 
  * @param $params
- *   Subscription parameters
- * @param $skip_confirm
- *   TRUE to skip confirmation form
+ *   Ordered path elements
+ * @param $query
+ *   Query string elements
  */
-function _notifications_signature($params, $skip_confirm = FALSE) {
-  return md5('notifications:'. drupal_get_private_key() .':'. ($skip_confirm ? 1 : 0) .':'. implode(':', $params));
+function _notifications_signature($params, $query = array()) {
+  $payload = implode('/', $params) . ':' . ($query ? notifications_array_serialize($query) : 'none');
+  return md5('notifications' . drupal_get_private_key() .':' . $payload); 
 }
 
 /**

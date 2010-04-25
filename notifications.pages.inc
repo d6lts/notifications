@@ -83,7 +83,6 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
 
   // Check signature if present
   $params = array('subscribe', $account->uid, $type, $fields, $values);
-  $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature($params, !empty($_GET['confirm']));
 
   // Build subscriptions object
   $subscription = notifications_build_subscription(array(
@@ -96,7 +95,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   $subscription->set_account($account);
   if (notifications_user_allowed('subscription', $account, $subscription)) {
     // Display subscription information
-    if (!empty($_GET['confirm']) && $signed) {
+    if (!empty($_GET['confirm']) && notifications_check_signature()) {
       // Subscribe, no confirmation
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
@@ -128,7 +127,7 @@ function notifications_page_unsubscribe($type, $id) {
   global $user;
   
   // Check signature if present
-  $signed = !empty($_GET['signature']) && $_GET['signature'] == _notifications_signature(array('unsubscribe', $type, $id), !empty($_GET['confirm']));
+  $signed = notifications_check_signature();
   
   // Determine subscription and user depending on type
   if ($type == 'sid' && is_numeric($id) && ($subscription = notifications_load_subscription($id))) {

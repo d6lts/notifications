@@ -98,7 +98,7 @@ function notifications_anonymous_destination_page($destination, $op = 'unsubscri
     exit(0);
   }
   drupal_set_title(t('Subscriptions for @name', array('@name' => $destination->address_name())));
-  $options = notifications_anonymous_manage_links('destination', $destination);
+  $options = notifications_anonymous_manage_links('destination', $destination, 'link');
   switch ($op) {
     case 'edit':
       $output .= drupal_get_form('notifications_destination_edit_form', $destination, $options);
@@ -132,6 +132,7 @@ function notifications_anonymous_subscription_page($subscription, $op = 'unsubsc
       $output .= drupal_get_form('notifications_anonymous_unsubscribe_form', $subscription);
       break;
     case 'edit':
+      // After editing this subscription, forward to the same signed page
       $output .= drupal_get_form('notifications_anonymous_subscription_edit_form', $subscription);
       break;
   }

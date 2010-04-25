@@ -80,10 +80,7 @@ function notifications_anonymous_subscription_access($op = 'create', $subscripti
  * Get subscribe / unsubscribe link for subscription
  */
 function notifications_anonymous_subscription_get_link($type, $subscription, $options = array()) {
-  if ($type == 'unsubscribe') {
-    $options += array('type' => 'subscription', 'oid' => $subscription->sid);
-  }
-  return notifications_anonymous_get_link($type, $options);  
+  return notifications_build_link($type, $options, 'subscription', $subscription);  
 }
 
 /**
@@ -209,57 +206,19 @@ function notifications_anonymous_subscription_form(&$form_state, $subscription, 
 }
 
 /**
- * Get link for anonymous subscriptions / destinations
+ * Get raw /formatted links to manage subscription / destination
  * 
- * @param $op
- *   Operation: subscribe, unsubscribe, manage, edit
- * @param $params
- *   Array of mixed parameters. Same as notifications_get_links() plus:
- *   - type = 'subscription' | 'destination'
- *   - oid = object id (sid, mdid)
+ * @param $format
+ *   Format to return the links
+ *   - 'link', Full built link
+ *   - 'url', Plain url 
  */
-function notifications_anonymous_get_link($op, $params) {
-  $params += array(
-    'absolute' => TRUE,
-  );
-  // Diference subscription / destination
-  switch ($op) {
-    case 'subscribe':
-      $elements = array(
-        'anonymous',
-        'subscribe',
-        $params['type'],
-        implode(',', array_keys($params['fields'])),
-        implode(',', $params['fields'])     
-      );
-      break;
-    case 'confirm':
-    case 'edit':
-    case 'manage':
-    case 'delete':
-    case 'unsubscribe': 
-      $elements = array(
-        'anonymous',
-        $params['type'],
-        $params['oid'],
-        $op,
-      );
-      // Anonymous links are signed as default
-      $params += array('signed' => TRUE);
-      break;
-  }
-  return _notifications_get_link($elements, $params);
-}
-
-/**
- * Get raw links to manage subscription / destination
- */
-function _notifications_anonymous_manage_links($type, $object) {
+function notifications_anonymous_manage_links($type, $object, $format = 'array') {
   $links = array();
   $params = array(
     'absolute' => TRUE,
     'signed' => TRUE,
-    'type' => $type, // subscription / destination
+    //'type' => $type, // subscription / destination
   );
   if ($type == 'destination') {
     $params['oid'] = $params['mdid'] = $object->mdid;
@@ -278,43 +237,11 @@ function _notifications_anonymous_manage_links($type, $object) {
   }
   foreach ($link_types as $op => $name) {
     if (_notifications_anonymous_access($type, $object, $op)) {
-      $links[$op] = notifications_anonymous_get_link($op, $params);
-      $links[$op]['title'] = $name;
+      $params['title'] = $name;
+      $links[$op] = notifications_build_link($op, $params, $type, $object);
     }
   }
   return $links;
-}
-
-/**
- * Check for object access
- */
-function _notifications_anonymous_access($type, $object, $op) {
-  if (function_exists($function = 'notifications_anonymous_' . $type . '_access')) {
-    return $function($op, $object);
-  }
-}
-/**
- * Get formatted links to manage subscription / destination
- * 
- * @param $format
- *   Format to return the links
- *   - 'link', Full built link
- *   - 'url', Plain url 
- */
-function notifications_anonymous_manage_links($type, $object, $format = 'link') {
-  $items = array();
-  foreach (_notifications_anonymous_manage_links($type, $object) as $key => $link) {
-    switch ($format) {
-      case 'link':
-        $items[$key] = l($link['title'], $link['href'], $link['options']);
-        break;
-      case 'url':
-        $items[$key] = url($link['href'], $link['options']);
-        break;
-    }
-    
-  }
-  return $items;
 }
 
 /**
