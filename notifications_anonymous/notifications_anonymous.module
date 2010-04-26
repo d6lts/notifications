@@ -245,6 +245,15 @@ function notifications_anonymous_manage_links($type, $object, $format = 'array')
 }
 
 /**
+ * Check for object access
+ */
+function _notifications_anonymous_access($type, $object, $op) {
+  if (function_exists($function = 'notifications_anonymous_' . $type . '_access')) {
+    return $function($op, $object);
+  }
+}
+
+/**
  * Create signed URLs for all pages
  */
 function notifications_anonymous_url($url, $options = array()) {
