@@ -108,7 +108,8 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
         'header' => "Update for $ctype1->name $node1->title", 
         'event' => "The body is $node1->body",
         'footer' => 'My site is Test Site',
-        )
+        ),
+      'language' => $language->language,
     );
     $event1->text = $event2->text = $text;    
     // Build event and subscriptions array

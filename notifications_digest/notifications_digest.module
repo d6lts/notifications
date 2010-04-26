@@ -205,9 +205,12 @@ function notifications_digest_build_short($send_method, $destination, $events, $
   $message = array(
     'subject' => $text['subject'], 
     'body' => $body,
+    'language' => $language->language,
+  );
+  $message['notifications'] = array(
     'events' => $events,
     'subscriptions' => $subscriptions,
-    'digest' => 'short',
+    'digest' => 'short',  
   );
 
   return array($message);
@@ -264,10 +267,12 @@ function notifications_digest_build_long($send_method, $destination, $events, $s
   $message = array(
     'subject' => $text['subject'], 
     'body' => $body,
+    'language' => $language->language,
+  );
+  $message['notifications'] = array(
     'events' => $events,
     'subscriptions' => $subscriptions,
-    'digest' => 'long',
-    'language' => $language,
+    'digest' => 'long',  
   );
   return array($message);
 }

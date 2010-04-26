@@ -484,7 +484,8 @@ function notifications_process_compose($send_method, $destination, $events, $sub
     $build_function = 'notifications_process_build_simple';
   }
   // Invoke building function that will return an array of messages  
-  return $build_function($send_method, $destination, $events, $subscriptions, $send_interval, $module);
+  $messages = $build_function($send_method, $destination, $events, $subscriptions, $send_interval, $module);
+  return $messages;
 }
 
 /**
@@ -519,10 +520,11 @@ function notifications_process_build_method($send_interval = NULL, $refresh = FA
  * @param $test
  *   Optional just test composition and formating but do not send
  */
-function notifications_process_send($method, $destination, $messages, $test = FALSE) {  
+function notifications_process_send($method, $destination, $messages, $test = FALSE) {
+  notifications_log('Sending out notifications', array('method' => $method, 'address' => $destination->address, 'messages' => count($messages)));
   foreach ($messages as $message) {
     notifications_process('count', 'send');
-    notifications_debug('Sending out notification', array('method' => $method, 'message' => $message));
+    
     notifications_message_send($method, $destination, $message, $test);
   }
   return $messages;
@@ -547,11 +549,11 @@ function notifications_process_send($method, $destination, $messages, $test = FA
  */
 function notifications_message_send($method, $destination, $message, $test = FALSE) {
   notifications_debug('Preparing user notification for messaging', array('message' => $message, 'destination' => $destination));
-  $message = (object)$message;
+  $message = messaging_message_build($message);
   $message->type = 'notifications';
   $message->test = $test;
   notifications_process('count', 'message');
-  messaging_message_send_destination($method, $destination, $message);
+  return messaging_message_send_destination($method, $destination, $message);
 }
 
 /**
@@ -697,12 +699,13 @@ function notifications_process_build_simple_message($send_method, $destination, 
   $text = messaging_template_text_replace($parts, $objects);
 
   // Get subject out of text and build the message array
-  $template['subject'] = $text['subject'];
+  $message['subject'] = $text['subject'];
   unset($text['subject']);
-  $template['body'] = $text;
+  $message['body'] = $text;
+  $message['language'] = $language->language;
   // If we want debug information, add parts too. Otherwise we don't want to move too much data around
   if ($debug) {
-    $template['parts'] = $parts;
+    $message['parts'] = $parts;
   }
-  return $template;
+  return $message;
 }
