@@ -24,7 +24,7 @@
  * @return
  *   An associative array describing your command(s).
  */
-function notifications_drush_command() {
+function notifications_tools_drush_command() {
   $items['notifications process'] = array(
     'callback' => 'notifications_drush_queue_process',
     'description' => "Process queued notifications and send out messages.",
@@ -39,7 +39,7 @@ function notifications_drush_command() {
 /**
  * Implementation of hook_drush_help().
  */
-function notifications_drush_help($section) {
+function notifications_tools_drush_help($section) {
   switch ($section) {
     case 'drush:notifications process':
       return dt("Process queued notifications and send out messages.");

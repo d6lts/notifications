@@ -36,6 +36,7 @@ function notifications_autoload_info() {
     'Notifications_Subscription' => array('file' => 'includes/notifications_subscription.class.inc'),
   ); 
 }
+
 /**
  * Implementation of hook_menu().
  */
@@ -49,17 +50,17 @@ function notifications_menu() {
     'file' => 'system.admin.inc',
     'file path' => drupal_get_path('module', 'system'),
   );
-  // Site settings
+  // Notifications and Subscription settings
   $items['admin/messaging/notifications'] = array(
-    'title' => 'Notifications Settings',
-    'description' => 'Site settings for user notifications.',
+    'title' => 'Notifications settings',
+    'description' => 'Configuration for Subscriptions and Notifications.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('notifications_settings_form'),
     'access arguments' => array('administer site configuration'),
     'file' => 'notifications.admin.inc',
   );
   $items['admin/messaging/notifications/settings'] = array(
-    'title' => 'General',
+    'title' => 'Main',
     'weight' => -10,
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'file' => 'notifications.admin.inc',
@@ -80,6 +81,33 @@ function notifications_menu() {
     'access arguments' => array('administer site configuration'),
     'file' => 'notifications.admin.inc',
   );
+  $items['admin/messaging/notifications/queue'] = array(
+    'title' => 'Queue processing',
+    'description' => 'Parameters for processing queued notifications',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_admin_queue_settings'),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+    'weight' => 100, // Show the last one, there are dangerous settings here.
+  );
+  $items['admin/messaging/notifications/subscriptions'] = array(
+    'title' => 'Subscriptions',
+    'description' => 'Subscriptions settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_admin_subscriptions_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/messaging/notifications/subscriptions/types'] = array(
+    'title' => 'Options',
+    'description' => 'Subscription options.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
   // Subscribe links. For this items access will be checked later in the page
   $items['notifications/subscribe/%user'] = array(
     'type' => MENU_CALLBACK,

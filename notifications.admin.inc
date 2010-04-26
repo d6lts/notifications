@@ -2,6 +2,29 @@
 // $Id$
 
 /**
+ * Implementation of hook_help()
+ * 
+ * This file will be included only for Notifications admin pages
+ */
+function notifications_help($path, $arg) {
+  $pages = array(
+    '@admin-events' => url( 'admin/messaging/notifications/events'),
+    '@admin-intervals' => url( 'admin/messaging/notifications/interval'),
+    '@admin-subscriptions' => url( 'admin/messaging/notifications/subscriptions'),
+    '@admin-messaging' => url('admin/messaging/settings'),
+    '@admin-messaging' => url('admin/messaging/settings/method'),
+  );
+  switch ($path) {
+    case 'admin/messaging/notifications':
+      // Try to clarify some concepts, tell the long story short.
+      $output = '<p>' . t('Users can subscribe to different objects (nodes, users, tags) by creating <strong><a href="@admin-subscriptions">Subscriptions</a></strong> for that objects. The subscription types available and the options to display will depend on additional modules enabled.', $pages) . '</p>';
+      $output .= '<p>' . t('When an <a href="@admin-events">Event</a> happens (node update, comment) and it matches an existing subscription, that triggers a <strong>Notification</strong> which is a <strong>Message</strong> that will be sent to the user through one of the available <a href="@admin-messaging-methods">Sending Methods</a>.', $pages) . '</p>';
+      $output .= '<p>' . t('These <strong>Notifications</strong> can be sent right away or queued to be processed on <i>cron</i>. Optionally Notifications can be digested and sent out every some <a href="@admin-intervals">time interval</a>.', $pages) . '</p>';
+      return $output;
+  }
+}
+
+/**
  * Admin settings
  */
 function notifications_settings_form() {
@@ -54,6 +77,20 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_default_send_interval', 0),
   );
 
+  return system_settings_form($form);
+}
+
+/**
+ * Admin settings
+ */
+function notifications_admin_queue_settings() {
+  $form['notifications_process_on_cron'] = array(
+    '#type' => 'radios',
+    '#title' => t('Process on cron'),
+    '#default_value' => variable_get('notifications_process_on_cron', TRUE),
+    '#options' => array(t('Disabled'), t('Enabled')),
+    '#description' => t('If disabled you must use code elsewhere to actually send your e-mails such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
+  );
   // Processing limits
   $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'percent' => 0, 'time' => 0));
   $form['notifications_process_limit'] = array(
@@ -61,14 +98,9 @@ function notifications_settings_form() {
     '#title' => t('Limits for queue processing'),
     '#tree' => TRUE,
     '#description' => t('These are the limits for each run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
-    '#collapsible' => TRUE, '#collapsed' => TRUE,
+    '#collapsible' => TRUE,
   );
-  $form['notifications_process_on_cron'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Process on cron'),
-    '#default_value' => variable_get('notifications_process_on_cron', TRUE),
-    '#description' => t('If disabled you must use code elsewhere to actually send your e-mails such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
-  );
+
   $form['notifications_process_limit']['row'] = array(
     '#title' => t('Number of rows'),
     '#type' => 'textfield',
@@ -96,7 +128,6 @@ function notifications_settings_form() {
   );
   return system_settings_form($form);
 }
-
 /**
  * Send intervals administration
  */
@@ -244,6 +275,35 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
   }
 }
 
+/**
+ * Subscription settings
+ */
+function notifications_admin_subscriptions_settings() {
+  // Link options
+  $form['links'] = array(
+    '#title' => t('Subscribe / unsubscribe links options'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+  );
+  $options = array(
+    t('<strong>Confirmation form</strong>. Links take the user through a confirmation form with some more options.'),
+    t('<strong>Direct operation</strong>. Links create/delete a subscription without confirmation using default settings.'),
+  );
+  $form['links']['notifications_ui_subscribe_links'] = array(
+    '#title' => t('Subscribe links'),
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => variable_get('notifications_ui_subscribe_links', 0),
+  );
+  $form['links']['notifications_ui_unsubscribe_links'] = array(
+    '#title' => t('Unsubscribe links'),
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => variable_get('notifications_ui_unsubscribe_links', 0),
+  );
+
+  return system_settings_form($form);
+}
 /**
  * Build a table with send intervals
  */

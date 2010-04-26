@@ -164,7 +164,7 @@ function notifications_tools_queue_operations_form_submit($form, &$form_state) {
     $args = !empty($process['callback arguments']) ? $process['callback arguments'] : array();
     call_user_func_array($process['callback'], $args);
     drupal_set_message($process['description']);
-    $form_state['redirect'] = 'admin/messaging/subscriptions/queue/' . $mode;
+    $form_state['redirect'] = 'admin/messaging/notifications/queue/operations/' . $mode;
   } 
   // Switch back to current user
   $user = $save_user;

@@ -506,6 +506,16 @@ function notifications_update_6016() {
 }
 
 /**
+ * Renamed some variables
+ */
+/*
+function notifications_update_6017 {
+  $ret = array();
+  
+  return $ret;
+}
+*/
+/**
  * Helper function, clean up queue, events, sent
  */
 function _notifications_update_queue_clean() {

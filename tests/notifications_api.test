@@ -95,11 +95,11 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $this->assertText('Event type', 'Enabled events page showing up');
     $this->drupalGet('admin/messaging/notifications/intervals');
     $this->assertText('Send intervals', 'Intervals page showing up');
-    $this->drupalGet('admin/messaging/subscriptions');
+    $this->drupalGet('admin/messaging/subscriptions/status');
     $this->assertText('Subscriptions by type', 'Subscriptions overview page showing up');
-    $this->drupalGet('admin/messaging/subscriptions/admin');
-    //$this->assertText('status', 'Subscriptions administration page showing up');
-    $this->drupalGet('admin/messaging/subscriptions/queue');
+    $this->drupalGet('admin/messaging/subscriptions');
+    $this->assertText('Manage subscriptions', 'Subscriptions administration page showing up');
+    $this->drupalGet('admin/messaging/notifications/queue/operations');
     $this->assertText('Notifications in queue', 'Notifications queue page showing up');      
   }
 

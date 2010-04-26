@@ -6,6 +6,17 @@
  */
 
 /**
+ * Implementation of hook_help()
+ */
+function notifications_anonymous_help($path, $arg) {
+  switch ($path) {
+    case 'admin/messaging/notifications/subscriptions/anonymous':
+      $output = '<p>' . t('These are specific settings for anonymous users. Not all send methods or send intervals available for registered users may be suitable for anonymous users.') . '</p>';
+      return $output;
+  }
+}
+
+/**
  * Implementation of hook_menu()
  */
 function notifications_anonymous_menu() {
@@ -50,7 +61,7 @@ function notifications_anonymous_menu() {
     );
   }
   // Admin settings page
-  $items['admin/messaging/notifications/anonymous'] = array(
+  $items['admin/messaging/notifications/subscriptions/anonymous'] = array(
     'title' => 'Anonymous',
     'description' => 'Settings for anonymous subscriptions',
     'page callback' => 'drupal_get_form',

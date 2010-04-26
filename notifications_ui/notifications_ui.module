@@ -25,7 +25,7 @@ function notifications_ui_help($path, $arg) {
  * Implementation of hook_menu()
  */
 function notifications_ui_menu() {
-  $items['admin/messaging/notifications/ui'] = array(
+  $items['admin/messaging/notifications/subscriptions/ui'] = array(
     'title' => 'User interface',
     'description' => 'Enables site settings for user subscriptions.',
     'page callback' => 'drupal_get_form',
