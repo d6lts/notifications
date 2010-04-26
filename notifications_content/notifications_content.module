@@ -199,7 +199,6 @@ function notifications_content_notifications($op) {
         'user page' => 'user/%user/notifications/thread',
         'fields' => array('nid'),
         'description' => t('Subscribe to all changes and comments for a thread.'),
-        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'thread'),
         'name callback' => 'notifications_content_subscription_name',
       );
       $types['nodetype'] = array(
@@ -211,7 +210,6 @@ function notifications_content_notifications($op) {
         'user page' => 'user/%user/notifications/nodetype',
         'fields' => array('type'),
         'description' => t('Subscribe to all content of a given type.'),
-        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'nodetype'),
         'name callback' => 'notifications_content_subscription_name',
       );
       $types['author'] = array(
@@ -223,7 +221,6 @@ function notifications_content_notifications($op) {
         'user page' => 'user/%user/notifications/author',
         'fields' => array('author'),
         'description' => t('Subscribe to all content submitted by a user.'),
-        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'author'),
         'name callback' => 'notifications_content_subscription_name',
       );
       // This is a complex type, combining two fields
@@ -235,7 +232,6 @@ function notifications_content_notifications($op) {
         //'page callback' => 'notifications_content_page_author',
         'fields' => array('author', 'type'),
         'description' => t('Subscribe to all content of a given type submitted by a user.'),
-        'disabled' => $disabled && !notifications_content_type_enabled(NULL, 'typeauthor'),
         'name callback' => 'notifications_content_subscription_name',
       );      
       return $types;
@@ -606,12 +602,26 @@ function notifications_content_notifications_templates($op, $type = 'all', $lang
 }
 
 /**
- * List subscription options for content types
+ * List (enabled) subscription options for content types
+ * 
+ * @param $enabled
+ *   Whether to get only enabled subscription types or all of them
  */
-function _notifications_content_type_options() {
-  $types = notifications_subscription_types();
-  $types = notifications_array_filter($types, array('event_type' => 'node'));
-  return array_map('notifications_format_title_description', $types);
+function _notifications_content_type_options($enabled = TRUE) {
+  if ($types = notifications_subscription_types()) {
+    if ($enabled) {
+      $types = array_intersect_key($types, notifications_subscription_type_enabled());
+    }
+    if ($types) {
+      // Only node subscriptions
+      if ($types = notifications_array_filter($types, array('event_type' => 'node'))) {
+        if ($types = notifications_array_filter($types, array('custom' => TRUE), TRUE)) {
+          return array_map('notifications_format_title_description', $types);
+        }
+      }
+    }
+  }
+  return array();
 }
 
 /**
@@ -817,13 +827,22 @@ function notifications_content_types($field = 'name', $subs_type = 'nodetype') {
  *   Optional content type to return info for, global notifications defaults if none.
  * @param $option
  *   Optional option to return for the given content type or the defaults, defaults to returning all settings for the type.
+ * @param $disabled
+ *   Check also for globally disabled subscription types
  */
-function notifications_content_type_enabled($type = NULL, $option = NULL) {
-  $defaults = variable_get('notifications_content_type', array());
-  if ($type && variable_get('notifications_content_per_type', 0)) {
-    $settings = variable_get('notifications_content_type_' . $type, $defaults);
-  } else {
-    $settings = $defaults;
+function notifications_content_type_enabled($type = NULL, $option = NULL, $disabled = FALSE) {
+  $settings = variable_get('notifications_content_type', array());
+  if ($type) {
+    if (!$disabled && !notifications_subscription_type_enabled($type)) {
+      $settings = array();
+    }
+    elseif (variable_get('notifications_content_per_type', 0)) {
+      $settings = variable_get('notifications_content_type_' . $type, $settings);
+    }
+  }
+  elseif (!$disabled) {
+    // Take out globally disabled subscriptions
+    $settings = array_intersect($settings, notifications_subscription_type_enabled());
   }
   if ($option) {
     return in_array($option, $settings, TRUE);

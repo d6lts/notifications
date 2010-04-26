@@ -882,7 +882,7 @@ function notifications_get_subscriptions($main_conditions, $field_conditions = N
 }
 
 /**
- * Get subscription for a given user to some object
+ * Get active subscriptions for a given user to some object
  * 
  * This is a shorthand function to quickly check some types of subscriptions.
  * 
@@ -917,7 +917,7 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
     $subscribe_options = notifications_object_subscribe_options($type, $object, messaging_user_object($account));
     foreach ($subscribe_options as $template) {
       $type_subscriptions = notifications_get_subscriptions(
-        array('uid' => $uid, 'type' => $template['type']), // Main conditions
+        array('uid' => $uid, 'type' => $template['type'], 'status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE), // Main conditions
         $template['fields'], // Field conditions
         TRUE // Match exactly these condition fields, no less, no more
       );
@@ -1124,20 +1124,23 @@ function notifications_subscription_fields($type = NULL, $property = NULL) {
 }
 
 /**
- * Filter elements in an array of arrays/objects
+ * Filter elements in an array of arrays/objects that match some condition
  * 
  * @param $array
  *   Data array to be filtered.
  * @param $filter
  *   Array of field => value pairs
+ * @param $reverse
+ *   Reverse filter, return elements that don't match
  */
-function notifications_array_filter($array, $filter) { 
+function notifications_array_filter($array, $filter, $reverse = FALSE) { 
   if (!$filter) {
     return $array;
   }
   foreach ($array as $key => $data) {
     $compare = is_object($data) ? (array)$data : $data;
-    if (count(array_intersect_assoc($filter, $compare)) != count($filter)) {
+    $match = count(array_intersect_assoc($filter, $compare)) == count($filter);
+    if ($match && $reverse || !$match && !$reverse) {
       unset($array[$key]);
     }
   }

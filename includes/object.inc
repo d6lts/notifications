@@ -43,12 +43,20 @@ function notifications_object_access($type, $object, $account) {
 }
 
 /**
- * Get subscription options for object, account
+ * Get subscription options for object, account. Only enabled subscription types
  */
 function notifications_object_subscribe_options($type, $object, $account = NULL) {
   $account = $account ? $account : $GLOBALS['user'];
   $object = notifications_object_load($type, $object);
-  return module_invoke_all('notifications_object_' . $type, 'subscriptions', $object, $account);
+  $subscriptions = module_invoke_all('notifications_object_' . $type, 'subscriptions', $object, $account);
+  // Filter out subscription types that are disabled
+  foreach ($subscriptions as $key => $subs) {
+    $type = is_object($subs) ? $subs->type : $subs['type'];
+    if (!notifications_subscription_type_enabled($type)) {
+      unset($subscriptions[$key]);
+    }
+  }
+  return $subscriptions;
 }
 
 /**

@@ -32,7 +32,8 @@ function notifications_nodetype_notifications($op, $event = NULL, $arg1 = NULL, 
       // @see notifications_content_notifications()
       $types = array();
       foreach (node_get_types() as $type => $info) {
-        if (notifications_content_type_enabled($type)) {
+        // Don't provide more options for content types that are disabled, we don't want to mess up everything
+        if (notifications_content_type_enabled($type, NULL)) {
           // Node inserts are not grouped by node but all together. The digest will look like:
           //   New content has been submitted
           //   - Story Title1 by Author1

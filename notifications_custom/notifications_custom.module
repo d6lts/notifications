@@ -255,6 +255,8 @@ function notifications_custom_account_update($account, $update) {
  */
 function notifications_custom_build_list($filter = array(), $account = NULL) {
   $list = notifications_array_filter(notifications_custom_list(), $filter);
+  // Take out disabled types
+  $list = array_intersect_key($list, notifications_subscription_type_enabled());
   // Now try to match all the parameters against each object in the list
   foreach ($list as $type => $custom) {
     $subscription = notifications_custom_build_subscription($custom);
