@@ -587,17 +587,28 @@ function notifications_queue_update($params, $updates) {
 /**
  * Delete rows from subscriptions queue
  * 
- * @see notifications_queue_query()
+ * Note: Handle with care if wrong params it may delete all rows
  * 
- * Note: Handle with care if no params may delete all rows
+ * @param $params
+ *   Array of conditions. If none, all rows for disabled subscriptions will be deleted
  */
 function notifications_queue_delete($params) {
-  $query = notifications_queue_query($params);
-  db_query("DELETE FROM {notifications_queue} WHERE ". implode(' AND ', $query['where']), $query['args']);
+  if ($params) {
+    $query = notifications_queue_query($params);
+    db_query("DELETE FROM {notifications_queue} WHERE ". implode(' AND ', $query['where']), $query['args']);
+  }
+  else {
+    // Delete all queued notifications for subscriptions not active
+    // Note queue rows without subscription will be kept (like the ones form notifications_lite)
+    db_query("DELETE FROM {notifications_queue} WHERE sid IN (SELECT sid FROM {notifications} WHERE status <> %d)", NOTITICATIONS_SUBSCRIPTION_ACTIVE);
+  }
 }
 
 /**
  * Clean queue for a user and update event tracker
+ * 
+ * @param $params
+ *   Array of conditions. If none, all rows for disabled subscriptions will be deleted
  */
 function notifications_queue_clean($params) {
   notifications_include('event.inc');

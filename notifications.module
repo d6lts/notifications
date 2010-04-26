@@ -26,6 +26,8 @@ define('NOTIFICATIONS_SUBSCRIPTION_BLOCKED', 0);
 define('NOTIFICATIONS_SUBSCRIPTION_ACTIVE', 1);
 // Temporarily disabled ones, maybe user on holidays
 define('NOTIFICATIONS_SUBSCRIPTION_INACTIVE', 2);
+// Disabled because the subscription type is disabled
+define('NOTITICATIONS_SUBSCRIPTION_DISABLED', -1);
 
 /**
  * Implementation of hook_autoload_info().
@@ -1075,13 +1077,42 @@ function notifications_subscription_types($type = NULL, $field = NULL, $check_ac
   $result = $types;
   if ($check_access) {
     foreach ($types as $key => $info) {
-      if (!empty($info['disabled']) || (!empty($info['access']) && !user_access($info['access']))) {
+      if (!empty($info['disabled']) || !notifications_subscription_type_enabled($key) || (!empty($info['access']) && !user_access($info['access']))) {
         unset($result[$key]);
       }
     }
   }
 
   return notifications_array_info($result, $type, $field);
+}
+
+/**
+ * Check if this type is enabled
+ * 
+ * The settings will be an array with type => type when enabled or type => 0 when disabled
+ * 
+ * @param $type
+ *   Type to check, or nothing to return all
+ */
+function notifications_subscription_type_enabled($type = NULL) {
+  // By using a static, modules can peek and change this settings for specific pages
+  $types = &messaging_static(__FUNCTION__);
+  if (!isset($types)) {
+    $types = variable_get('notifications_subscription_types', NULL);
+    if (!isset($types)) {
+      // Not set, we assume all enabled.
+      $type_keys = array_keys(notifications_subscription_types());
+      $types = array_combine($type_keys, $type_keys);
+    }
+  }
+  if ($type) {
+    // If we don't have a setting yet for this type, return true
+    return isset($types[$type]) ? (boolean)$types[$type] : TRUE;
+  }
+  else {
+    // Return only the types enabled
+    return array_filter($types);
+  }
 }
 
 /**
@@ -1117,8 +1148,13 @@ function notifications_array_filter($array, $filter) {
  * Array item callback to format title and description
  */
 function notifications_format_title_description($item) {
-  $description = !empty($item['description']) ? ' ' . check_plain($item['description']) : ''; 
-  return '<strong>' . check_plain($item['title']) . '</strong>' . $description;
+  if (!empty($item['description'])) {
+    $description = check_plain($item['description']);
+  }
+  elseif (!empty($item['name'])) {
+    $description = check_plain($item['name']);
+  } 
+  return '<strong>' . check_plain($item['title']) . '</strong>' . (!empty($description) ? ' ' . $description : '');
 }
 
 /**
@@ -1888,6 +1924,7 @@ function _notifications_subscription_status() {
     NOTIFICATIONS_SUBSCRIPTION_ACTIVE => t('active'),
     NOTIFICATIONS_SUBSCRIPTION_BLOCKED => t('blocked'),
     NOTIFICATIONS_SUBSCRIPTION_INACTIVE => t('inactive'),
+    NOTITICATIONS_SUBSCRIPTION_DISABLED => t('disabled'),
  );
 }
 

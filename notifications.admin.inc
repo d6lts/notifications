@@ -21,6 +21,11 @@ function notifications_help($path, $arg) {
       $output .= '<p>' . t('When an <a href="@admin-events">Event</a> happens (node update, comment) and it matches an existing subscription, that triggers a <strong>Notification</strong> which is a <strong>Message</strong> that will be sent to the user through one of the available <a href="@admin-messaging-methods">Sending Methods</a>.', $pages) . '</p>';
       $output .= '<p>' . t('These <strong>Notifications</strong> can be sent right away or queued to be processed on <i>cron</i>. Optionally Notifications can be digested and sent out every some <a href="@admin-intervals">time interval</a>.', $pages) . '</p>';
       return $output;
+    case 'admin/messaging/notifications/subscriptions':
+      $output = '<p>' . t('On this page you can define which subscription types are enabled or disabled. <strong>Disabled subscription types will not be available for users</strong>.') . '</p>';
+      $output .= '<p>' . t('<strong>Existing subscriptions will be updated accordingly</strong>. They\'ll be disabled when their type is disabled or re-enabled when they were disabled and the type is enabled.') . '</p>';
+      return $output;
+      
   }
 }
 
@@ -279,7 +284,22 @@ function notifications_send_intervals_form_submit($form, &$form_state) {
  * Subscription settings
  */
 function notifications_admin_subscriptions_settings() {
-  // Link options
+  // Enabled subscription types
+  $types = array_map('notifications_format_title_description', notifications_subscription_types());
+  $enabled = notifications_subscription_type_enabled();
+  
+  $form['subscriptions'] = array(
+    '#title' => t('Enabled Subscription types'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+  );
+  $form['subscriptions']['notifications_subscription_types'] = array(
+    '#type' => 'checkboxes',
+    '#options' => $types,
+    '#default_value' => $enabled,
+    '#description' => t('Check the available subscription types that will be enabled globally'),
+  );
+  // Link options. These were UI settings that will become global now, so other modules can use them without Notifications UI
   $form['links'] = array(
     '#title' => t('Subscribe / unsubscribe links options'),
     '#type' => 'fieldset',
@@ -302,8 +322,54 @@ function notifications_admin_subscriptions_settings() {
     '#default_value' => variable_get('notifications_ui_unsubscribe_links', 0),
   );
 
-  return system_settings_form($form);
+  $form = system_settings_form($form);
+  // We have our own processing to do after system settings
+  $form['#submit'][] = 'notifications_admin_subscriptions_settings_submit';
+
+  return $form;
 }
+
+/**
+ * Subscription settings submit, disable all subscriptions not allowed
+ */
+function notifications_admin_subscriptions_settings_submit($form, &$form_state) {
+  // Submission may have been Save or Reset to defaults, so we cannot really trust submitted values
+  // Instead we do a cache refresh and re-check enabled / disabled types
+  messaging_static_reset('notifications_subscription_type_enabled');
+  $types = notifications_subscription_type_enabled();
+  $sql_update = 'UPDATE {notifications} SET status = %d WHERE status = %d';
+  $enabled = $disabled = 0;
+
+  if ($types) {
+    // Enable subscriptions of these types that were disabled before
+    $placeholders = db_placeholders($types, 'varchar');
+    $sql_where = ' AND type IN (' . $placeholders . ')';
+    $params = array_merge(array(NOTIFICATIONS_SUBSCRIPTION_ACTIVE, NOTITICATIONS_SUBSCRIPTION_DISABLED), $types);
+    db_query($sql_update . $sql_where, $params);
+    $enabled = db_affected_rows();
+
+    $params = array_merge(array(NOTITICATIONS_SUBSCRIPTION_DISABLED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE), $types);
+    $sql_where = ' AND type NOT IN (' . $placeholders . ')';
+  }
+  else {
+    $params = array(NOTITICATIONS_SUBSCRIPTION_DISABLED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE);
+    $sql_where = '';
+  }
+  db_query($sql_update . $sql_where, $params);
+  $disabled = db_affected_rows();
+  
+  if ($enabled) {
+    drupal_set_message(t('@count existing subscriptions have been enabled.', array('@count' => $enabled)), 'warning');
+  }
+  if ($disabled) {
+    drupal_set_message(t('@count existing subscriptions have been disabled.', array('@count' => $disabled)), 'warning');
+    // Delete rows from queue and do some clean up.
+    notifications_include('process.inc');
+    notifications_queue_clean(FALSE);
+  }
+  
+}
+
 /**
  * Build a table with send intervals
  */
