@@ -659,12 +659,6 @@ class Notifications_Subscription extends Messaging_Object {
     }
     return $fields;    
   }
-  /**
-   * Check whether this is a subscription instance or just a type template
-   */
-  function is_instance() {
-    return !empty($this->sid);
-  }
 
   /**
    * Get instance of this one for certain conditions

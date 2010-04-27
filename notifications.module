@@ -1399,7 +1399,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
     case 'subscription':
       $values = array();
       // Tokens only for registered users
-      if (($subscription = $object)) {
+      if ($subscription = messaging_check_object($object, 'Notifications_Subscription')) {
         $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'absolute' => TRUE));
         $values['unsubscribe-url'] = url($link['href'], $link['options']);
         $values['subscription-type'] = $subscription->get_type('name');
@@ -1421,7 +1421,7 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       // @todo Destination tokens for registered users
       break;
     case 'event':
-      if ($event = $object) {
+      if ($event = messaging_check_object($object, 'Notifications_Event')) {
         $values['event-type-description'] = $event->get_type('description');
         $values['event-date-small'] = format_date($event->created, 'small');
         $values['event-date-medium'] = format_date($event->created, 'medium');
