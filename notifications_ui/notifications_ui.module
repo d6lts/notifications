@@ -67,7 +67,7 @@ function notifications_ui_access_user_add($account, $type = NULL) {
   // Main tab, visible only if any subscription type enabled
   $check_types = $type ? array($type) : array_keys(notifications_ui_subscription_types());
   foreach ($check_types as $type) {
-    if (notifications_ui_subscription_type($type) && notifications_ui_user_options('create') && notifications_access_user_add($account, $type)) {
+    if (notifications_ui_type_enabled($type) && notifications_ui_user_options('create') && notifications_access_user_add($account, $type)) {
       return TRUE;
     }
   }
@@ -78,7 +78,7 @@ function notifications_ui_access_user_add($account, $type = NULL) {
  */
 function notifications_ui_access_page($type, $account) {
   // Global user permissions
-  if (notifications_access_user($account) && notifications_ui_subscription_type($type) && notifications_ui_user_options('page')) {    
+  if (notifications_access_user($account) && notifications_ui_type_enabled($type) && notifications_ui_user_options('page')) {    
     // Check specifics for this subscription type
     $access = notifications_subscription_types($type, 'access');
     return $access ? user_access($access, $account) : TRUE;
@@ -115,14 +115,12 @@ function notifications_ui_access_page($type, $account) {
 }
 
 /**
- * Check whether this subscription type is enabled / disabled
+ * Check whether this subscription type is enabled / disabled for the UI
  * 
  * @param $type
  *   Subscription type
- * 
- * @todo Maybe move settings into a table instead a variable
  */
-function notifications_ui_subscription_type($type) {
+function notifications_ui_type_enabled($type) {
   $settings = variable_get('notifications_ui_types', array());
   return notifications_subscription_type_enabled($type) && in_array($type, $settings, TRUE);
 }
@@ -198,7 +196,7 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
       // Create new subscription
       $account = $form['account']['#value'];
       foreach (notifications_ui_subscription_types() as $key => $type) {
-        if (notifications_ui_subscription_type($key) && notifications_ui_user_options('create') && notifications_access_user_add($account, $key)) {
+        if (notifications_ui_type_enabled($key) && notifications_ui_user_options('create') && notifications_access_user_add($account, $key)) {
           $create[] = l($type['title'], "user/$account->uid/notifications/add/$key");
         }
       }
@@ -241,28 +239,10 @@ function notifications_ui_link($type, $node = NULL, $teaser = FALSE) {
  *   Prefix to use for the link indexes
  */
 function notifications_ui_subscribe_links($type, $object) {
-  global $user;
-  notifications_include('object.inc');
-  $subscribe = notifications_ui_link_options('subscribe');
-  $unsubscribe = notifications_ui_link_options('unsubscribe');
-  return notifications_object_subscribe_links($type, $object, $user, $subscribe, $unsubscribe);
-}
-
-/**
- * Get options for links
- * 
- * @param $type
- *   'subscribe' or 'unsubscribe'
- */
-function notifications_ui_link_options($type) {
-  $links = array('destination' => $_GET['q']);
-  if ($type == 'subscribe' && variable_get('notifications_ui_subscribe_links', 0)) {
-    $links += array('signed' => TRUE, 'confirm' => FALSE);
+  if (notifications_ui_user_access()) {
+    notifications_include('object.inc');
+    return notifications_object_subscribe_links($type, $object);
   }
-  if ($type == 'unsubscribe' && variable_get('notifications_ui_unsubscribe_links', 0)) {
-    $links += array('signed' => TRUE, 'confirm' => FALSE);
-  }  
-  return $links;
 }
 
 /**
@@ -294,7 +274,7 @@ function notifications_ui_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 function notifications_ui_allowed_types() {
   $allowed = array();
   foreach (notifications_subscription_types() as $type => $info) {
-    if (notifications_ui_subscription_type($type) && !empty($info['access']) && user_access($info['access'])) {
+    if (notifications_ui_type_enabled($type) && !empty($info['access']) && user_access($info['access'])) {
       $allowed[$type] = $info;
     }
   }
@@ -314,7 +294,7 @@ function notifications_ui_allowed_types() {
  * @return
  *   Array of subscription objects, that will be mixed subscription templates and actual subscriptions
  */
-function notifications_ui_subscribe_options($account, $type, $object) {
+function notifications_ui_object_subscriptions($type, $object) {
   notifications_include('object.inc');
   return notifications_object_user_subscriptions($type, $object, $account);
 }
@@ -350,14 +330,14 @@ function notifications_ui_page_options($display) {
   notifications_include('object.inc');
   $objects = array();
   foreach (notifications_object_page_objects() as $type => $object) {
-    if (notifications_ui_object_options($type, $display, $object)) {
+    if (notifications_ui_display_options($type, $display, $object)) {
       $objects[$type] = $object;
     }
   }
   if ($objects && ($subscriptions = notifications_object_page_subscriptions($objects))) {
     // Filter out not displayable subscription types
     foreach ($subscriptions as $index => $subscription) {
-      if (!notifications_ui_subscription_type($subscription->type)) {
+      if (!notifications_ui_type_enabled($subscription->type)) {
         unset($subscriptions[$index]);
       }
     }
@@ -379,10 +359,8 @@ function notifications_ui_node_type($op, $info) {
  * Find subscriptions options for this node
  */
 function notifications_ui_node_subscriptions($node, $display) {
-  global $user;
-
   if (notifications_ui_user_access() && notifications_ui_node_options($node->type, $display)) {
-    return notifications_ui_subscribe_options($user, 'node', $node);
+    return notifications_ui_object_subscriptions('node', $node);
   }
 }
 
@@ -410,6 +388,7 @@ function notifications_ui_user_access($account = NULL) {
   $account = $account ? $account : $GLOBALS['user'];
   return notifications_access_subscribe($account);
 }
+
 /**
  * Check enabled option / Get options for user account pages
  * 
@@ -418,25 +397,18 @@ function notifications_ui_user_access($account = NULL) {
  *   Null to get all of them
  */
 function notifications_ui_user_options($display = NULL) {
-  return notifications_ui_object_options('user', $display, NULL, array('page', 'create'));
-}
-
-/**
- * Get subscribe otpions for user account tabs
- * 
- * @param $type
- *   Content type
- * @param $option
- *   Optional option to check
- */
-function notifications_ui_account_options($option = NULL) {
-  return notifications_ui_object_options('account', $option);
+  return notifications_ui_display_options('user', $display, NULL, array('page', 'create'));
 }
 
 /**
  * Check enabled option for object type / display type
+ * 
+ * @param $type
+ *   Object type: node, user (subscribe to another user), account (own user account tab)
+ * @pram $check_option
+ *   Option to check for object type: 'links', 'form', 'page', 'create'
  */
-function notifications_ui_object_options($type, $check_option = NULL, $object = NULL, $defaults = array('links')) {
+function notifications_ui_display_options($type, $check_option = NULL, $object = NULL, $defaults = array('links')) {
   if ($type == 'node' && $object) {
     $options = notifications_ui_node_options($object->type);
   }
@@ -457,7 +429,7 @@ function notifications_ui_object_options($type, $check_option = NULL, $object = 
 function notifications_ui_user($op, &$edit, &$account, $category = NULL) {
   if ($op == 'view' ) {
     // Add plain links if enabled
-    if (notifications_ui_account_options('links') && notifications_ui_user_access() && ($links = notifications_ui_subscribe_links('user', $account))) {
+    if (notifications_ui_display_options('account', 'links') && ($links = notifications_ui_subscribe_links('user', $account))) {
       $account->content['summary']['notifications'] =  array(
         '#type' => 'user_profile_item',
         '#title' => t('Subscriptions'),

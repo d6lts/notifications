@@ -83,7 +83,7 @@ class NotificationsContentTests extends NotificationsTestCase {
       $this->assertTrue(notifications_ui_user_options($type), 'Enabled user page: '. $type);
     }
     foreach (array('thread', 'nodetype', 'author') as $type) {
-      $this->assertTrue(notifications_ui_subscription_type($type), 'Enabled subscription type: '. $type);      
+      $this->assertTrue(notifications_ui_display_options($type), 'Enabled subscription type: '. $type);      
       $this->assertTrue(notifications_ui_access_page($type, $user), 'Permission for account page: '. $type);
       $this->assertTrue(notifications_ui_access_user_add($user, $type), 'Permission for adding type: '. $type);
     }
@@ -160,6 +160,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     
     // Create a real thread subscription for a user
     $this->contentCreateSubscription($user, 'thread', array('nid' => $node->nid), array(t('Thread'), $node->title));
+
     // Retrieve the subscription from the database
     $subs = notifications_user_get_subscriptions($user, 'node', $node);
     $this->assertEqual(count($subs), 1, 'The thread subscription has been actually created.');

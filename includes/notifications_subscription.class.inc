@@ -162,7 +162,7 @@ class Notifications_Subscription extends Messaging_Object {
     $subscription = notifications_build_subscription($form_state['values']['subscription']);
     // There may be optional fields to add
     if (!empty($form_state['values']['subscription_fields'])) {
-      $subscription->set_properties($form_state['values'], $form_state['values']['subscription_fields']);
+      $subscription->set_properties($form_state['values'], array_unique($form_state['values']['subscription_fields']));
     }
     return $subscription;
   }
@@ -182,8 +182,11 @@ class Notifications_Subscription extends Messaging_Object {
               $this->set_fields($values['fields']);
             }
             break;
+          case 'destination':
+            $this->set_destination($values[$key]);
+            break;
           default:
-            $this->__set($key, $values[$key]);
+            $this->$key = $values[$key];
             break;         
         }
       }

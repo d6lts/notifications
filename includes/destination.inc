@@ -27,7 +27,7 @@ function notifications_destination_validate($account, $method, $address) {
 function notifications_destination_subform($destination, $links = array()) {
   // Count subscriptions for this destination
   $count = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE mdid = %d", $destination->mdid));
-  $form['destination'] = array('#type' => 'value', '#value' => 'destination');
+  $form['destination'] = array('#type' => 'value', '#value' => $destination);
   $form['destination_view'] = array(
     '#title' => $destination->address_name(),
     '#type' => 'item',

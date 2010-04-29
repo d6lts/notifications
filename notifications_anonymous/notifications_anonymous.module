@@ -211,7 +211,6 @@ function notifications_anonymous_forms() {
 function notifications_anonymous_subscription_form(&$form_state, $subscription, $destination_path = '') {
   $account = drupal_anonymous_user();
   $form = notifications_subscription_form($form_state, $subscription, $destination_path);
-  notifications_include('destination.inc');
   $form = notifications_subscription_destination_subform($form, $account, NULL, NULL, 20);
   return $form;
 }

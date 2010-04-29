@@ -520,10 +520,12 @@ function notifications_subscription_destination_subform_validate($form, &$form_s
  */
 function notifications_subscription_destination_subform_submit($form, &$form_state) {
   notifications_include('destination.inc');
-  // Get destination from form and check it is ok for an anonymous user
+  // Get destination from form and add method / destination to form values
   list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], FALSE);
   if ($method && $address && ($destination = Messaging_Destination::create_method($method, $address, $uid))) {
+    $form_state['values']['send_method'] = $method;
     $form_state['values']['destination'] = $destination;
+    $form_state['values']['subscription_fields'][] = 'send_method';
     $form_state['values']['subscription_fields'][] = 'destination';
   }
   else {
@@ -1639,10 +1641,24 @@ function notifications_build_link($op, $params, $type = 'subscription', $object 
 }
 
 /**
- * Get subscribe / unsubscribe link for subscription
+ * Get subscribe / unsubscribe page link for subscription
+ * 
+ * @param $op
+ *   Operation: 'subscribe', 'unsubscribe'
+ * @param $subscription
+ *   Subscription object, may be instance or not
+ * @param $options
+ *   Link options
  */
-function notifications_subscription_get_link($type, $subscription, $options = array()) {
-  return notifications_build_link($type, $options, 'subscription', $subscription);
+function notifications_subscription_get_link($op, $subscription, $options = array()) {
+  $options = array('destination' => $_GET['q']);
+  if ($op == 'subscribe' && variable_get('notifications_ui_subscribe_links', 0)) {
+    $options += array('signed' => TRUE, 'confirm' => FALSE);
+  }
+  if ($op == 'unsubscribe' && variable_get('notifications_ui_unsubscribe_links', 0)) {
+    $options += array('signed' => TRUE, 'confirm' => FALSE);
+  } 
+  return notifications_build_link($op, $options, 'subscription', $subscription);
 }
 
 /**
