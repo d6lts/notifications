@@ -371,6 +371,7 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
           );
       }
       break;
+
     case 'messages':
       switch ($type) {
         case 'notifications-anonymous':
@@ -388,16 +389,6 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
             'subject' => t('Confirm your subscription to [site-name]', array(), $language->language),
             'header' => t("Someone has subscribed to [site-name] using [destination-address],", array(), $language->language),
             'main' => t("To confirm your subscription, browse to [subscription-confirm]", array(), $language->language),
-          );
-        // Unsubscribe all message for a destination
-        case 'notifications-anonymous-cancel':
-          return array(
-            'subject' => t('Cancel all subscriptions to [site-name]', array(), $language->language),
-            'header' => t('Someone has requested to cancel all subscriptions for [destination-address]', array(), $language->language),
-            'main' => array(
-              t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]", array(), $language->language),
-              t('To edit your subscriptions, browse to [destination-manage-url]', array(), $language->language),
-            ),      
           );
         // Unsubscribe all message for a destination
         case 'notifications-anonymous-unsubscribe':
@@ -420,6 +411,7 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
           );
       }
       break;
+ 
     case 'tokens':
       $tokens = array();
       // These are the token groups that will be used for this module's messages
@@ -428,61 +420,6 @@ function notifications_anonymous_messaging($op, $type = 'all', $language = NULL)
       }
       return $tokens;
   }
-}
-
-/**
- * Send message to destination
- */
-function notifications_anonymous_message($type , $send_method, $destination, $objects = array(), $confirm = TRUE) {
-  if ($message = notifications_anonymous_message_build($type , $send_method, $destination, $objects, $confirm)) {
-    return $message->send();
-  }
-}
-/**
- * Build message for destination
- * 
- * @param $type
- *   Message type
- *   - subscribe, Confirm subscription
- *   - unsubscribe, Cancel a single subscription
- *   - cancel, Cancel all your subscriptions
- *   - edit, Edit a subscription
- *   - manage, Edit all subscriptions for destination
- */
-function notifications_anonymous_message_build($type , $send_method, $destination, $objects = array(), $confirm = TRUE) {
-  notifications_include('process.inc');
-  global $language;
-
-  $template = 'notifications-anonymous-' . $type;
-  $objects += array('destination' => $destination);
-  $parts = array(
-    'subject' => messaging_template_text_part($template, 'subject', $send_method, $language),
-    'header' => messaging_template_text_part($template, 'header', $send_method, $language),
-    'main'  => messaging_template_text_part($template, 'main', $send_method, $language),
-    'footer' => messaging_template_text_part($template, 'footer', $send_method, $language),
-  );
-  // Run token replacement 
-  $text = messaging_template_text_replace($parts, $objects);
-  // Get subject out of text and build the message array
-  $subject = $text['subject'];
-  unset($text['subject']);
-  $message = messaging_message_build(array('subject' => $subject, 'body' => array_filter($text)));
-  $message->add_destination($destination);
-  return $message;
-}
-
-/**
- * Implementation of hook_token_list().
- */
-function notifications_anonymous_token_list($type = 'all') {
-  $tokens = array();
-  if ($type == 'destination' || $type == 'all') {
-    // Nore destination tokens provided by messaging module
-    $tokens['destination']['destination-unsubscribe-url'] = t('URL to unsubscribe to the destination.');
-    $tokens['destination']['destination-manage-url'] = t('URL to manage all subscriptions for the destination.');
-    $tokens['destination']['destination-edit-url'] = t('URL to edit the destination.');
-  }
-  return $tokens;
 }
 
 /**

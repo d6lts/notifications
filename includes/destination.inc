@@ -6,6 +6,18 @@
  */
 
 /**
+ * Get methods that support anonymous addresses
+ */
+function notifications_destination_anonymous_methods() {
+  $method_list = array();
+  foreach (_notifications_send_methods() as $method => $name) {
+    if (messaging_method_info($method, 'anonymous')) {
+      $method_list[$method] = $name;
+    }
+  }
+  return $method_list;
+}
+/**
  * Query subscriptions for destination
  */
 function notifications_destination_get_subscriptions($destination, $pager = 0) {
@@ -13,9 +25,9 @@ function notifications_destination_get_subscriptions($destination, $pager = 0) {
 }
 
 /**
- * Validate destination   
+ * Validate destination for method
  */
-function notifications_destination_validate($account, $method, $address) {
+function notifications_destination_validate($method, $address, $account) {
   // Check the method is valid for this account
   $valid_methods = notifications_send_methods($account);
   return isset($valid_methods[$method]) && Messaging_Destination::validate_method($method, $address, $account);
@@ -87,21 +99,34 @@ function notifications_destination_address_subform($account, $destination = NULL
     $form['warning']['#value'] = '<p>' . t('No sending methods available.') . '</p>';
     return $form;
   }
+  // Get address types for all these methods, without duplicates
+  $address_types = $address_method = array();
+  foreach ($send_methods as $method => $method_name) {
+    // We use method name if we don't have address name
+    $type = messaging_method_info($method, 'address_type');
+    $name = messaging_address_info($type, 'name');
+    $address_types[$type] = $name ? $name : $method_name;
+    $address_method[$method] = $type;
+  }
+  // This address type to method mapping will allow us to get a valid method from a destination
+  $form['destination_methods'] = array('#type' => 'value', '#value' => $address_method);  
+  
   $form['destination_account'] = array('#type' => 'value', '#value' => $account);
   $form['destination_address'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Destination'),
+    //'#type' => 'fieldset',
     '#tree' => TRUE,
   );
-  if (count($send_methods) > 1) {
-    $form['destination_address']['#description'] = t('Enter only a destination address.');
+  // Now depending on how many address types we adjust the title
+  if (count($address_types) > 1) {
+    $form['destination_address'] += array(
+      '#title' => t('Enter only a destination address.'),
+      '#type' => 'fieldset',
+    );
   }
-  
-  foreach ($send_methods as $key => $method_name) {
-    // We use method name if we don't have address name
-    $type = messaging_method_info($key, 'address_type');
-    $name = $type ? messaging_address_info($type, 'name') : $method_name;
-    $form['destination_address'][$key] = array(
+
+  // We present a field for each address type
+  foreach ($address_types as $type => $name) {
+    $form['destination_address'][$type] = array(
       '#title' => $name,
       '#type' => 'textfield',
       '#size' => $size,
@@ -111,46 +136,57 @@ function notifications_destination_address_subform($account, $destination = NULL
   return $form;
 }
 
-
 /**
  * Parse submitted destination
  */
-function notifications_destination_parse_submitted($values, $validate = FALSE) {
-  $method = $address = NULL;
-  if (!empty($values['destination_account'])) {
-    $account = $values['destination_account'];
-    $uid = $account->uid;
+function notifications_destination_parse_submitted(&$values, $validate = FALSE) {
+  $account = !empty($values['destination_account']) ? $values['destination_account'] : NULL;
+  $method = $addres = $type = NULL;
+  $dest = array();
+  $field = '';
+  // Destination can come in any of these configurations
+  if (!$validate && !empty($values['destination_parsed'])) {
+    return $values['destination_parsed'];
   }
   else {
-    $accoun = drupal_anonymous_user();
-    $uid = 0;
+    if (!empty($values['destination_method'])) {
+      $field = 'destination_method';
+      $method = $values['destination_method']['method'];
+      $address = $values['destination_method']['address'];
+      $type = messaging_method_info($method, 'address_type');
+    }
+    elseif (!empty($values['destination_address'])) {
+      $field = 'destination_address';
+      $destination = $values['destination_address'];
+      if (is_array($destination)) {
+        $destination = array_filter($destination);
+        if ($destination && count($destination) == 1) {
+          $type = key($destination);
+          $address = current($destination);
+          $method = $values['destination_methods'][$type];
+        }
+      }    
+    }
   }
-  // Destination can come in any of these configurations
-  if (!empty($values['destination_method'])) {
-    $field = 'destination_method';
-    $method = $values['destination_method']['method'];
-    $address = $values['destination_method']['address'];
-  }
-  elseif (!empty($values['destination_address'])) {
-    $field = 'destination_address';
-    $destination = $values['destination_address'];
-    if (is_array($destination)) {
-      $destination = array_filter($destination);
-      if ($destination && count($destination) == 1) {
-        $method = key($destination);
-        $address = current($destination);
-      }
-    }    
-  }
+  $dest = array(
+    'method' => $method, 
+    'type' => $type, 
+    'address' => $address, 
+    'uid' => messaging_user_uid($account),
+  );
   if ($validate) {
     if (!$method || !$address) {
       form_set_error($field, t('You need to enter exactly one destination address.'));
     }
-    elseif (!notifications_destination_validate($account, $method, $address)) {
+    elseif (!notifications_destination_validate($method, $address, $account)) {
       form_set_error($field, t('This destination address is not valid.'));
     }
+    else {
+      // If this is a valid one, we store it on the form values
+      $values['destination_parsed'] = $dest;
+    }
   }
-  return array($method, $address, $uid);
+  return $dest;
 }
 
 /**
@@ -179,12 +215,14 @@ function notifications_destination_edit_form_submit($form, $form_state) {
   $destination = $form_state['values']['destination'];
   switch ($op) {
     case t('Update'):
-      list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
-      $destination->type = messaging_method_info($method, 'address_type');
-      $destination->address = $address;
-      $object = Messaging_Destination::build_method($destination);
-      $object->save();
-      drupal_set_message(t('The destination address has been updated.'));
+      $dest = notifications_destination_parse_submitted($form_state['values']);
+      if ($destination = Messaging_Destination::create($dest)) {
+        $object->save();
+        drupal_set_message(t('The destination address has been updated.'));        
+      }
+      else {
+        drupal_set_message(t('The destination cannot be updated.'), 'error');
+      }
       break;
   }
 }
@@ -366,6 +404,109 @@ function notifications_destination_subscriptions_operations($account = NULL) {
   }
   // Intervals
   return $operations;
+}
+
+/**
+ * Form to request a message with a link to manage destination's subscriptions
+ */
+function notifications_destination_request_form($form_state, $account, $send_methods) {
+  $help[] = t('Please, enter the address on which you are receiving the notifications from this site.');
+  $help[] = t('You will get a message on that address with a link to cancel all your subscriptions.');
+  if (!$account->uid) {
+    $help[] = t('Optionally, you can <a href="@user-login">log into this site</a> with your user account to manage your subscriptions.', array('@user-login' => url('user/login')));
+  }
+  $form['help']['#value'] = '<p>' . implode('</p><p>', $help) . '</p>';
+  $form['account'] = array('#type' => 'value', '#value' => $account);
+
+  // And we don't pass an account here because we don't want address validated for it
+  $form['send_method'] = notifications_destination_address_subform(NULL, NULL, $send_methods);
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Unsubscribe'));
+  return $form;
+}
+
+/**
+ * Validate submitted values
+ */
+function notifications_destination_request_form_validate($form, &$form_state) {
+  $dest = notifications_destination_parse_submitted($form_state['values'], TRUE);
+}
+
+/**
+ * Process submitted values
+ */
+function notifications_destination_request_form_submit($form, &$form_state) {
+  $dest = notifications_destination_parse_submitted($form_state['values']);
+  if ($dest['type'] && $dest['address'] && ($destination = Messaging_Destination::get_by_address($dest['type'], $dest['address']))) {
+    if ($destination->uid && ($account = $destination->get_account())) {
+      // It is possible also that a registered user has used someone else's address.
+      // If so, we send a link to delete all user's subscriptions. Fuck them!
+      $result = notifications_destination_message_send('user-unsubscribe', $destination, $dest['method'], array('user' => $account)); 
+    }
+    else {
+      // It is a destination for an anonymous user
+      $result = notifications_destination_message_send('destination-unsubscribe', $destination, $dest['method']);
+    }
+    if (!empty($result)) {
+      drupal_set_message(t('A message has been sent to that address with instructions to unsubscribe.'));
+    }
+    else {
+      drupal_set_message(t('Cannot send message to that address. Please contact the site administrator.'), 'warning');
+    }
+  }
+  else {
+    drupal_set_message(t('We cannot find that address on this site.'), 'error');
+  }
+}
+
+/**
+ * Send message to destination
+ * 
+ * @param $message
+ *   Message data or message template name ('notifications-' will be prepended)
+ * @param $destination
+ *   Destination object, will have 
+ */
+function notifications_destination_message_send($message, $destination, $send_method = NULL, $objects = array(), $priority = 0) {
+  if (is_string($message) && $send_method) {
+    // We have a template name, message needs to be built
+    $template = 'notifications-' . $message;
+    $message = notifications_destination_message_build($template , $send_method, $destination, $objects, $priority);
+  }
+  if ($message && $send_method) {
+    return messaging_message_send_destination($send_method, $destination, $message);
+  }
+  else {
+    // Something's gone wrong
+    return FALSE;
+  }
+}
+
+/**
+ * Build message for destination
+ * 
+ * @param $template
+ *   Template name to get text parts from
+ */
+function notifications_destination_message_build($template , $send_method, $destination, $objects = array(), $priority = 0) {
+  notifications_include('process.inc');
+  global $language;
+
+  $objects += array('destination' => $destination, 'user' => $destination->get_account());
+  $parts = array(
+    'subject' => messaging_template_text_part($template, 'subject', $send_method, $language),
+    'header' => messaging_template_text_part($template, 'header', $send_method, $language),
+    'main'  => messaging_template_text_part($template, 'main', $send_method, $language),
+    'footer' => messaging_template_text_part($template, 'footer', $send_method, $language),
+  );
+  // Run token replacement 
+  $text = messaging_template_text_replace($parts, $objects);
+  // Get subject out of text and build the message array
+  $subject = $text['subject'];
+  unset($text['subject']);
+  $message = messaging_message_build(array('subject' => $subject, 'body' => $text));
+  $message->set_destination($destination);
+  $message->priority = $priority;
+  return $message;
 }
 
 /**

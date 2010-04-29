@@ -134,9 +134,9 @@ class NotificationsContentTests extends NotificationsTestCase {
     $user = $this->drupalCreateUser($this->listPermissions());
     $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), TRUE, 'Subscription is allowed for user with the right permissions');
     $this->drupalLogin($user);
- 
+    
     // Check unsubscribe page, no subscriptions yet
-    $this->drupalGet('notifications/unsubscribe/uid/'. $user->uid);
+    $this->drupalGet('notifications/unsubscribe/user/'. $user->uid);
     $this->assertText("You don't have any subscription on this site.", 'Unsubscribe page showing no subscriptions');
     
     // Check content type page before and after enabling this content type
@@ -167,11 +167,11 @@ class NotificationsContentTests extends NotificationsTestCase {
     $subscription = array_shift($subs);
     
     // Try unsubscribe & subscribe again with signed links
-    $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'confirm' => FALSE));
+    $link = notifications_build_link('unsubscribe', array('confirm' => FALSE), 'subscription', $subscription);
     $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Your subscription has been removed.'), 'Thread subscription successfully removed with signed link');
     
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => FALSE));
+    $link = notifications_build_link('subscribe', array('uid' => $user->uid, 'type' => 'thread', 'fields' => array('nid' => $node->nid), 'confirm' => FALSE));
     $this->drupalGet($link['href'], $link['options']);
     $this->assertText(t('Your subscription was activated.'), 'Created thread subscription with signed link');
 

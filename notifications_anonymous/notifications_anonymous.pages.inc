@@ -48,44 +48,6 @@ function notifications_anonymous_request_page() {
   return $output;  
 }
 
-/**
- * Request form
- */
-function notifications_anonymous_request_form() {
-  notifications_include('destination.inc');
-  global $user;
-
-  $form = notifications_destination_address_subform($user);
-  $form['manage'] = array('#type' => 'submit', '#value' => t('Edit my subscriptions'));
-  $form['unsubscribe'] = array('#type' => 'submit', '#value' => t('Unsubscribe my address'));
-  return $form;
-}
-
-/**
- * Request form submit
- */
-function notifications_anonymous_request_form_submit($form, $form_state) {
-  global $user;
-
-  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values']);
-  if ($method && $address) {
-    $destination = Messaging_Destination::create_method($method, $address, $uid);
-    if ($destination && $destination->mdid && (!$destination->uid || $user->uid == $destination->uid)) {
-      drupal_set_message(t('A message with instructions has been sent to your address.'));
-      switch ($form_state['values']['op']) {
-        case t('Edit my subscriptions'):
-          notifications_anonymous_message('manage', $method, $destination);
-          return TRUE;
-        case t('Unsubscribe my address'):
-          notifications_anonymous_message('unsubscribe', $method, $destination);
-          return TRUE;
-      }
-    }
-  }
-  else {
-    drupal_set_message(t('Invalid address.'), 'error');
-  }
-}
 
 /**
  * Page callback. Manage anonymous destinations.
@@ -124,10 +86,10 @@ function notifications_anonymous_subscription_page($subscription, $op = 'unsubsc
     drupal_access_denied();
     exit(0);
   }
-  $account = drupal_anonymous_user();
+
   switch ($op) {
     case 'unsubscribe':
-      $output .= drupal_get_form('notifications_form_unsubscribe_confirm', $subscription, $account);
+      $output .= drupal_get_form('notifications_form_unsubscribe_confirm', $subscription);
       break;
     case 'edit':
       // After editing this subscription, forward to the same signed page

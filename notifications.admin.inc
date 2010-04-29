@@ -459,6 +459,7 @@ function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
 function notifications_template_list() {
   $list = &messaging_static(__FUNCTION__);
   if (!isset($list)) {
+    notifications_include('templates.inc');
     foreach (notifications_get_templates() as $key => $template) {
       $list[$key] = $template['name'];
     }

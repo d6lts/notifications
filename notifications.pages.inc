@@ -9,6 +9,7 @@
  * Menu callback. Overview page for user subscriptions.
  * 
  * We create the page as a form so it can be altered
+ * 
  */
 function notifications_user_overview($form_state, $account) {
   $form['account'] = array('#type' => 'value', '#value' => $account);
@@ -79,11 +80,6 @@ function notifications_edit_destination_form($form_state, $destination) {
  * Presents confirmation page or not depending on confirm parameter
  */
 function notifications_page_subscribe($account, $type, $fields, $values, $send_interval = NULL, $send_method = NULL) {
-  global $user;
-
-  // Check signature if present
-  $params = array('subscribe', $account->uid, $type, $fields, $values);
-
   // Build subscriptions object
   $subscription = notifications_build_subscription(array(
     'uid' => $account->uid,
@@ -93,9 +89,10 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   ));
   $subscription->add_field_args($fields, $values);
   $subscription->set_account($account);
-  if (notifications_user_allowed('subscription', $account, $subscription)) {
-    // Display subscription information
-    if (!empty($_GET['confirm']) && notifications_check_signature()) {
+
+  // Check permission again for these parameters
+  if ($account->uid && notifications_page_check_access($account->uid) && notifications_user_allowed('subscription', $account, $subscription)) {
+    if (notifications_page_check_confirmation()) {
       // Subscribe, no confirmation
       notifications_save_subscription($subscription);
       drupal_set_message(t('Your subscription was activated.'));
@@ -123,27 +120,25 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
  * @param $id
  *   Subscription id or user id, depending on type
  */
-function notifications_page_unsubscribe($type, $id) {
-  global $user;
-  
-  // Check signature if present
-  $signed = notifications_check_signature();
-  
+function notifications_page_unsubscribe($type = NULL, $id = NULL) {
   // Determine subscription and user depending on type
-  if ($type == 'sid' && is_numeric($id) && ($subscription = notifications_load_subscription($id))) {
-    $account = NULL;
-    $uid = $subscription->uid;
+  if (!$type) {
+    // Go to generic unsubscribe page with some more options
+    return notifications_page_unsubscribe_overview();    
   }
-  elseif ($type == 'uid' && is_numeric($id) && ($account = user_load($id)) && $account->uid) {
+  elseif ($type == 'subscription' && is_numeric($id) && ($subscription = notifications_load_subscription($id))) {
+    $account = NULL;
+    $owner = $subscription->uid;
+  }
+  elseif ($type == 'user' && is_numeric($id) && ($account = user_load($id)) && $account->uid) {
     $subscription = NULL;
-    $uid = $account->uid;
+    $owner = $account->uid;
   }
   
   // Check permissions and present confirmation form or not depending on parameters
-  if (($account || $subscription) && $uid && 
-      (user_access('administer notifications') || ($user->uid == $uid) || $signed)) {
+  if (($account || $subscription) && notifications_page_check_access($owner)) {
     // Skip confirmation page when requested and the signature is ok
-    if (!empty($_GET['confirm']) && $signed) {
+    if (notifications_page_check_confirmation()) {
       if ($subscription) {
         notifications_subscription_delete($subscription->sid);
         drupal_set_message(t('Your subscription has been removed.'));
@@ -165,6 +160,91 @@ function notifications_page_unsubscribe($type, $id) {
   drupal_access_denied();
 }
 
+/**
+ * Display unsubscribe options for this page
+ */
+function notifications_page_unsubscribe_overview() { 
+  global $user;
+  notifications_include('destination.inc');
+
+  //drupal_set_title(t('Unsubscribe'));
+  $output = '';
+  $send_methods = notifications_destination_anonymous_methods();
+  $subscriptions = 0;
+  // Provide information for user subscriptions if logged in
+  if ($user->uid) {
+    $subscriptions = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE uid = %d", $user->uid));
+    if ($subscriptions) {
+      $output .= '<p>' . format_plural($subscriptions, 'There is one subscription for this user account.', 'There are @count subscriptions for this user account.') . '</p>';
+      $output .= '<p>' . t('You can:') . '<br />';
+      $options = array();
+      if (notifications_access_user($account, 'maintain')) {
+        $options[] = l(t('Administer your subscriptions'), "user/$user->uid/notifications");
+        $options[] = l(t('Temporarily disable all your subscriptions'), "user/$user->uid/notifications/update/disable");
+      }
+      $options[] = notifications_build_link('unsubscribe', array('title' => t('Cancel all your subscriptions')), 'user', $user, 'link');
+      $output .= theme('item_list', $options);      
+    }
+    else {
+      $output .= '<p>' . t('There are no subscriptions for this user account') . '</p>';
+      if ($send_methods) {
+        $output .= '<p>' . t('However if you are still getting notifications from this site, enter your address below and you\'ll get a link to disable that address.') . '</p>';
+      }
+    }
+  }
+
+  if (!$subscriptions && $send_methods) {
+    // Present destination unsubscribe request form
+    $output .= drupal_get_form('notifications_destination_request_form', $account, $send_methods);
+  }
+  elseif (!$user->uid) {
+    // WTF? Someone is getting spam from here?
+    $output .= '<p>' . t('You may have an account on this site or someone may have created it for you.') . '</p>';
+    $output .= '<p>' . t('You can try to <a href="@user-login">log in</a>, request a <a href="@request-password">new password</a>, or contact the site administrator.', array('@user-login' => url('user/login'), '@request-password' => url('user/password'))) . '</p>';
+  }
+  return $output;
+}
+
+/**
+ * Check access to current page, included signature
+ * 
+ * @param $owner
+ *   User id, owner of the object in the page (subscription, destination, account)
+ *   
+ */
+function notifications_page_check_access($owner) {
+  global $user;
+  
+  if (user_access('administer notifications')) {
+    return TRUE; // Administrator can access all
+  }
+  elseif ($owner) {
+    // Current user is the owner or the URL is signed
+    return $user->uid == $owner || notifications_page_check_signature();
+  }
+  elseif (module_exists('notifications_anonymous')) {
+    // Owner is anonymous but we just allow it if the module is enabled the URL is signed
+    return notifications_page_check_signature();
+  }
+}
+
+/**
+ * Check current URL is signed
+ */
+function notifications_page_check_signature() {
+  static $signed;
+  if (!isset($signed)) {
+    $signed = !empty($_GET['signature']) && notifications_check_signature();
+  }
+  return $signed;
+}
+
+/**
+ * Check URL is signed and it doesn't need confirmation
+ */
+function notifications_page_check_confirmation() {
+  return !empty($_GET['confirm']) && notifications_page_check_signature();
+}
 
 /**
  * Form for unsubscription confirmation

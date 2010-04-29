@@ -121,9 +121,8 @@ function notifications_menu() {
   );
   // Unsubscribe links This page will need to work with anonymous users
   $items['notifications/unsubscribe'] = array(
-    'type' => MENU_CALLBACK,
+    'type' => t('Unsubscribe'),
     'page callback' => 'notifications_page_unsubscribe',
-    'page arguments' => array(2, 3),
     'access callback' => TRUE,
     'file' => 'notifications.pages.inc',
   );
@@ -506,12 +505,12 @@ function notifications_subscription_destination_subform($form, $account, $destin
 function notifications_subscription_destination_subform_validate($form, &$form_state) {
   notifications_include('destination.inc');
   // Get destination from form and check it is ok for an anonymous user
-  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], TRUE);
-  if ($method && $address) {
+  $dest = notifications_destination_parse_submitted($form_state['values'], TRUE);
+  if (!empty($dest['method']) && !empty($dest['address'])) {
     // Set destination field so we don't validate again send method later
     $form_state['values']['destination'] = TRUE;
     // Set send method in case we need some more validation for the subscription
-    $form_state['values']['send_method'] = $method;
+    $form_state['values']['send_method'] = $dest['method'];
   }
 }
 
@@ -521,9 +520,9 @@ function notifications_subscription_destination_subform_validate($form, &$form_s
 function notifications_subscription_destination_subform_submit($form, &$form_state) {
   notifications_include('destination.inc');
   // Get destination from form and add method / destination to form values
-  list($method, $address, $uid) = notifications_destination_parse_submitted($form_state['values'], FALSE);
-  if ($method && $address && ($destination = Messaging_Destination::create_method($method, $address, $uid))) {
-    $form_state['values']['send_method'] = $method;
+  $dest = notifications_destination_parse_submitted($form_state['values'], FALSE);
+  if ($destination = Messaging_Destination::create($dest)) {
+    $form_state['values']['send_method'] = $dest['method'];
     $form_state['values']['destination'] = $destination;
     $form_state['values']['subscription_fields'][] = 'send_method';
     $form_state['values']['subscription_fields'][] = 'destination';
@@ -1248,149 +1247,22 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL) {
         'description' => t('Messages coming from user subscriptions and system events')
       );
       return $info;
+
     case 'message groups':
-      return notifications_get_templates('info', 'enabled');
     case 'message keys':
-      return notifications_get_templates('parts', $arg1);
     case 'messages':
-      // The second argument should be language object
-      return notifications_get_templates('defaults', $arg1, $arg2);
     case 'tokens':
-      return notifications_get_templates('tokens', $arg1);
+      notifications_include('templates.inc');
+      return notifications_messaging_templates($op, $arg1, $arg2);
+
     case 'method update':
       // A messaging method has been disabled ($arg1) and replaced by the new one ($arg2)
       notifications_include('destination.inc');
       notifications_destination_method_replace($arg1, $arg2);
-      // db_query("UPDATE {notifications} SET send_method = '%s' WHERE send_method = '%s'", $arg2, $arg1);
-
       break;
   }
 }
 
-/**
- * Implementation of hook_notifications_templates() 
- */
-function notifications_notifications_templates($op, $type = NULL, $language = NULL) {
-  switch ($op) {
-    case 'info':
-      $info = array();
-      // Generic notifications event
-      if ($type == 'all' || $type == 'notifications-event') {
-        $info['notifications-event'] = array(
-          'module' => 'notifications',
-          'name' => t('Notifications event'),
-          'description' => t('Common parts for all Notifications messages for a single event. This is useful for defining a common header and/or footer for all these messages.'),
-          'fallback' => FALSE, // This template has no fallback
-        );
-      }
-      if ($type == 'digest' || $type == 'notifications-digest') {
-        $info['notifications-digest'] = array(
-          'module' => 'notifications',
-          'name' => t('Notifications digest'),
-          'description' => t('Depending on your settings for each Send interval, Notifications may be digested, this is grouped and summarized in a single message. These are the common parts for Notifications digests.'),
-          'fallback' => FALSE, // This template has no fallback
-        );
-      }
-      return $info;
-    case 'parts':
-      switch ($type) {
-        case 'notifications-event':
-          // Event notifications
-          return array(
-            'subject' => t('Subject'),
-            'header' => t('Header'),
-            'main' => t('Content'),
-            'footer' => t('Footer'),
-          );
-        case 'notifications-digest':
-          return array(
-            'subject' => t('Subject'),
-            'header' =>  t('Header'),
-            'main' => t('Line for digested events'),
-            'closing' => t('Group closing'),
-            'footer' => t('Footer'),
-          );
-      }
-      break;
-    case 'defaults':
-      // Event notifications
-      if ($type == 'notifications-event') {
-        return array(
-          'subject' => t('Event notification for [user] from [site-name]', array(), $language->language),
-          'header' => t("Greetings [user],", array(), $language->language),
-          'main' => t("A item to which you are subscribed has been updated", array(), $language->language),
-          'footer' => array(
-              t('This is an automatic message from [site-name]', array(), $language->language),
-              t('To manage your subscriptions, browse to [subscriptions-manage]', array(), $language->language),
-              t('You can unsubscribe at [unsubscribe-url]', array(), $language->language),
-          ),
-        );
-      }
-      // Digested messages
-      if ($type == 'notifications-digest') {
-        return array(
-          'subject' => t('[site-name] subscription update for [user]', array(), $language->language),
-          'header' => t("Greetings, [user].\n\nThese are your messages", array(), $language->language),
-          'main' => t("A [type] has been updated: [title]\n\n[event_list]", array(), $language->language),
-          'closing' => '...',
-          'footer' => array(
-            t('This is an automatic message from [site-name]', array(), $language->language),
-            t('To manage your subscriptions, browse to [subscriptions-manage]', array(), $language->language),
-          ),        
-        );
-      }
-      break;
-    case 'tokens':
-      $args = explode('-', $type);
-      $tokens = array();
-      // These are the token groups that will be used for this module's messages
-      if ($args[0] == 'notifications') {
-        $tokens = array('subscription', 'user');
-        if ($args[1] == 'event') {
-          // If the template is for a single event, it can use event tokens
-          $tokens[] = 'event';
-        }
-        elseif ($args[1] == 'digest') {
-          // Template for multiple events, can use events (note the plural) tokens
-          $tokens[] = 'events';
-        }
-      }
-      return $tokens;    
-  }
-}
-/**
- * Get notifications templates
- * 
- * This will filter out templates for disabled events
- * 
- * $op = 'info', 'parts', 'tokens', 'defaults'
- */
-function notifications_get_templates($op = 'info', $type = 'all', $language = NULL) {
-  static $all_templates;
-
-  switch ($op) {
-    case 'info':
-      if ($type == 'all' || $type == 'enabled') {
-        if (!isset($all_templates)) {
-          $all_templates = module_invoke_all('notifications_templates', 'info', 'all');
-        }
-        if ($type == 'all') {
-          return $all_templates;
-        }
-        elseif ($type == 'enabled') {
-          // Get a list of templates for enabled event types
-          $enabled = array_filter(notifications_event_types(NULL, 'template', FALSE));
-          return messaging_template_extract_group($enabled, $all_templates);
-        }
-      }
-      else {
-        return module_invoke_all('notifications_templates', 'info', $type, $language);
-      }
-      break;
-    default:
-      return module_invoke_all('notifications_templates', $op, $type, $language);
-  }
-}
 /**
  * Implementation of hook_token_values()
  * 
@@ -1414,16 +1286,25 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       return $values;
       
     case 'user':
-      $values = array();
+      // Only for registered users.
       if (($account = $object) && !empty($account->uid)) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE));
         $values['unsubscribe-url-global'] = notifications_build_url('unsubscribe', 'user', $account);
+        return $values;
       }
-      return $values;
-    case 'destination':
-      // @todo Destination tokens for registered users
       break;
+
+    case 'destination':
+      // These are just for registered users. For anonymous, notifications_anonymous will do it
+      if (($destination = messaging_check_object($object, 'Messaging_Destination')) && !empty($destination->uid)) {
+        $values['destination-unsubscribe-url'] = notifications_build_url('unsubscribe', 'destination', $destination);
+        $values['destination-manage-url'] = notifications_build_url('manage', 'destination', $destination);
+        $values['destination-edit-url'] = notifications_build_url('edit', 'destination', $destination);
+        return $values;
+      }
+      break;
+
     case 'event':
       if ($event = messaging_check_object($object, 'Notifications_Event')) {
         $values['event-type-description'] = $event->get_type('description');
@@ -1459,6 +1340,13 @@ function notifications_token_list($type = 'all') {
     $tokens['event']['event-date-small'] = t('Date of the event, short format.');
     $tokens['event']['event-date-medium'] = t('Date of the event, medium format.');
     $tokens['event']['event-date-large'] = t('Date of the event, large format.');
+  }
+  if ($type == 'destination' || $type == 'all') {
+    // Nore destination tokens provided by messaging module
+    $tokens['destination']['destination-unsubscribe-url'] = t('URL to unsubscribe to the destination.');
+    $tokens['destination']['destination-manage-url'] = t('URL to manage all subscriptions for the destination.');
+    $tokens['destination']['destination-edit-url'] = t('URL to edit the destination.');
+
   }
   return $tokens;
 }
@@ -1568,7 +1456,7 @@ function notifications_get_link($op, $params, $format = FALSE) {
  */
 function notifications_build_link($op, $params, $type = 'subscription', $object = NULL, $format = 'array') {
   // Find the key fields and adjust parameters for each object type
-  $key = array_search($type, array('sid' => 'subscription', 'mid' => 'destination', 'uid' => 'user'));
+  $key = array_search($type, array('sid' => 'subscription', 'mdid' => 'destination', 'uid' => 'user'));
 
   if ($object) {
     $params += array('oid' => $object->$key, 'uid' => $object->uid);
@@ -1611,14 +1499,14 @@ function notifications_build_link($op, $params, $type = 'subscription', $object 
       }
       else {
         $elements[] = 'unsubscribe';     
-        $elements[] = $key;
+        $elements[] = $type;
         $elements[] = $params['oid'];
       }
       $title = $title ? $title : t('unsubscribe');
       break;
       
     case 'confirm':
-      // For this andnext cases we just set title if not set and fallback to default
+      // For this and next cases we just set title if not set and fallback to default
       $title = $title ? $title : t('confirm');
     case 'edit':
        $title = $title ? $title : t('edit');
