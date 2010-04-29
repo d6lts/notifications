@@ -431,6 +431,10 @@ function notifications_admin_events_build_tree($events) {
   }
   return $tree;  
 }
+
+/**
+ * Build tree of event types
+ */
 function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
   foreach ($tree as $key => $event) {
     $form['name'][$key] = array('#value' => theme('indentation', $depth) . $event['description']);
@@ -448,6 +452,10 @@ function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
     }
   }  
 }
+
+/**
+ * Plain list of template names
+ */
 function notifications_template_list() {
   $list = &messaging_static(__FUNCTION__);
   if (!isset($list)) {

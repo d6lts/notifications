@@ -6,6 +6,7 @@
  * Notifications tools pages
  */
 
+require_once drupal_get_path('module', 'notifications') . '/notifications.manage.inc';
 /**
  * Current subscriptions page
  */
@@ -67,7 +68,6 @@ function notifications_tools_admin_queue($op = 'run') {
  * Menu callback: subscriptions administration.
  */
 function notifications_tools_manage_subscriptions($form_state) {
-  module_load_include('manage.inc', 'notifications');
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
     return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
   }

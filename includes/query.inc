@@ -83,50 +83,27 @@ function notifications_query_build($params, $query = array()) {
  * 
  * It will build INSERT + SELECT or SELECT queries from its elements
  * 
+ * This is a wrapper around messaging_query_sql() that will handle special 'fields' parameters
+ * 
  * @return array()
  *   list($sql, $args);
  */
-function notifications_query_sql($query) {
-  $sql = '';
-  if (!empty($query['insert'])) {
-    $sql .= 'INSERT INTO ' . $query['into'] . ' ('. implode(', ', $query['insert']) .') ';
-  }
-  $sql .= !empty($query['distinct']) ? 'SELECT DISTINCT ' : 'SELECT ';
-  $sql .=  implode(', ', $query['select']);
-  $sql .= ' FROM '. implode(', ', $query['from']);
-  if (!empty($query['join'])) {
-    $sql .= ' '. implode(' ', $query['join']);
-  }  
-  
+function notifications_query_sql($query, $execute = FALSE) {
   // Where conditions come from 'where' and 'fields' elements
   // Field conditions are OR'd or AND'd and added into the other conditions
   $where = !empty($query['where']) ? $query['where'] : array();
+  $where_args = !empty($query['where args']) ? $query['where args'] : array();
   if (!empty($query['fields'])) {
     $operator = !empty($query['fields operator']) ? $query['fields operator'] : 'OR';
     $where[] = '('. implode(") $operator (", $query['fields']) .')';
-  }  
-  if ($where) {
-    $sql .= ' WHERE ('. implode(') AND (', $where) .')';
-  }  
-  if (!empty($query['group'])) {
-    $sql .= ' GROUP BY '. implode(', ', $query['group']);
   }
-  if (!empty($query['having'])) {
-    $sql .= ' HAVING '. implode(' AND ', $query['having']);
+  if (!empty($query['fields args'])) {
+    $where_args = array_merge($where_args, $query['fields args']);
   }
-  // Merge all args, start with generic ones for subscription queries, then other groups
-  $args = !empty($query['args']) ? $query['args'] : array();
-  foreach (array('select', 'join', 'where', 'fields', 'having') as $key) {
-    if (!empty($query[$key .' args'])) {
-      $args = array_merge($args, $query[$key .' args']);
-    }
-  }
-  // Add order by
-  if (!empty($query['order'])) {
-    $sql .= ' ORDER BY ' . implode(', ', $query['order']);
-  }
- 
-  return array($sql, $args);
+  $query['where'] = $where;
+  $query['where args'] = $where_args;
+
+  return messaging_query_sql($query, $execute);
 }
 
 /**
@@ -241,12 +218,14 @@ function notifications_query_subscriptions($main_conditions, $field_conditions =
     'distinct' => TRUE,
     'fields operator' => 'AND',
     'pager' => NULL,
+    'where' => array(),
+    'where args' => array(),
   );
 
   // The messaging query builder knows about table schemas
-  $conditions = _messaging_query_conditions('notifications', $main_conditions, 's');
-  $query['where'] = $conditions['conditions'];
-  $query['where args'] = $conditions['args'];
+  $where = _messaging_query_where('notifications', $main_conditions, 's');
+  $query['where'] = array_merge($query['where'], $where['where']);
+  $query['where args'] = array_merge($query['where args'], $where['args']);
   $query['from'] = array('{notifications} s');
   // Add in field conditions. How the fields table is joined will depend on other parameters
   if ($field_conditions) {
@@ -268,9 +247,7 @@ function notifications_query_subscriptions($main_conditions, $field_conditions =
     $query['order'][] = 's.sid';
   }
   // Build the query anhd throw it using simple query or pager query  
-  list ($sql, $args) = notifications_query_sql($query);   
-  $result = $query['pager'] ? pager_query($sql, $query['pager'], 0, NULL, $args) : db_query($sql, $args);
-
+  $result = notifications_query_sql($query, TRUE);
   // Build list with results
   $subscriptions = array();
   while ($load = db_fetch_object($result)) {
