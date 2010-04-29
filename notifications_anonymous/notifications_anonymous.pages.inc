@@ -118,18 +118,16 @@ function notifications_anonymous_destination_page($destination, $op = 'unsubscri
  * Page callback. Manage anonymous subscriptions.
  */
 function notifications_anonymous_subscription_page($subscription, $op = 'unsubscribe') {
-  global $user;
-  notifications_include('destination.inc');
+  module_load_include('pages.inc', 'notifications');
   // Just for administrators or signed requests
   if (!user_access('administer notifications') && !notifications_check_signature()) {
     drupal_access_denied();
     exit(0);
   }
-  $options = notifications_anonymous_subscription_links($destination);
   $account = drupal_anonymous_user();
   switch ($op) {
     case 'unsubscribe':
-      $output .= drupal_get_form('notifications_anonymous_unsubscribe_form', $subscription);
+      $output .= drupal_get_form('notifications_form_unsubscribe_confirm', $subscription, $account);
       break;
     case 'edit':
       // After editing this subscription, forward to the same signed page

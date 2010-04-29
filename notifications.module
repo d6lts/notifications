@@ -1402,21 +1402,23 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       $values = array();
       // Tokens only for registered users
       if ($subscription = messaging_check_object($object, 'Notifications_Subscription')) {
-        $link = notifications_get_link('unsubscribe', array('sid' => $subscription->sid, 'signed' => TRUE, 'absolute' => TRUE));
-        $values['unsubscribe-url'] = url($link['href'], $link['options']);
+        $values['subscription-unsubscribe-url'] = notifications_build_url('unsubscribe', 'subscription', $subscription);
+        $values['subscription-edit-url'] = notifications_build_url('edit', 'subscription', $subscription);
         $values['subscription-type'] = $subscription->get_type('name');
         $values['subscription-name'] = $subscription->get_name();
         $values['subscription-description-short'] = $subscription->format_short(FALSE);
         $values['subscription-description-long'] = $subscription->format_long(FALSE);
+        // Old token, populate it for old templates
+        $values['unsubscribe-url'] = $values['subscription-unsubscribe-url'];
       }
       return $values;
+      
     case 'user':
       $values = array();
-      if (($account = $object) && !empty($object->uid)) {
+      if (($account = $object) && !empty($account->uid)) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE));
-        $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'signed' => TRUE, 'absolute' => TRUE));
-        $values['unsubscribe-url-global'] = url($link['href'], $link['options']);
+        $values['unsubscribe-url-global'] = notifications_build_url('unsubscribe', 'user', $account);
       }
       return $values;
     case 'destination':
@@ -1445,7 +1447,8 @@ function notifications_token_list($type = 'all') {
     $tokens['user']['unsubscribe-url-global'] = t('The url to allow a user to delete all their subscriptions.');
   }
   if ($type == 'subscription' || $type == 'all') {
-    $tokens['subscription']['unsubscribe-url']  = t('The url for disabling a specific subscription.');
+    $tokens['subscription']['subscription-unsubscribe-url']  = t('The url for disabling a specific subscription.');
+    $tokens['subscription']['subscription-edit-url']  = t('The url for editing a specific subscription.');
     $tokens['subscription']['subscription-type'] = t('The subscription type.');
     $tokens['subscription']['subscription-name'] = t('The subscription name.');
     $tokens['subscription']['subscription-description-short'] = t('The subscription short description.');
@@ -1599,9 +1602,18 @@ function notifications_build_link($op, $params, $type = 'subscription', $object 
       break;
     case 'unsubscribe':
       // The unsubscribe link can be for a single subscription or all subscriptions for a user or a destination
-      $elements[] = 'unsubscribe';     
-      $elements[] = $key;
-      $elements[] = $params['oid'];
+      if (!$params['uid'] && $type == 'subscription') {
+        // For anonymous: notifications/subscription/sid/unsubscribe
+        $elements[] = 'anonymous';
+        $elements[] = 'subscription';
+        $elements[] = $params['oid'];
+        $elements[] = 'unsubscribe';
+      }
+      else {
+        $elements[] = 'unsubscribe';     
+        $elements[] = $key;
+        $elements[] = $params['oid'];
+      }
       $title = $title ? $title : t('unsubscribe');
       break;
       
@@ -1637,7 +1649,16 @@ function notifications_build_link($op, $params, $type = 'subscription', $object 
     default:
       return $link;
   }
-  
+}
+
+/**
+ * Shorthand for building absolute signed URLs for messages
+ * 
+ * @see notifications_build_link()
+ */
+function notifications_build_url($op, $type = 'subscription', $object = NULL, $params = array()) {
+  $params += array('absolute' => TRUE, 'signed' => TRUE);
+  return notifications_build_link($op, $params, $type, $object, 'url');
 }
 
 /**

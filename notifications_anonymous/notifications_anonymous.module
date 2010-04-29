@@ -50,7 +50,7 @@ function notifications_anonymous_menu() {
   }
   // Subscription operations
   foreach (array('edit', 'unsubscribe') as $op) {
-    $items['notifications/anonymous/subscription/%notififications_subscription/' . $op] = array (
+    $items['notifications/anonymous/subscription/%notifications_subscription/' . $op] = array (
       'title' => 'Edit subscription',
       'page callback' => 'notifications_anonymous_subscription_page',
       'page arguments' => array(3, 4),
@@ -76,14 +76,14 @@ function notifications_anonymous_menu() {
 /**
  * Menu access callback for subscriptions
  */
-function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL, $account = NULL) {  
+function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL, $account = NULL) {
   global $user;
   $account = $account ? $account : $user;
   switch ($op) {
     case 'create':
       return user_access('create anonymous subscriptions', $account) && notifications_anonymous_send_methods();
     case 'unsubscribe':
-      return !$subscription->uid;
+      return $subscription && !$subscription->uid;
   }
 }
 
@@ -248,7 +248,7 @@ function notifications_anonymous_manage_links($type, $object, $format = 'array')
   foreach ($link_types as $op => $name) {
     if (_notifications_anonymous_access($type, $object, $op)) {
       $params['title'] = $name;
-      $links[$op] = notifications_build_link($op, $params, $type, $object);
+      $links[$op] = notifications_build_link($op, $params, $type, $object, $format);
     }
   }
   return $links;
@@ -492,22 +492,10 @@ function notifications_anonymous_token_list($type = 'all') {
  */
 function notifications_anonymous_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
-    case 'subscription':
-      // Tokens only for anonymous users
-      if (($subscription = $object) && empty($subscription->uid)) {
-        $missing = '';
-        $links = notifications_anonymous_manage_links('subscription', $subscription, 'url');
-        $values['subscription-unsubscribe-url'] = isset($links['delete']) ? $links['delete'] : $missing;
-        $values['subscription-edit-url'] = isset($links['edit']) ? $links['edit'] : $missing;
-        // Old token, populate it for old templates
-        $values['unsubscribe-url'] = $values['subscription-unsubscribe-url'];
-        return $values;      
-      }
-      break;
     case 'destination':
       $values = array();
       // Just for anonymous destinations, for the others the notifications module will do the job
-      if (($destination = $object) && empty($destination->uid)) {
+      if (($destination = messaging_check_object($object, 'Messaging_Destination')) && empty($destination->uid)) {
         $missing = '';
         $links = notifications_anonymous_manage_links('destination', $destination, 'url');
         $values['destination-unsubscribe-url'] = isset($links['delete']) ? $links['delete'] : $missing;
