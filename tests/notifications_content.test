@@ -27,19 +27,6 @@ class NotificationsContentTests extends NotificationsTestCase {
     variable_set('notifications_default_send_method', 'debug');
     notifications_include('process.inc');
   }
-
-  // Enable all UI optional pages
-  function enableUIPages($enable = TRUE) {    
-    $settings = array_keys(notifications_subscription_types());
-    variable_set('notifications_ui_types', $enable ? $settings : array());
-    variable_set('notifications_ui_user_options', $enable ? array('page', 'create'): array());
-    menu_rebuild();
-  }
-  // Enable content Subscriptions for all
-  function enableSubscriptionTypes($enable = TRUE) {
-    $settings = array_keys(notifications_subscription_types());
-    variable_set('notifications_content_type', $enable ? $settings : array());
-  }
   
   /**
    * Simple test fails on login
@@ -299,22 +286,6 @@ class NotificationsContentTests extends NotificationsTestCase {
     comment_save($comment);
     $this->assertRowCount('notifications_event', 2);
     $this->assertRowCount('notifications_queue', 2);        
-  }
-  
-  /**
-   * Helper function to create a subscription
-   */
-  function contentCreateSubscription($user, $type, $fields, $confirm_texts = array()) {
-    // Create a link for the subscription confirmation page
-    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => $type, 'fields' => $fields));
-    $this->drupalGet($link['href'], $link['options']);
-    $this->assertText(t('Confirm your subscription'), 'Subscriptions confirmation page is shown');
-    foreach ($confirm_texts as $text) {
-      $this->assertRaw($text);
-    }
-    // Submit the form and check confirmation page
-    $this->drupalPost(NULL, array(), t('Subscribe'));
-    $this->assertText(t('Your subscription has been created.')); 
   }
   
   function countUserRows($table, $uid = NULL) {

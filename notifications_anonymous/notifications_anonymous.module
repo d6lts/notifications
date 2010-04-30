@@ -78,12 +78,14 @@ function notifications_anonymous_menu() {
  */
 function notifications_anonymous_subscription_access($op = 'create', $subscription = NULL, $account = NULL) {
   global $user;
-  $account = $account ? $account : $user;
-  switch ($op) {
-    case 'create':
-      return user_access('create anonymous subscriptions', $account) && notifications_anonymous_send_methods();
-    case 'unsubscribe':
-      return $subscription && !$subscription->uid;
+
+  if ((user_access('addminister notifications') || !$user->uid) && (!$account || !$account->uid)) { 
+    switch ($op) {
+      case 'create':
+        return (bool)notifications_anonymous_send_methods();
+      case 'unsubscribe':
+        return $subscription && !$subscription->uid;
+    }
   }
 }
 
@@ -186,13 +188,6 @@ function notifications_anonymous_subscribe_links($type, $object) {
   $subscribe = array();
   $unsubscribe = array('type' => 'subscription', 'signed' => TRUE);
   return notifications_object_subscribe_links($type, $object, $user, $subscribe, $unsubscribe);
-}
-
-/**
- * Implementation of hook_perm()
- */
-function notifications_anonymous_perm() {
-  return array('create anonymous subscriptions');
 }
 
 /**

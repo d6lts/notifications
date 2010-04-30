@@ -379,7 +379,7 @@ function notifications_perm() {
 /**
  * Implementation of hook_user().
  */
-function notifications_user($type, $edit, &$user, $category = NULL) {
+function notifications_user($type, $edit, $user, $category = NULL) {
   switch ($type) {
     case 'delete';
       // Delete related data on tables

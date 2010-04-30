@@ -28,4 +28,31 @@ class NotificationsTestCase extends MessagingTestCase {
       return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue}'));
     }
   }
+  /**
+   * Helper function to create a subscription
+   */
+  function contentCreateSubscription($user, $type, $fields, $confirm_texts = array(), $post = array()) {
+    // Create a link for the subscription confirmation page
+    $link = notifications_get_link('subscribe', array('uid' => $user->uid, 'type' => $type, 'fields' => $fields));
+    $this->drupalGet($link['href'], $link['options']);
+    $this->assertText(t('Confirm your subscription'), 'Subscriptions confirmation page is shown');
+    foreach ($confirm_texts as $text) {
+      $this->assertRaw($text);
+    }
+    // Submit the form and check confirmation page
+    $this->drupalPost(NULL, $post, t('Subscribe'));
+    $this->assertText(t('Your subscription has been created.')); 
+  }
+  // Enable all UI optional pages
+  function enableUIPages($enable = TRUE) {    
+    $settings = array_keys(notifications_subscription_types());
+    variable_set('notifications_ui_types', $enable ? $settings : array());
+    variable_set('notifications_ui_user_options', $enable ? array('page', 'create'): array());
+    menu_rebuild();
+  }
+  // Enable content Subscriptions for all
+  function enableSubscriptionTypes($enable = TRUE) {
+    $settings = array_keys(notifications_subscription_types());
+    variable_set('notifications_content_type', $enable ? $settings : array());
+  }
 }
