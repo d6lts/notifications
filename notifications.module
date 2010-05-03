@@ -1465,6 +1465,7 @@ function notifications_send_intervals() {
     foreach ($intervals as $key => $name) {
       $intervals[$key] = notifications_translate("send_interval:$key:name", $name);
     }
+    return $intervals;
   }
   else {
     return _notifications_send_intervals();
