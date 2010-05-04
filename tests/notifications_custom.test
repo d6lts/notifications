@@ -117,8 +117,8 @@ class NotificationsCustomTests extends NotificationsTestCase {
     $this->assertText('The fields for this subscription have been updated.');
     // Reload subscription
     messaging_static_reset('notifications_custom_load');
-    $subscription = notifications_custom_load($subscription->csid);
-    $this->assertEqual(count($subscription->get_fields()), $index, "The right number of fields have been added for this subscription. ($index)");
+    $saved = notifications_custom_load($subscription->csid);
+    $this->assertEqual(count($saved->fields), $index, "The right number of fields have been added for this subscription. ($index)");
     return $subscription;
   }
 }

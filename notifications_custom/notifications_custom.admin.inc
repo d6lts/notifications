@@ -47,6 +47,7 @@ function notifications_custom_admin_page($op = NULL) {
 
 /**
  * Edit / create custom subscriptions
+ * 
  */
 function notifications_custom_form($form_state, $subs) {
   $form['#subscription_type'] = $subs;
@@ -87,7 +88,7 @@ function notifications_custom_form($form_state, $subs) {
     $form['subscription']['fields'] = array(
       '#type' => 'item',
       '#title' => t('Fields'), 
-      '#value' => $subs->format_fields(Notifications_Subscription::FORMAT_TABLE),
+      '#value' => notifications_build_subscription($subs)->format_fields(Notifications_Subscription::FORMAT_TABLE),
     );
   }
   $form['subscription']['description'] = array('#type' => 'textarea',
@@ -165,11 +166,12 @@ function notifications_custom_form_submit($form, &$form_state) {
 }
 
 /**
- * Fields form
+ * Fields form: edit /add fields to custom subscription type
+ * 
  */
-function notifications_custom_fields_form($form_state, $subscription) {
+function notifications_custom_fields_form($form_state, $custom_type) {
   notifications_include('object.inc');
-
+  $subscription = notifications_build_subscription($custom_type);
   $form['subscription'] = array('#type' => 'value', '#value' => $subscription);
   // Now the hard part, which are the fields. Only when subscriptions is created.
   $form['fields'] = array(

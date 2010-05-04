@@ -330,10 +330,10 @@ function notifications_custom_load($key) {
     $template = db_fetch_object(db_query('SELECT * FROM {notifications_custom} WHERE ' . $where , $key));
     if ($template) {
       $template->fields = !empty($template->fields) ? unserialize($template->fields) : array();
-      $subscription = notifications_custom_build_subscription($template);
+      //$subscription = notifications_custom_build_subscription($template);
       // Cache by type and id
-      $cache[$template->csid] = $subscription;
-      $cache[$template->type] = $subscription;
+      $cache[$template->csid] = $template;
+      $cache[$template->type] = $template;
     }
     else {
       $cache[$key] = FALSE;
