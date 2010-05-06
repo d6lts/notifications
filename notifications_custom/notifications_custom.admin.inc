@@ -250,7 +250,7 @@ function notifications_custom_fields_form_add_field(&$form, &$form_state) {
  */
 function notifications_custom_fields_form_validate($form, &$form_state) {
   notifications_include('object.inc');
-  $form_state['field_values'] = notifications_field_validate_submitted(&$form_state, 'fields', TRUE, TRUE);
+  $form_state['field_values'] = notifications_field_validate_submitted($form_state, 'fields', TRUE, TRUE);
 }
 
 /**
