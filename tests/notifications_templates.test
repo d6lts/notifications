@@ -117,8 +117,9 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $subscriptions[$event1->eid] = array();
     $subscriptions[$event2->eid] = array();
     $messages = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_nodigest);
-    unset($messages[0]['notifications']);
-    $this->assertEqual($messages[0], $target, 'Message composition for single event'. $this->compareTexts($messages[0], $target));
+    $message = current($messages);
+    $result = array('subject' => $message->subject, 'body' => $message->body, 'language' => $message->language);
+    $this->assertEqual($result, $target, 'Message composition for single event'. $this->compareTexts($result, $target));
 
     // Test digesting, prepare events and build event list      
     $node3 = $this->drupalCreateNode(array(
@@ -178,7 +179,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'body' => theme('notifications_digest_short_body', $texts, $lines),
     );
     $digest = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_short);
-    $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
+    $message = array('subject' => $digest[0]->subject, 'body' => $digest[0]->body);
     $this->assertEqual($message, $target, 'Message composition for short digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');
     //$this->printObject($message, 'Message');
@@ -196,7 +197,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
       'body' => theme('notifications_digest_long_body', $texts['header'], $body, $texts['footer']),
     );
     $digest = notifications_process_compose($send_method, $destination, $event_list, $subscriptions, $interval_long);
-    $message = array('subject' => $digest[0]['subject'], 'body' => $digest[0]['body']);
+    $message = array('subject' => $digest[0]->subject, 'body' => $digest[0]->body);
     $this->assertEqual($message, $target, 'Message composition for long digest.'. $this->compareTexts($message, $target));
     //$this->printObject($target, 'Target');
     //$this->printObject($message, 'Message');

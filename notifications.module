@@ -36,6 +36,7 @@ function notifications_autoload_info() {
   return array(
     'Notifications_Event' => array('file' => 'includes/notifications_event.class.inc'),
     'Notifications_Subscription' => array('file' => 'includes/notifications_subscription.class.inc'),
+    'Notifications_Message' => array('file' => 'includes/notifications_message.class.inc'),
   ); 
 }
 

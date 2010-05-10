@@ -475,16 +475,26 @@ function notifications_queue_update_sent($mdid, $interval, $time) {
  */
 function notifications_process_compose($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
   notifications_log('Processing for sending', array('method' => $send_method, 'interval' => $send_interval, 'module' => $module, 'events' => count($events)));
+  // Build message template that will be used for all produced messages
+  $template = new Notifications_Message();
+  $template->method = $send_method;
+  $template->set_destination($destination);
+  $template->send_interval = $send_interval;  
+  
   // Find build method for this interval. Check the function is there in case some module has been disabld
   if ($build_method = notifications_process_build_method($send_interval)) {
     $build_function = $build_method['build callback'];
+    $template->digest = !empty($build_method['digest']);
+    $template->build_method = $build_method['type'];
   }
   else {
     // Default building function
     $build_function = 'notifications_process_build_simple';
+    $template->build_method = 'simple';
   }
+
   // Invoke building function that will return an array of messages  
-  $messages = $build_function($send_method, $destination, $events, $subscriptions, $send_interval, $module);
+  $messages = $build_function($template, $events, $subscriptions, $module);
   return $messages;
 }
 
@@ -649,23 +659,13 @@ function notifications_queue_query($params, $table_alias = NULL) {
  * 
  * @return array with messages ready to be sent
  */
-function notifications_process_build_simple($method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
+function notifications_process_build_simple($template, $events, $subscriptions, $module = 'notifications') {
   $messages = array();
   $sender_option = variable_get('notifications_sender', 0);
   foreach ($events as $event) {
-    $event_subscriptions = isset($subscriptions[$event->eid]) ? $subscriptions[$event->eid] : NULL;
-    $message = notifications_process_build_simple_message($method, $destination, $event, $event_subscriptions, $module);
-    // We pass on the full information so it can be used by modules implementing some of the hooks
-    $message['notifications'] = array('events' => array($event), 'subscriptions' => $event_subscriptions);
-    // Optional sender, if chosen will be the user account who produced the event
-    // It will be up to the sending method modules what to do with this information.
-    if ($sender_option) {
-      $sender = notifications_load_user($event->uid);
-      $message['sender_name'] = $sender->name;
-      if ($sender_option == 2) {
-        $message['sender_account'] = $sender;
-      }
-    }
+    $event_subscriptions = isset($subscriptions[$event->eid]) ? array_filter($subscriptions[$event->eid]) : NULL;
+    $message = notifications_process_build_simple_message($template, $event, $event_subscriptions, $module);
+    $message->set_sender($event->uid);
     $messages[] = $message;
   }
   return $messages;
@@ -685,11 +685,17 @@ function notifications_process_build_simple($method, $destination, $events, $sub
  *   Return template parts information with the message
  * 
  * @return
- *   Message array 
+ *   Message object
  */
-function notifications_process_build_simple_message($send_method, $destination, $event, $subscriptions, $module = 'notifications', $debug = FALSE) {
-  $account = $destination->get_account();
-  $language = $destination->get_language();
+function notifications_process_build_simple_message($template, $event, $subscriptions, $module = 'notifications') {
+  $send_method = $template->method;
+  $destination = $template->get_destination();
+  $account = $template->get_user();
+  $language = $template->get_language();
+
+  // Start the message by cloning the template
+  $message = clone $template;
+  $message->add_event($event, $subscriptions);
   // Create message. Do all this in one replacemente
   $parts = array(
     'subject' => notifications_event_message_part($event, 'subject', $send_method, $language, $module),
@@ -699,24 +705,16 @@ function notifications_process_build_simple_message($send_method, $destination, 
   );
   // We pass only the first subscription, which is at least something
   // @ TODO Handle nicely the case where there are more than one subscription
-  if ($sid = array_shift($subscriptions)) {
-    $subscription = notifications_load_subscription($sid);
-  }
-  else {
-    $subscription = NULL;
-  }
+  $subscription = $subscriptions ? notifications_load_subscription(current($subscriptions)) : NULL;
   $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
   $objects = array_merge($objects, $event->get_objects());
   $text = messaging_template_text_replace($parts, $objects);
 
   // Get subject out of text and build the message array
-  $message['subject'] = $text['subject'];
+  $message->subject = $text['subject'];
   unset($text['subject']);
-  $message['body'] = $text;
-  $message['language'] = $language->language;
-  // If we want debug information, add parts too. Otherwise we don't want to move too much data around
-  if ($debug) {
-    $message['parts'] = $parts;
-  }
+  $message->body = $text;
+  $message->text_parts = $parts;
+
   return $message;
 }

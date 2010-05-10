@@ -248,18 +248,17 @@ function notifications_tools_template_test_form($form_state) {
   global $user, $language;
 
   module_load_include('admin.inc', 'notifications');
-  if (!empty($form_state['values']['message'])) {
+  $message = !empty($form_state['values']['message']) ? $form_state['values']['message'] : NULL;
+  if ($message) {
     $form['showmessage'] = array(
       '#title' => t('Message'),
       '#type' => 'item',
-      '#value' => _notifications_tools_format_message($form_state['values']['message']),
+      '#value' => _notifications_tools_format_message(array('subect' => $message->subject, 'body' => $message->body)),
     );
-  }
-  if (!empty($form_state['values']['templates'])) {
     $form['showtemplate'] = array(
       '#title' => t('Template parts'),
       '#type' => 'item',
-      '#value' => _notifications_tools_format_template($form_state['values']['templates']),
+      '#value' => _notifications_tools_format_template($message->text_parts),
     );
   }
   $form['type'] = array(
@@ -348,11 +347,12 @@ function notifications_tools_template_test_submit(&$form, &$form_state) {
   // Build the message and store it
   $send_method = $form_state['values']['send_method'];
   if ($destination = messaging_account_build_destination($user, $send_method)) {
-    $destination->language = $form_state['values']['language'];
-    $message = notifications_process_build_simple_message($send_method, $destination, $event, array(), 'notifications', TRUE);
-    // Store message and rebuild. The message will come with template information (debug = TRUE);
-    $form_state['values']['templates'] = $message['parts'];
-    unset($message['parts']);
+    $template = new Notifications_Message();
+    $template->method = $send_method;
+    $template->set_destination($destination);
+    $template->language = $form_state['values']['language'];
+    $message = notifications_process_build_simple_message($template, $event, array(), 'notifications');
+    // Store message and rebuild. The message will come with template information (text_parts);
     $form_state['values']['message'] = $message;
     $form_state['rebuild'] = TRUE;  
   }

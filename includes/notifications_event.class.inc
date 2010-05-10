@@ -128,6 +128,13 @@ class Notifications_Event extends Messaging_Cached_Object {
     }
   }
   /**
+   * Add event object to be serialized and stored with the event
+   */
+  function store_object($type, $object) {
+    $this->params['objects'][$type] = $object;
+    $this->set_object($type, $object);
+  }
+  /**
    * Set event object
    */
   function set_object($type, $object) {
@@ -159,7 +166,11 @@ class Notifications_Event extends Messaging_Cached_Object {
       $this->objects = array();
       if (!empty($this->params['objects'])) {
         foreach ($this->params['objects'] as $type => $value) {
-          if ($object = notifications_object_load($type, $value)) {
+          if (is_object($value)) {
+            // This object was serialized along with the event, just set it
+            $this->objects[$type] = $object;
+          }
+          elseif ($object = notifications_object_load($type, $value)) {
             $this->objects[$type] = $object;
           }
           else {

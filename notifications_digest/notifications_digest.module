@@ -157,17 +157,32 @@ function notifications_digest_event_template($event) {
  * 
  * @return array with messages ready to be sent
  */
-function notifications_digest_build_short($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
-  $account = $destination->get_account();
-  $language = $destination->get_language();
-  // Compile list of events for each object
-  $list = array();
-  // Build up the digested list with text replacement
+function notifications_digest_build_short($template, $events, $subscriptions, $module = 'notifications') {
+  $send_method = $template->method;
+  $destination = $template->get_destination();
+  $account = $template->get_user();
+  $language = $template->get_language();
+  // Build a unique message from this template
+  $message = clone $template;
+
+  // Create message. Do all this in one replacement, then strip out the subject
+  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $language, $module);
+  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $language, $module);
+  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $language, $module);
+  $message->text_parts = $text;
+  // We dont pass a subscription object here, won't be too much use anyway
+  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
+  $message->subject = $text['subject'];
+
+  // Compile list of events for each object. Build up the digested list with text replacement
   // We need text replacement for each line because it depends on different objects
+  $list = array();
   foreach ($events as $event) {
     notifications_debug('Digesting short format', array('event' => $event->eid));
-    $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
-    $subscription = $sid ? notifications_load_subscription($sid) : NULL;
+    $event_subscriptions = isset($subscriptions[$event->eid]) ? array_filter($subscriptions[$event->eid]) : array();
+    $message->add_event($event, $event_subscriptions);
+ 
+    $subscription = $event_subscriptions ? notifications_load_subscription(current($event_subscriptions)) : NULL;
     $objects = $event->objects + array('destination' => $destination, 'user' => $account, 'subscription' => $subscription);
     $digest = notifications_digest_event_info($event);
     notifications_debug('Digest info for event', $digest);
@@ -179,6 +194,7 @@ function notifications_digest_build_short($send_method, $destination, $events, $
         'title' => notifications_digest_group($digest, 'title', $send_method, $language),
         'footer' => notifications_digest_group($digest, 'closing', $send_method, $language),
       );
+      $message->text_parts['list'][$digest_type][$digest_value]['group'] = $group;
       // The objects passed here for tokens will be the ones from the first event only
       $list[$digest_type][$digest_value]['group'] = messaging_template_text_replace($group, $objects);
       notifications_debug('Digesting object', array('type' => $digest_type, 'value' => $digest_value));
@@ -186,32 +202,14 @@ function notifications_digest_build_short($send_method, $destination, $events, $
     // Check duplicate notifications for the same event so we do some deduping
     if (!isset($list[$digest_type][$digest_value]['line'][$event->eid])) {
       $line = notifications_digest_line($event, $send_method, $language);
+      $messsage->text_parts['list'][$digest_type][$digest_value]['line'][$event->eid] = $line;
       $objects['event'] = $event; 
       $list[$digest_type][$digest_value]['line'][$event->eid] = messaging_template_text_replace($line, $objects);
     }
   }
-  // Create message. Do all this in one replacement, then strip out the subject
-  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $language, $module);
-  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $language, $module);
-  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $language, $module);
 
-  // We dont pass a subscription object here, won't be too much use anyway
-  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
-  
   // Compose body. All these lines have been text replaced
-  $body = theme('notifications_digest_short_body', $text, $list);
-    
-  // Build the final digested message, and return in an array
-  $message = array(
-    'subject' => $text['subject'], 
-    'body' => $body,
-    'language' => $language->language,
-  );
-  $message['notifications'] = array(
-    'events' => $events,
-    'subscriptions' => $subscriptions,
-    'digest' => 'short',  
-  );
+  $message->body = theme('notifications_digest_short_body', $text, $list);
 
   return array($message);
 }
@@ -230,50 +228,47 @@ function notifications_digest_build_short($send_method, $destination, $events, $
  * 
  * @return array with messages ready to be sent
  */
-function notifications_digest_build_long($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
-  $account = $destination->get_account();
-  $language = $destination->get_language();
+function notifications_digest_build_long($template, $events, $subscriptions, $module = 'notifications') {
+  $send_method = $template->method;
+  $destination = $template->get_destination();
+  $account = $template->get_user();
+  $language = $template->get_language();
+  
+  // Build a unique message from this template
+  $message = clone $template;
 
+  // Main texts of the message, get all in one replacement, then strip out the subject
+  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $language, $module);
+  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $language, $module);
+  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $language, $module);
+  $message->text_parts = $text;
+
+  // We dont pass a subscription object here, won't be too much use anyway
+  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
+  $message->subject = $text['subject'];
+  
   // Build the message body as an array of event notifications
   $body = array();
-
   // Build up the digested list with text replacement, body as big array
   // We need text replacement for each line because it depends on different objects
   foreach ($events as $event) {
     notifications_debug('Digesting long format', array('event' => $event));
+    $event_subscriptions = isset($subscriptions[$event->eid]) ? array_filter($subscriptions[$event->eid]) : array();
+    $message->add_event($event, $event_subscriptions);
     // We use the regular template for the events
     $part = array();
     $part[] = notifications_event_message_part($event, 'subject', $send_method, $language, $module);
     $part[] = notifications_event_message_part($event, 'main', $send_method, $language, $module);
     // Pass only the first subscription here
-    $sid = isset($subscriptions[$event->eid]) && is_array($subscriptions[$event->eid]) ? array_shift($subscriptions[$event->eid]) : 0;
-    $subscription = $sid ? notifications_load_subscription($sid) : NULL;
+    $subscription = $event_subscriptions ? notifications_load_subscription(current($event_subscriptions)) : NULL;
     $objects = $event->get_objects() + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
     $body = array_merge($body, messaging_template_text_replace($part, $objects));
+    $message->text_parts['list'][$event->eid] = $part;
   }
-  
-  // Create message. Do all this in one replacement, then strip out the subject
-  $text['subject'] = notifications_digest_message_part('subject', $send_method, NULL, NULL, $language, $module);
-  $text['header'] = notifications_digest_message_part('header', $send_method, NULL, NULL, $language, $module);
-  $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $language, $module);
 
-  // We dont pass a subscription object here, won't be too much use anyway
-  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
+  // Compose subject and body. All these lines have been text replaced, chance for theming
+  $message->body = theme('notifications_digest_long_body', $text['header'], $body, $text['footer']);
   
-  // Compose body. All these lines have been text replaced, chance for theming
-  $body = theme('notifications_digest_long_body', $text['header'], $body, $text['footer']);
-  
-  // Build the final digested message, and return in an array
-  $message = array(
-    'subject' => $text['subject'], 
-    'body' => $body,
-    'language' => $language->language,
-  );
-  $message['notifications'] = array(
-    'events' => $events,
-    'subscriptions' => $subscriptions,
-    'digest' => 'long',  
-  );
   return array($message);
 }
 
