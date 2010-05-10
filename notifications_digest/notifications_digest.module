@@ -9,7 +9,7 @@
 /**
  * Implementation of hook_notifications()
  */
-function notifications_digest_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_digest_notifications($op) {
   switch ($op) {
     case 'build methods':
       // Return array of digesting engines
