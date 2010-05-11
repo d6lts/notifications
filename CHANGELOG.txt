@@ -1,6 +1,18 @@
 // $Id$
 
-6.x-4.x-beta1 to ..........
+6.x-4.x-beta3 to 6.x-4.x-beta4
+------------------------------
+- Added some tests for anonymous subscriptions
+- Added method has_condition() to Notifications_Subscription
+- Added permission check for new subscriptions before submission
+- Fixed issues with loading objects stored with the event
+- Added hidden variables for step rows, step users, changed defaults
+- Added Notifications_Message class, will handle some notifications specific properties of messages.
+- New hook_notifications_message_alter()
+- Fixed multiple "Call-time pass-by-reference has been deprecated", #782138,
+- Fixed: editing custom subscriptions was failing
+
+6.x-4.x-beta1 to 6.x-4.x-beta3
 --------------------------------
 - Reworked link generation for both registered and anonymous
 - More robust signed links with timestamp and query string

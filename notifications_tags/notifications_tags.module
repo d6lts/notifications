@@ -38,7 +38,7 @@ function notifications_tags_perm() {
 /**
  * Implementation of hook_notifications().
  */
-function notifications_tags_notifications($op, &$arg0, $arg1 = NULL, $arg2 = NULL) {
+function notifications_tags_notifications($op) {
   switch ($op) {
 
     case 'subscription types':
