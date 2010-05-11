@@ -62,8 +62,7 @@ class NotificationsCustomTests extends NotificationsTestCase {
     $story = $this->drupalCreateNode(array('type' => 'story', 'uid' => $author->uid));
     $page = $this->drupalCreateNode(array('type' => 'page', 'uid' => $author->uid));
     $this->assertUserRows('notifications_queue', 3, $user->uid);
-    notifications_include('process.inc');
-    notifications_process_run();
+    $this->notificationsProcessQueue(3, 0);
     $this->assertUserRows('notifications_queue', 0, $user->uid, 'All rows in queue have been processed');
     $messages = messaging_simple_get_messages(array('uid' => $user->uid));
     $this->assertTrue(count($messages), 2, 'Two messages have been sent to the user.');

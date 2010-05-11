@@ -55,4 +55,28 @@ class NotificationsTestCase extends MessagingTestCase {
     $settings = array_keys(notifications_subscription_types());
     variable_set('notifications_content_type', $enable ? $settings : array());
   }
+  // Create comment
+  function drupalCreateComment($node, $comment = array()) {
+     $comment += array(
+      'subject' => $this->randomName(8),
+      'comment' => $this->randomName(32),
+      'uid' => $node->uid,
+      'nid' => $node->nid,
+      'status' => COMMENT_PUBLISHED,
+      'cid' => 0, 'pid' => 0, 'format' => FILTER_FORMAT_DEFAULT, 
+    );
+    $cid = comment_save($comment);
+    $this->assertTrue($cid, "Successfully created comment: $cid for node $node->nid ($node->type).");
+    return _comment_load($cid);
+  }
+  // Process queued notifications
+  function notificationsProcessQueue($before = 0, $after = 0) {
+    notifications_include('process.inc');
+    if ($before) {
+      $this->assertTableRows('notifications_queue', $before);
+    }
+    $count = notifications_process_run(FALSE);
+    $this->assertTrue($count, "Processed $count rows from notifications queue.");
+    $this->assertTableRows('notifications_queue', $after);
+  }
 }

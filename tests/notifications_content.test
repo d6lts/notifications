@@ -268,22 +268,12 @@ class NotificationsContentTests extends NotificationsTestCase {
     $this->assertRowCount('notifications_event', 1);
     $this->assertRowCount('notifications_queue', 1);
     // Create unpublished comment, should produce nothing
-    $comment = array(
-      'subject' => 'Test comment subject',
-      'comment' => 'Test comment',
-      'uid' => $author->uid,
-      'nid' => $node->nid,
-      'status' => COMMENT_NOT_PUBLISHED,
-      'cid' => 0, 'pid' => 0, 'format' => FILTER_FORMAT_DEFAULT, 
-    );
-    $cid = comment_save($comment);
-    $this->assertTrue($cid, 'Successfully created comment: ' . $cid);
+    $comment = $this->drupalCreateComment($node, array('status' => COMMENT_NOT_PUBLISHED));
     $this->assertRowCount('notifications_event', 1);
     $this->assertRowCount('notifications_queue', 1);
     // Now publish comment and check again
-    $comment = (array)_comment_load($cid);
-    $comment['status'] = COMMENT_PUBLISHED;
-    comment_save($comment);
+    $comment->status = COMMENT_PUBLISHED;
+    comment_save((array)$comment);
     $this->assertRowCount('notifications_event', 2);
     $this->assertRowCount('notifications_queue', 2);        
   }
