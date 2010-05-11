@@ -168,7 +168,7 @@ class Notifications_Event extends Messaging_Cached_Object {
         foreach ($this->params['objects'] as $type => $value) {
           if (is_object($value)) {
             // This object was serialized along with the event, just set it
-            $this->objects[$type] = $object;
+            $this->objects[$type] = $value;
           }
           elseif ($object = notifications_object_load($type, $value)) {
             $this->objects[$type] = $object;

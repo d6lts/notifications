@@ -12,8 +12,8 @@
  */
 
 // Number of users to process for each step
-define('NOTIFICATIONS_STEP_ROWS', 1000);
-define('NOTIFICATIONS_STEP_USERS', 1000);
+define('NOTIFICATIONS_STEP_ROWS', variable_get('notifications_step_rows', 1000));
+define('NOTIFICATIONS_STEP_USERS', variable_get('notifications_step_users', 200));
 
 // Minimum amount of seconds the process will need for clean-up tasks
 // Just to make sure that after exhausting cron assigned time we'll have a few spare seconds for some cleanup
