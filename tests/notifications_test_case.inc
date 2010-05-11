@@ -41,7 +41,11 @@ class NotificationsTestCase extends MessagingTestCase {
     }
     // Submit the form and check confirmation page
     $this->drupalPost(NULL, $post, t('Subscribe'));
-    $this->assertText(t('Your subscription has been created.')); 
+    $this->assertText(t('Your subscription has been created.'));
+    $subs = notifications_get_subscriptions(array('uid' => $user->uid, 'type' => $type), $fields);
+    $subscription = array_shift($subs);
+    $this->assertTrue($subscription, "The subscription object can be retrieved from the db.");
+    return $subscription;
   }
   // Enable all UI optional pages
   function enableUIPages($enable = TRUE) {    

@@ -1561,7 +1561,7 @@ function notifications_build_url($op, $type = 'subscription', $object = NULL, $p
  *   Link options
  */
 function notifications_subscription_get_link($op, $subscription, $options = array()) {
-  $options = array('destination' => $_GET['q']);
+  $options += array('destination' => $_GET['q']);
   if ($op == 'subscribe' && variable_get('notifications_ui_subscribe_links', 0)) {
     $options += array('signed' => TRUE, 'confirm' => FALSE);
   }

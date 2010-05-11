@@ -38,7 +38,7 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     $anonymous = drupal_anonymous_user();
     $mail = $this->createMail();
     // Create a content type subscription
-    $this->anonymousCreateSubscription($mail, 'nodetype', array('type' => $ctype->type));
+    $subscription = $this->anonymousCreateSubscription($mail, 'nodetype', array('type' => $ctype->type));
   
     // Create a node and a comment and check the subscription has worked
     $author = $this->drupalCreateUser(array("create $ctype->type content", 'post comments'));
@@ -54,12 +54,19 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     $message2 = array_shift($messages);
     $this->assertTrue(strpos($message1->body, $node->body), "One message sent for the node post.");
     $this->assertTrue(strpos($message2->body, $comment->subject), "One message sent for the comment.");
+    
+    // Unsubscribe with a signed link
+    $link = notifications_subscription_get_link('unsubscribe', $subscription, array('absolute' => TRUE, 'destination' => ''));
+    $this->drupalGet(url($link['href'], $link['options']));
+    $this->assertText('Are you sure you want to delete this subscription?');
+    $this->drupalPost(NULL, array(), t('Unsubscribe'));
+    $this->assertText('Your subscription has been removed.');
   }
   
   function anonymousCreateSubscription($mail, $type, $fields, $messages = array()) {
     $anonymous = drupal_anonymous_user();
     $post["destination_address[mail]"] = $mail;
-    $this->contentCreateSubscription($anonymous, $type, $fields, $messages, $post);
+    return $this->contentCreateSubscription($anonymous, $type, $fields, $messages, $post);
   }
   
   function createMail() {
