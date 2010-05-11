@@ -57,7 +57,9 @@ class Notifications_Subscription extends Messaging_Object {
   public $incomplete;
   // Mark when editable
   public $editable;
-
+  // Temporary error message, to display when validation fails
+  public $error_message;
+  
   /**
    * Class constructor
    */
@@ -387,8 +389,11 @@ class Notifications_Subscription extends Messaging_Object {
    * Get fields as array of field => value pairs
    * 
    * Duplicate fields are returned as field => array(value1, value2...)
+   * 
+   * @param $type
+   *   Optional to just return the values for some field type
    */
-  function get_conditions() {
+  function get_conditions($type = NULL) {
     $list = array();
     foreach ($this->get_fields() as $field) {
       // We cannot simply use isset() because the value may be NULL
@@ -402,8 +407,21 @@ class Notifications_Subscription extends Messaging_Object {
         $list[$field->field] = array($list[$field->field], $field->value);
       }
     }
-    return $list;   
+    if (isset($type)) {
+      return isset($list[$type]) ? $list[$type] : NULL;
+    }
+    else {
+      return $list;
+    }
   }
+  /**
+   * Check whether we have a given condition
+   */
+  function has_condition($type, $value) {
+    $conds = $this->get_conditions($type);
+    return isset($conds) && (is_array($conds) && in_array($value, $conds) || !is_array($conds) && $conds === $value);
+  }
+
   /**
    * Order and serialize fields so we can get a unique signature for this subscription fields
    */

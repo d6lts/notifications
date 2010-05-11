@@ -463,10 +463,21 @@ function notifications_subscription_base_form_submit($form, &$form_state) {
  * Submit subscription printing out the results
  */
 function notifications_submit_subscription($subscription) {
+  global $user;
+  
   $instance = $subscription->is_instance();
   // Check the destination is ok, it may need to be rebuilt
   if (!$subscription->check_destination()) {
     drupal_set_message(t('The destination method or address for the subscription is not valid.'));
+    return FALSE;
+  }
+  if (!notifications_user_allowed('subscription', $user, $subscription)) {
+    if (!empty($subscription->error_message)) {
+      drupal_set_message($subscription->error_message);
+    }
+    else {
+      drupal_set_message(t("You are not allowed to create this type of subscription."));
+    }
     return FALSE;
   }
   $result = notifications_save_subscription($subscription);
