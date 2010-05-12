@@ -126,6 +126,8 @@ function notifications_query_sql($query, $execute = FALSE) {
  *   
  */
 function notifications_query_queue_event($event) {
+  notifications_include('object.inc');
+
   $query = array();
   // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
   // If no arguments retrieved, skip this step
