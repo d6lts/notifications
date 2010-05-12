@@ -54,10 +54,8 @@ function notifications_tools_drush_help($section) {
  *   Maximum number of rows to process
  */
 function notifications_drush_queue_process($rows = NULL, $messages = NULL) {
-  // We need to override autoload_class() so it works with Drush.
-  // The prepend parameter is PHP 5.3 so we better unregister autoload_class() too
-  spl_autoload_register('notifications_drush_autoload_class');
-  spl_autoload_unregister('autoload_class');
+  // We need to run our drush hack included with messaging.
+  messaging_include('drush_hack.inc');
 
   notifications_include('process.inc');
   // If passed a time limit we set it before, it will not be overridden by settings.
@@ -71,17 +69,3 @@ function notifications_drush_queue_process($rows = NULL, $messages = NULL) {
   drush_print(dt("Processed @rows rows, sent @messages messages in @time ms.", notifications_process('results'))); 
 }
 
-/**
- * Autoload hack, so autoload paths work with drush
- */
-function notifications_drush_autoload_class($class) {
-  static $lookup;
-
-  if (!isset($lookup)) {
-    $lookup = autoload_get_lookup();
-  }
-
-  if (!empty($lookup[$class]) && ($path = realpath($lookup[$class]))) {
-    require $path;
-  }
-}
