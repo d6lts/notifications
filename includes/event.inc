@@ -14,15 +14,7 @@
  *   Update event counter
  */
 function notifications_event_clean($update = FALSE) {
-  // This expiretime will prevent some race condition that occurs when the event is saved but the subs queue not yet populated  
-  $expiretime = time() - 60; 
-  if ($update) {
-    // Update event counter, which keeps the number of notifications pending for each event
-    db_query("UPDATE {notifications_event} e SET counter = (SELECT COUNT(*) FROM {notifications_queue} q WHERE q.eid = e.eid ) WHERE e.created < %d", $expiretime);
-  }
-  db_query("DELETE FROM {notifications_event} WHERE counter = 0 AND created < %d", $expiretime);
-  // Delete events with no pending notifications. As events are created sequentially, we use this fact to speed up the query
-  db_query("DELETE FROM {notifications_event} WHERE created < %d AND eid < (SELECT MIN(eid) FROM {notifications_queue})", $expiretime); 
+  return notifications_queue()->event_clean($update);
 }
 
 /**
@@ -116,7 +108,7 @@ function notifications_event_process_immediate() {
   if ($events = notifications_event_send_immediate()) {
     notifications_include('process.inc');
     foreach ($events as $event) {
-      notifications_process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
+      notifications_queue()->process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
     }    
   }
 }
@@ -201,8 +193,12 @@ function notifications_event_trigger($event) {
     // Send event to queue for subscriptions, unless marked not to
     if ($event->queue) {
       $event->queued = TRUE;
-      notifications_include('query.inc');
-      $count = notifications_query_queue_event($event);
+      $event->counter = notifications_queue()->queue_event($event);
+
+      // Modules can do cleanup operations or modify the queue or the event counter
+      module_invoke_all('notifications_event', 'queued', $event);
+      $count = $event->counter;
+
       // Now update event counter with rows in notifications_queue or delete if no rows
       if ($count) {
         $event->update_counter($count);

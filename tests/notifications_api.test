@@ -144,10 +144,10 @@ class NotificationsBasicTests extends NotificationsTestCase {
     // We should have two rows, try a few things with them
     $this->assertEqual($this->countQueued(), 2, 'We have two rows in queue' );
     variable_set('notifications_log', 1);
-    notifications_queue_done(array('type' => 'test'));
+    notifications_queue()->queue_done(array('type' => 'test'));
     $this->assertEqual($this->countQueued(array('cron' => 0)), 2, 'Both rows have been marked as done' );
     variable_del('notifications_log');
-    notifications_queue_done(array('type' => 'test'));
+    notifications_queue()->queue_done(array('type' => 'test'));
     $this->assertEqual($this->countQueued(array('cron' => 0)), 0, 'Both rows have been deleted' );
   }
 

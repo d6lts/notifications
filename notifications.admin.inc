@@ -364,8 +364,7 @@ function notifications_admin_subscriptions_settings_submit($form, &$form_state) 
   if ($disabled) {
     drupal_set_message(t('@count existing subscriptions have been disabled.', array('@count' => $disabled)), 'warning');
     // Delete rows from queue and do some clean up.
-    notifications_include('process.inc');
-    notifications_queue_clean(FALSE);
+    notifications_queue()->queue_clean(FALSE);
   }
   
 }

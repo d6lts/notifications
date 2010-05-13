@@ -88,13 +88,12 @@ function notifications_tools_queue_summary() {
   $send_intervals = _notifications_send_intervals();
   $send_methods = _notifications_send_methods();
   $header = array(t('Send interval'), t('Number'));
-  $result = db_query("SELECT q.send_interval, q.send_method, count(*) AS count FROM {notifications_queue} q WHERE q.cron = 1 GROUP BY q.send_interval, q.send_method");    
-  // Store by interval, method 
+  $count = notifications_queue()->queue_count(array('cron' => 1));
+  $queue_status = notifications_queue()->queue_status(array('send_interval', 'send_method'));
+  // Compile by interval, method 
   $data = array();
-  $count = 0;
-  while ($item = db_fetch_object($result)) {
+  foreach ($queue_status as $item) {
     $data[$item->send_interval][$item->send_method] = $item->count;
-    $count += $item->count;
   }
   // Format the results in a table
   $rows = array();
@@ -179,14 +178,14 @@ function notifications_tools_queue_operations() {
     'run' => array(
       'label' => t('Run process'),
       'description' => t('Run normal queue processing, same as cron run.'),
-      'callback' => 'notifications_process_run',
-      'callback arguments' => array(FALSE),
+      'callback' => 'notifications_tools_queue_process',
+      'callback arguments' => array('process run'),
     ),
     'immediate' => array(
       'label' => t('Process immediate'),
       'description' => t('Process only rows marked for immediate sending.'),
-      'callback' => 'notifications_process_rows',
-      'callback arguments' => array(array('cron' => 1, 'send_interval' => 0)),
+      'callback' => 'notifications_tools_queue_process',
+      'callback arguments' => array('process rows', array('cron' => 1, 'send_interval' => 0)),
     ),
     'clean' => array(
       'label' => t('Clean queue'),
@@ -219,24 +218,29 @@ function notifications_tools_queue_operations() {
 /**
  * Queue operations callback
  */
-function notifications_tools_queue_process($op) {
+function notifications_tools_queue_process($op, $args = NULL) {
   switch ($op) {
+    case 'process run':
+      notifications_queue()->process_run();
+      break;
+    case 'process rows':
+      notifications_queue()->process_rows($args);
+      break;
     case 'reset queue':
-      db_query("DELETE FROM {notifications_queue}");
-      db_query("DELETE FROM {notifications_event}");
+      notifications_queue()->queue_reset();
       drupal_set_message(t('The queue has been reset.'));
       break;
     case 'test run':
-      notifications_process('option', 'test', TRUE);
-      notifications_process_run(FALSE);
+      notifications_queue()->process_option('test', TRUE);
+      notifications_queue()->process_run();
       break;
     case 'test send':
-      notifications_process('option', 'keep', TRUE);
-      notifications_process_run(FALSE);
+      notifications_queue()->process_option('keep', TRUE);
+      notifications_queue()->process_run();
       break;
     case 'clean queue':
       // Delete logs and clean up events
-      notifications_queue_clean(array('cron' => 0));
+      notifications_queue()->queue_clean(array('cron' => 0));
       break;      
   }
 }

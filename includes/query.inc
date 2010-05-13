@@ -107,55 +107,6 @@ function notifications_query_sql($query, $execute = FALSE) {
 }
 
 /**
- * Queue events for notifications adding query conditions from plug-ins
- * 
- * This is an example of the resulting query
- *
- * INSERT INTO {notifications_queue} (uid, sid, module, eid, send_interval, send_method, cron, created, conditions)
- * SELECT DISTINCT s.uid, s.sid, s.module, 34, s.send_interval, s.send_method, s.cron, 1230578161, s.conditions FROM notifications s 
- * INNER JOIN notifications_fields f ON s.sid = f.sid 
- * WHERE s.status = 1 AND s.event_type = 'node' AND s.send_interval >= 0 
- * AND ((f.field = 'nid' AND f.value = '2') OR (f.field = 'type' AND f.value = 'story') OR (f.field = 'author' AND f.value = '1'))
- * GROUP BY s.uid, s.sid, s.module, s.send_interval, s.send_method, s.cron, s.conditions 
- * HAVING s.conditions = count(f.sid)
- *
- * @param $event
- *   Event object
- * @return int
- *   Number of queued rows
- *   
- */
-function notifications_query_queue_event($event) {
-  notifications_include('object.inc');
-
-  $query = array();
-  // Build big insert query using the query builder. The fields for this event type will be added by the plug-ins. 
-  // If no arguments retrieved, skip this step
-  if ($query_args = module_invoke_all('notifications_event', 'query', $event)) {
-    // Build a query skeleton and add parameters for each module separately
-    $query = notifications_query_event_queue($event);
-    foreach ($query_args as $query_params) {
-      $query = notifications_query_build($query_params, $query);
-    }
-    
-    // Give a chance to other modules to alter the query or empty it so we don't throw it
-    drupal_alter('notifications_query', $query, $event);
-    
-    // Finally we build the SELECT part of the query and glue it to the INSERT
-    if ($query) {
-      list($sql, $args) = notifications_query_sql($query);
-      db_query($sql, $args);
-    }
-  }
-
-  // Modules can do cleanup operations or modify the queue
-  module_invoke_all('notifications_event', 'queued', $event, $query);
-  
-  // Return number of queued rows
-  return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid));
-}
-
-/**
  * Build a query skeleton for inserting an event into the queue. 
  * 
  * This can be reused by other modules to build their custom queue queries

@@ -157,7 +157,7 @@ function notifications_lite_queue_event($event) {
       'created' => time(),
       'conditions' => 0,
     );
-    drupal_write_record('notifications_queue', $queue);
+    notifications_queue()->queue_item($queue);
     // Run hooks and store for immediate sending
     module_invoke_all('notifications_event', 'queued', $event);
     notifications_event_send_immediate($event);

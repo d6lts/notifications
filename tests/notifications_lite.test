@@ -44,8 +44,8 @@ class NotificationsLiteTests extends NotificationsTestCase {
     //$this->dumpTable('notifications_event');
     //$this->dumpTable('messaging_destination');
     // Send, and check again
-    $sqid = notifications_process_prepare();
-    $count = notifications_process_queue($send_interval, $sqid);
+    $sqid = notifications_queue()->process_prepare();
+    $count = notifications_queue()->process_queue($send_interval, $sqid);
     $this->assertEqual($count, 2, "Processed two rows in queue ($count)");
     // After processing, events must be gone from the table
     $this->assertTableRows('notifications_event', 0);
@@ -114,7 +114,7 @@ class NotificationsLiteTests extends NotificationsTestCase {
     }
     // There should be one queued notification and one event for each message
     $this->assertUserRows('notifications_queue', $count, $uid, "We have $count notifications in queue");
-    $rows = notifications_process_rows(array('uid' => $uid));
+    $rows = notifications_queue()->process_rows(array('uid' => $uid));
     $this->assertEqual($count, $rows, "Processed all rows in queue ($rows)");
     return $messages;
   }

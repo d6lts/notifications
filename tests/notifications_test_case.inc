@@ -21,12 +21,7 @@ class NotificationsTestCase extends MessagingTestCase {
    * Helper function. Simple row counting with conditions, uses query builder
    */
   function countQueued($params = NULL) {
-    if ($params) {
-      $query = notifications_queue_query($params);
-      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE ' . implode(' AND ', $query['where']), $query['args']));
-    } else {
-      return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue}'));
-    }
+    return Notifications_Queue::queue_count($params);
   }
   /**
    * Helper function to create a subscription
@@ -79,7 +74,7 @@ class NotificationsTestCase extends MessagingTestCase {
     if ($before) {
       $this->assertTableRows('notifications_queue', $before);
     }
-    $count = notifications_process_run(FALSE);
+    $count = notifications_queue()->process_run();
     $this->assertTrue($count, "Processed $count rows from notifications queue.");
     $this->assertTableRows('notifications_queue', $after);
   }

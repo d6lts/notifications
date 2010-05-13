@@ -226,12 +226,12 @@ class NotificationsContentTests extends NotificationsTestCase {
     $send_method = notifications_user_setting('send_method', $user);
     $send_interval = notifications_user_setting('send_interval', $user);
     // Simulate real queue processing and check queue has been cleaned.
-    $max_sqid = notifications_process_prepare();
+    $max_sqid = notifications_queue()->process_prepare();
     $this->assertEqual($max_sqid > 0, TRUE, 'Cleanup and queue prepare.');
     // Dirty trick for processing only these rows
     db_query("UPDATE {notifications_queue} SET module = 'notificationstesting' WHERE uid = %d", $user->uid);
 
-    notifications_process_queue($send_interval, $max_sqid);
+    notifications_queue()->process_queue($send_interval, $max_sqid);
     //$count = db_result(db_query("SELECT count(*) FROM {notifications_queue} WHERE uid = %d", $user->uid));
     $this->assertEqual($this->countUserRows('notifications_queue', $user->uid), 0, 'All rows in queue have been processed.');
     $this->assertTableRows('notifications_event', 0, NULL, 'Events have been processed and deleted.');

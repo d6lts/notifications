@@ -548,7 +548,7 @@ function notifications_update_user_subscriptions_submit($form, $form_state) {
       break;
     case 'disable':
       db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_INACTIVE, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
-      notifications_queue_clean(array('uid' => $account->uid));
+      notifications_queue()->queue_clean(array('uid' => $account->uid));
       drupal_set_message(t('All your subscriptions have been disabled.'));
       break;
   }

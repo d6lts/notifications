@@ -37,6 +37,7 @@ function notifications_autoload_info() {
     'Notifications_Event' => array('file' => 'includes/notifications_event.class.inc'),
     'Notifications_Subscription' => array('file' => 'includes/notifications_subscription.class.inc'),
     'Notifications_Message' => array('file' => 'includes/notifications_message.class.inc'),
+    'Notifications_Queue' => array('file' => 'includes/notifications_queue.class.inc'),
   ); 
 }
 
@@ -391,8 +392,7 @@ function notifications_user($type, $edit, $user, $category = NULL) {
         if ($edit['status'] == 0) { // user is being blocked now
           // Delete pending notifications and block existing active subscriptions
           db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
-          notifications_include('process.inc');
-          notifications_queue_clean(array('uid' => $user->uid));
+          notifications_queue()->queue_clean(array('uid' => $user->uid));
         }
         else {
           // User may be being unblocked, unblock subscriptions if any
@@ -784,9 +784,11 @@ function notifications_subscription_delete($sid) {
     $where = "sid = %d";
     $cache[$sid] = NULL;
   }
-  foreach (array('notifications', 'notifications_fields', 'notifications_queue') as $table) {
+  foreach (array('notifications', 'notifications_fields') as $table) {
     db_query("DELETE FROM {". $table ."} WHERE " . $where, $sid);
   }
+  // Delete queued notifications for this subscription
+  notifications_queue()->queue_delete(array('sid' => $sid));
 }
 
 /**
@@ -1382,9 +1384,8 @@ function notifications_event_types($typekey = NULL, $property = NULL, $disabled 
  */
 function notifications_cron() {
   if (variable_get('notifications_process_on_cron', TRUE)) {
-    notifications_include('process.inc');
-    if (notifications_process_run(TRUE)) {
-      watchdog('notifications', 'Processed notifications in queue: @rows rows, @messages messages sent, @time milliseconds.', notifications_process('results'));
+    if (notifications_queue()->process_cron()) {
+      watchdog('notifications', 'Processed notifications in queue: @rows rows, @messages messages sent, @time milliseconds.', notifications_queue()->process_control('results'));
     }
   }
 }
@@ -2002,4 +2003,21 @@ function &notifications_info($name, $param = NULL, $refresh = FALSE) {
     drupal_alter('notifications_' . strtr(' ', '_', $name), $info);
   }      
   return $info;
+}
+
+/**
+ * Entry point for the storage and queueing API
+ * 
+ * Default methods are implemented by Notifications_Queue class
+ * 
+ * This API can be replaced by setting a new class name in the 'notifications_queue' variable.
+ */
+function notifications_queue() {
+  static $queue;
+  if (!isset($queue)) {
+    $class = variable_get('notifications_queue', 'Notifications_Queue');
+    $queue = new $class();
+  }
+  //return call_user_func_array(array($class, $method), $args);
+  return $queue;
 }

@@ -521,8 +521,7 @@ function notifications_destination_message_build($template , $send_method, $dest
  */
 function notifications_destination_method_replace($old, $new) {
   // Purge notifications queue, we may lose some notifications but it's the safest option.
-  db_query("DELETE FROM {notifications_queue} WHERE send_method = '%s'", $old);
-  $deleted = db_affected_rows();
+  $deleted = notifications_queue()->queue_delete(array('send_method' => $old));
   if ($new) {
     $old_type = messaging_method_info($old, 'address_type');
     $new_type = messaging_method_info($new, 'address_type');

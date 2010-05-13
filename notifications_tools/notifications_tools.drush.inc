@@ -57,15 +57,15 @@ function notifications_drush_queue_process($rows = NULL, $messages = NULL) {
   // We need to run our drush hack included with messaging.
   messaging_include('drush_hack.inc');
 
-  notifications_include('process.inc');
+  $queue = notifications_queue();
   // If passed a time limit we set it before, it will not be overridden by settings.
   if (isset($rows)) {
-    notifications_process('limit', 'row', (int)$rows);
+    $queue->process_limit('row', (int)$rows);
   }
   if (isset($messages)) {
-    notifications_process('limit', 'message', (int)$messages);
+    $queue->process_limit('message', (int)$messages);
   }
-  $count = notifications_process_run(FALSE);
+  $count = $queue->process_run();
   drush_print(dt("Processed @rows rows, sent @messages messages in @time ms.", notifications_process('results'))); 
 }
 
