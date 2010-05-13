@@ -167,10 +167,12 @@ class Notifications_Queue {
         }
         timer_start('notifications_process');
         break;
+ 
       case 'stop':
         $timer = timer_stop('notifications_process');
         $this->process_current['timer'] = $timer['time'];
         return $timer;
+
       case 'cron':
         // Calculate time limit. We get the smaller of all these times in seconds
         // There's an issue with poormanscron not setting the cron semaphore so it will default to current time
@@ -192,17 +194,21 @@ class Notifications_Queue {
           $this->process_limit['time'] = min($timelimit);
         }
         break;
+
       case 'init':
         $this->process_current[$name] = 0;
         $this->process_limit[$name] = $value;
         break;
+
       case 'current':
         // Return current value for counter
         return isset($this->process_current[$name]) ? $this->process_current[$name] : 0;
+
       case 'count':
         $value =  $value ? $value : 1;
         isset($this->process_current[$name]) ? ($this->process_current[$name] += $value) : $this->process_current[$name] = $value;
         break;
+
       case 'check':
         // Check all limits till we find a false one
         $this->process_current['time'] = time();
@@ -215,6 +221,7 @@ class Notifications_Queue {
           }
         }
         return TRUE;
+
       case 'results':
         // Return array of variables needed to print out some messages
         return array(

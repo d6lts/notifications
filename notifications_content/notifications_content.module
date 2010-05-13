@@ -24,12 +24,11 @@ function notifications_content_menu() {
   // User pages, will be disabled by default
   $items['user/%user/notifications/thread'] = array(
     'type' => MENU_LOCAL_TASK,
-    'access callback' => FALSE, 
-    'access arguments' => FALSE,
+    'access callback' => FALSE,
     'title' => 'Thread',
-    'weight' => 10,
     'page callback' => 'notifications_user_subscription_list_page',
     'page arguments' => array('thread', 1),
+    'weight' => 10,
   );
   $items['user/%user/notifications/nodetype'] = array(
     'type' => MENU_LOCAL_TASK,
@@ -47,7 +46,14 @@ function notifications_content_menu() {
     'page arguments' => array('author', 1),
     'weight' => 10,
   );
-
+  $items['user/%user/notifications/typeauthor'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => FALSE,
+    'title' => t('Content type by author'),
+    'page callback' => 'notifications_user_subscription_list_page',
+    'page arguments' => array('typeauthor', 1),
+    'weight' => 10,
+  );
   return $items;
 }
 
@@ -227,13 +233,14 @@ function notifications_content_notifications($op) {
       $types['typeauthor'] = array(
         'event_type' => 'node',
         'object_type' => array('node', 'user'), // This makes sense per node and per user
-        'title' => t('Content type and Author'),
+        'title' => t('Content type by author'),
         'access' => 'subscribe to content type and author',
-        //'page callback' => 'notifications_content_page_author',
+        'page callback' => 'notifications_content_page_typeauthor',
+        'user page' => 'user/%user/notifications/typeauthor',
         'fields' => array('author', 'type'),
         'description' => t('Subscribe to all content of a given type submitted by a user.'),
         'name callback' => 'notifications_content_subscription_name',
-      );      
+      );
       return $types;
 
     case 'subscription fields':
