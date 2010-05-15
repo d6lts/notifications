@@ -1,7 +1,0 @@
-; $Id$
-name = Administration tools
-description = Administration tools to manage subscriptions and queued notifications
-package = "Notifications"
-dependencies[] = notifications
-core = 6.x
-php = 5.0
