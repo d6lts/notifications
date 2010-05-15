@@ -17,7 +17,8 @@ define('NOTIFICATIONS_STEP_USERS', variable_get('notifications_step_users', 200)
 
 // Minimum amount of seconds the process will need for clean-up tasks
 // Just to make sure that after exhausting cron assigned time we'll have a few spare seconds for some cleanup
-define('NOTIFICATIONS_TIME_MARGIN', 5);
+// Change this time for allowing more cron time to modules running cron after Notifications
+define('NOTIFICATIONS_TIME_MARGIN', variable_get('notifications_time_margin', 5));
 
 /**
  * Queue management and processing
@@ -31,6 +32,10 @@ class Notifications_Queue {
   public $process_current;
   public $process_options;
   public $process_max_sqid;
+  // Optional language to process only rows in this language. Not used yet.
+  // This can be used to run different languages in different crons and prent static caching issues.
+  public $process_language = NULL;
+
   /**
    * Callback for module dependent data
    * 
@@ -45,7 +50,7 @@ class Notifications_Queue {
    * @param $function
    *   Function name in module
    */
-   function process_callback() {
+   protected function process_callback() {
      $args = func_get_args();
      $module = array_shift($args);
      $function = array_shift($args);
@@ -392,20 +397,19 @@ class Notifications_Queue {
    *   Send interval to process
    * @param $max_sqid
    *   Max queue id to process
-   * @param $language
-   *   Optional language to process only rows in this language
    * 
    * @return Number of rows processed
-   * 
-   * @ TODO Review time conditions
-   * @ TODO Per module queue processing
    */
-  function process_queue($send_interval, $max_sqid, $language = NULL) {
+  function process_queue($send_interval, $max_sqid= NULL) {
+    $max_sqid = isset($max_sqid) ? $max_sqid : $this->process_prepare();
+    $language = $this->process_language;
+    
     notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max squid' => $max_sqid));
     // Option for test running, marking messages as test, nor updating not sending
     $test = $this->process_option('test');
     // Option for normal running but without updating the queue records
     $keep = $this->process_option('keep');
+
     // Count processed rows
     $count = 0;
     // This is the time from which stored rows will be sent
