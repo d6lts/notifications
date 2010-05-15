@@ -6,45 +6,65 @@
  * Notifications tools pages
  */
 
-require_once drupal_get_path('module', 'notifications') . '/notifications.manage.inc';
+
 /**
- * Current subscriptions page
+ * Admin settings
  */
-function notifications_tools_status_page() {
-  $output = '';
+function notifications_tools_queue_settings() {
+  $form['notifications_process_on_cron'] = array(
+    '#type' => 'radios',
+    '#title' => t('Process on cron'),
+    '#default_value' => variable_get('notifications_process_on_cron', TRUE),
+    '#options' => array(t('Disabled'), t('Enabled')),
+    '#description' => t('If disabled you must use code elsewhere to actually send your e-mails such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
+  );
   
-  // Subscriptions summary by type
-  $header = array(t('Type'), t('Number'));
-  $result = db_query("SELECT type, count(*) AS count FROM {notifications} GROUP BY type");
-  $count = 0;
-  $types = notifications_subscription_types();
-  $rows = array();
-  while ($stype = db_fetch_object($result)) {
-    $rows[] = array(
-      !empty($types[$stype->type]['title']) ? $types[$stype->type]['title'] : '<strong>' . $stype->type . '</strong>' , 
-      $stype->count);
-    $count += $stype->count;
-  }
-  $summary = theme('table', $header, $rows);
-  $summary .= t('Total: %number', array('%number' => $count));
-  $output .= theme('box', t('Subscriptions by type'), $summary);
-  
-  // Summary by sending method
-  $header = array(t('Method'), t('Number'));
-  $result = db_query("SELECT send_method, count(*) AS count FROM {notifications} GROUP BY send_method");
-  $rows = array();
-  while ($subs = db_fetch_object($result)) {
-    $name = messaging_method_info($subs->send_method, 'title');
-    $rows[] = array(
-      $name ? $name : '<strong>' . $subs->send_method . '</strong>' , 
-      $subs->count);
-  }
-  $summary = theme('table', $header, $rows);
-  $output .= theme('box', t('Subscriptions by send method'), $summary); 
-  
-  // Queue summary 
-  $output .= notifications_tools_queue_summary();
-  return $output;  
+  // Logging settings  
+  $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
+  $form['general']['notifications_log'] = array(
+    '#title' => t('Logging'),
+    '#type' => 'select',
+    '#options' => $period,
+    '#default_value' => variable_get('notifications_log', 0),
+    '#description' => t('If enabled all notifications will be logged and kept for the specified time after they\'re processed. These logs are kept into the <i>notifications_queue</i> table in the database.'),
+  );
+
+  // Processing limits
+  $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'percent' => 0, 'time' => 0));
+  $form['notifications_process_limit'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Limits for queue processing'),
+    '#tree' => TRUE,
+    '#description' => t('These are the limits for each run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+    '#collapsible' => TRUE,
+  );
+
+  $form['notifications_process_limit']['row'] = array(
+    '#title' => t('Number of rows'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['row'],
+  );
+  $form['notifications_process_limit']['message'] = array(
+    '#title' => t('Number of messages sent'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['message'],
+  );
+  $form['notifications_process_limit']['time'] = array(
+    '#title' => t('Time (seconds)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['time'],
+  );
+  $form['notifications_process_limit']['percent'] = array(
+    '#title' => t('Time (% of cron time)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['percent'],
+    '#description' => t('Maximum percentage of cron time the process may use.'),
+  );
+  return system_settings_form($form);
 }
 
 /**
@@ -62,21 +82,6 @@ function notifications_tools_admin_queue($op = 'run') {
     $output .= theme('box', t('Process log'), messaging_log_format($logs));
   }
   return $output;
-}
-
-/**
- * Menu callback: subscriptions administration.
- */
-function notifications_tools_manage_subscriptions($form_state) {
-  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
-    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
-  }
-  $form = notifications_subscriptions_filter_form(TRUE);
-
-  $form['#theme'] = 'notifications_subscriptions_filter_form';
-  $form['admin']  = notifications_manage_subscriptions_form();
-
-  return $form;
 }
 
 /**
@@ -245,171 +250,3 @@ function notifications_tools_queue_process($op, $args = NULL) {
   }
 }
 
-/**
- * Template testing form
- */
-function notifications_tools_template_test_form($form_state) {
-  global $user, $language;
-
-  module_load_include('admin.inc', 'notifications');
-  $message = !empty($form_state['values']['message']) ? $form_state['values']['message'] : NULL;
-  if ($message) {
-    $form['showmessage'] = array(
-      '#title' => t('Message'),
-      '#type' => 'item',
-      '#value' => _notifications_tools_format_message(array('subect' => $message->subject, 'body' => $message->body)),
-    );
-    $form['showtemplate'] = array(
-      '#title' => t('Template parts'),
-      '#type' => 'item',
-      '#value' => _notifications_tools_format_template($message->text_parts),
-    );
-  }
-  $form['type'] = array(
-    '#title' => t('Node type'),
-    '#type' => 'select',
-    '#options' => node_get_types('names'),
-    '#default_value' => isset($form_state['values']['type']) ? $form_state['values']['type'] : NULL,
-  );
-  $form['action'] = array(
-    '#title' => t('Action'),
-    '#type' => 'select',
-    '#options' => notifications_info('event actions'),
-    '#default_value' => isset($form_state['values']['action']) ? $form_state['values']['action'] : NULL,
-  );
-
-  $form['send_method'] = array(
-    '#title' => t('Send method'),
-    '#type' => 'select',
-    '#options' => notifications_send_methods($user),
-  );
-  $form['language'] = array(
-    '#title' => t('Language'),
-    '#type' => 'select',
-    '#options' => messaging_template_language_list(),
-    '#default_value' => isset($form_state['values']['language']) ? $form_state['values']['language'] : $language->language,
-  );
-  $form['node'] = array(
-    '#title' => t('Select node'),
-    '#type' => 'textfield',
-    '#default_value' => isset($form_state['values']['node']) ? $form_state['values']['node'] : NULL,
-    '#description' => t("Enter a node id. If empty, a dummy node will be generated with title 'Test title' and body 'Test body line' (x 5 lines)"),
-  );
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Try'),
-    '#submit' => array('notifications_tools_template_test_submit'),
-    '#description' => t('This test will generate fake events so only advised for development sites.'),
-  );
-  return $form;
-}
-
-/**
- * Process template test
- */
-function notifications_tools_template_test_submit(&$form, &$form_state) { 
-  global $user;
-  notifications_include('process.inc');
-
-  // Load node or build fake node
-  if ($nid = (int)$form_state['values']['node']) {
-    if (($node = node_load($nid)) && node_access('view', $node)) {
-      drupal_set_message(t('Loaded node type @type', array('@type' => $node->type)));
-    }
-  }
-  if (empty($node)) {
-    $type = $form_state['values']['type'];
-    $node = _notifications_tools_generate_content($type);
-    $node->nid = 1;
-    $node->uid = $user->uid;
-    $node->type = $type;
-  }
-  // Build fake event for node/action
-  $action = $form_state['values']['action'];
-  $objects['node'] = $node;
-  // Add comment if needed
-  if ($action == 'comment') {
-    $comment = _notifications_tools_generate_content('comment');
-    $comment->cid = 1;
-    $comment->uid = $user->uid;
-    $comment->nid = $node->nid;
-    $objects['comment'] = $comment;
-  }
-  $event = notifications_event_build(
-    array(
-     'eid' => 1,
-     'module' => 'node',
-     'type' => 'node',
-     'action' => $action,
-    ),
-    $objects
-  );
-  if (!$event->queue) {
-    drupal_set_message(t('That event type is not enabled though we try building a message for it.'), 'warning');
-  }
-
-  // Build the message and store it
-  $send_method = $form_state['values']['send_method'];
-  if ($destination = messaging_account_build_destination($user, $send_method)) {
-    $template = new Notifications_Message();
-    $template->method = $send_method;
-    $template->set_destination($destination);
-    $template->language = $form_state['values']['language'];
-    $message = notifications_process_build_simple_message($template, $event, array(), 'notifications');
-    // Store message and rebuild. The message will come with template information (text_parts);
-    $form_state['values']['message'] = $message;
-    $form_state['rebuild'] = TRUE;  
-  }
-  else {
-    drupal_set_message(t('Cannot build destination.'), 'warning');
-  }
-
-}
-
-/**
- * Generate fake node or comment
- */
-function _notifications_tools_generate_content($type) {
-  $node = new Stdclass();
-  $title = t('Test title for @type', array('@type' => $type));
-  for ($i = 1; $i <= 5; $i++) {
-    $body[] = t('Test body line @number for @type.', array('@number' => $i, '@type' => $type)); 
-  }
-  if ($type == 'comment') {
-    $node->subject = $title;
-    $node->comment = implode("\n", $body);
-  }
-  else {
-    $node->title = $title;
-    $node->body = implode("\n", $body);
-    $node->teaser = node_teaser($node->body);
-  }
-  return $node;
-}
-
-/**
- * Format resulting message array as table
- */
-function _notifications_tools_format_message($message) {
-  $rows = array();
-  foreach ($message as $key => $value) {
-    $rows[] = array($key, is_array($value) ?  _notifications_tools_format_message($value) : '<pre>' . check_plain($value) . '</pre>');
-  }
-  return theme('table', array(), $rows);
-}
-
-/**
- * Format template information as table
- */
-function _notifications_tools_format_template($parts) {
-  $rows = array();
-  $header = array('msgkey' => t('Key'), 'type' => t('Template'), 'method' => t('Method'), 'message' => t('Text'), 'language' => t('Language'), 'format' => t('Format'));
-  foreach ($parts as $key => $value) {
-    $row = array();
-    foreach (array_keys($header) as $field) {
-      $row[] = isset($value->$field) ? check_plain($value->$field) : '';
-    }
-    $rows[] = $row;
-  }
-  return theme('table', $header, $rows);
-}

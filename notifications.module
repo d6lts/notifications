@@ -85,16 +85,7 @@ function notifications_menu() {
     'access arguments' => array('administer site configuration'),
     'file' => 'notifications.admin.inc',
   );
-  $items['admin/messaging/notifications/queue'] = array(
-    'title' => 'Queue processing',
-    'description' => 'Parameters for processing queued notifications',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('notifications_admin_queue_settings'),
-    'type' => MENU_LOCAL_TASK,
-    'access arguments' => array('administer site configuration'),
-    'file' => 'notifications.admin.inc',
-    'weight' => 100, // Show the last one, there are dangerous settings here.
-  );
+
   $items['admin/messaging/notifications/subscriptions'] = array(
     'title' => 'Subscriptions',
     'description' => 'Subscriptions settings.',
@@ -228,6 +219,31 @@ function notifications_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'includes/node.inc',
   );
+  // Manage existing subscriptions
+  $items['admin/messaging/subscriptions'] = array(
+    'title' => 'Manage subscriptions',
+    'description' => 'Manage existing subscriptions.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_admin_manage_subscriptions'),
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+  ); 
+
+  $items['admin/messaging/subscriptions/admin'] = array(
+    'title' => 'Administer',
+    'description' => 'Administer subscriptions.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'access arguments' => array('administer notifications'),
+  );
+  $items['admin/messaging/subscriptions/status'] = array(
+    'title' => 'Status',
+    'description' => 'Summary of existing subscriptions.',
+    'page callback' => 'notifications_admin_status_page',
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+
   return $items;
 }
 

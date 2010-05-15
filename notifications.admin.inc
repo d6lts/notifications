@@ -1,6 +1,9 @@
 <?php
 // $Id$
 
+// Library for managing subscriptions, pages and forms
+require_once drupal_get_path('module', 'notifications') . '/notifications.manage.inc';
+
 /**
  * Implementation of hook_help()
  * 
@@ -27,6 +30,59 @@ function notifications_help($path, $arg) {
       return $output;
       
   }
+}
+
+/**
+ * Menu callback: subscriptions administration.
+ */
+function notifications_admin_manage_subscriptions($form_state) {
+  if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
+    return notifications_multiple_delete_confirm($form_state, array_filter($form_state['values']['subscriptions']));
+  }
+  $form = notifications_subscriptions_filter_form(TRUE);
+
+  $form['#theme'] = 'notifications_subscriptions_filter_form';
+  $form['admin']  = notifications_manage_subscriptions_form();
+
+  return $form;
+}
+
+/**
+ * Current subscriptions page
+ */
+function notifications_admin_status_page() {
+  $output = '';
+  
+  // Subscriptions summary by type
+  $header = array(t('Type'), t('Number'));
+  $result = db_query("SELECT type, count(*) AS count FROM {notifications} GROUP BY type");
+  $count = 0;
+  $types = notifications_subscription_types();
+  $rows = array();
+  while ($stype = db_fetch_object($result)) {
+    $rows[] = array(
+      !empty($types[$stype->type]['title']) ? $types[$stype->type]['title'] : '<strong>' . $stype->type . '</strong>' , 
+      $stype->count);
+    $count += $stype->count;
+  }
+  $summary = theme('table', $header, $rows);
+  $summary .= t('Total: %number', array('%number' => $count));
+  $output .= theme('box', t('Subscriptions by type'), $summary);
+  
+  // Summary by sending method
+  $header = array(t('Method'), t('Number'));
+  $result = db_query("SELECT send_method, count(*) AS count FROM {notifications} GROUP BY send_method");
+  $rows = array();
+  while ($subs = db_fetch_object($result)) {
+    $name = messaging_method_info($subs->send_method, 'title');
+    $rows[] = array(
+      $name ? $name : '<strong>' . $subs->send_method . '</strong>' , 
+      $subs->count);
+  }
+  $summary = theme('table', $header, $rows);
+  $output .= theme('box', t('Subscriptions by send method'), $summary); 
+
+  return $output;  
 }
 
 /**
@@ -61,15 +117,7 @@ function notifications_settings_form() {
     '#default_value' => variable_get('notifications_sender', 0),
     '#description' => t('Use the site information as the sender for notification messages or use account data from the user causing the event. WARNING: Selecting the last option (Full user data) may disclose private information to subscribers like the user e-mail address.'),
   );
-  // Logging settings  
-  $period = array(0 => t('Disabled')) + drupal_map_assoc(array(3600, 10800, 21600, 32400, 43200, 86400, 172800, 259200, 604800, 1209600, 2419200, 4838400, 9676800), 'format_interval');
-  $form['general']['notifications_log'] = array(
-    '#title' => t('Logging'),
-    '#type' => 'select',
-    '#options' => $period,
-    '#default_value' => variable_get('notifications_log', 0),
-    '#description' => t('If enabled all notifications will be logged and kept for the specified time after they\'re processed. These logs are kept into the <i>notifications_queue</i> table in the database.'),
-  );
+
   // Default options
   $form['defaults'] = array(
       '#type' => 'fieldset',
@@ -85,54 +133,6 @@ function notifications_settings_form() {
   return system_settings_form($form);
 }
 
-/**
- * Admin settings
- */
-function notifications_admin_queue_settings() {
-  $form['notifications_process_on_cron'] = array(
-    '#type' => 'radios',
-    '#title' => t('Process on cron'),
-    '#default_value' => variable_get('notifications_process_on_cron', TRUE),
-    '#options' => array(t('Disabled'), t('Enabled')),
-    '#description' => t('If disabled you must use code elsewhere to actually send your e-mails such as a <a href="http://drupal.org/project/drush">drush</a> script.'),
-  );
-  // Processing limits
-  $limit = variable_get('notifications_process_limit', array('row' => 0, 'message' => 0, 'percent' => 0, 'time' => 0));
-  $form['notifications_process_limit'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Limits for queue processing'),
-    '#tree' => TRUE,
-    '#description' => t('These are the limits for each run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
-    '#collapsible' => TRUE,
-  );
-
-  $form['notifications_process_limit']['row'] = array(
-    '#title' => t('Number of rows'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['row'],
-  );
-  $form['notifications_process_limit']['message'] = array(
-    '#title' => t('Number of messages sent'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['message'],
-  );
-  $form['notifications_process_limit']['time'] = array(
-    '#title' => t('Time (seconds)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['time'],
-  );
-  $form['notifications_process_limit']['percent'] = array(
-    '#title' => t('Time (% of cron time)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['percent'],
-    '#description' => t('Maximum percentage of cron time the process may use.'),
-  );
-  return system_settings_form($form);
-}
 /**
  * Send intervals administration
  */

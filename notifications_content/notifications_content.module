@@ -54,6 +54,21 @@ function notifications_content_menu() {
     'page arguments' => array('typeauthor', 1),
     'weight' => 10,
   );
+  $items['admin/messaging/notifications/events/configure'] = array(
+    'title' => 'Configure',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications.admin.inc',
+  );
+  $items['admin/messaging/notifications/events/test'] = array(
+    'title' => 'Test',
+    'description' => 'Test event templates.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('notifications_content_test_template_form'),
+    'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer notifications'),
+    'file' => 'notifications_content.pages.inc',
+  );
   return $items;
 }
 

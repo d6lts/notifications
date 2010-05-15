@@ -9,30 +9,16 @@
  * Implementation of hook_menu().
  */
 function notifications_tools_menu() {
-  $items['admin/messaging/subscriptions'] = array(
-    'title' => 'Manage subscriptions',
-    'description' => 'Manage existing subscriptions and queue.',
+  $items['admin/messaging/notifications/queue'] = array(
+    'title' => 'Queue processing',
+    'description' => 'Parameters for processing queued notifications',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('notifications_tools_manage_subscriptions'),
-    'access arguments' => array('administer notifications'),
-    'file' => 'notifications_tools.pages.inc',
-  ); 
-
-  $items['admin/messaging/subscriptions/admin'] = array(
-    'title' => 'Administer',
-    'description' => 'Administer subscriptions.',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-    'access arguments' => array('administer notifications'),
-  );
-  $items['admin/messaging/subscriptions/status'] = array(
-    'title' => 'Status',
-    'description' => 'Manage existing subscriptions and queue.',
-    'page callback' => 'notifications_tools_status_page',
-    'access arguments' => array('administer notifications'),
-    'file' => 'notifications_tools.pages.inc',
+    'page arguments' => array('notifications_tools_queue_settings'),
     'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+    'file' => 'notifications_tools.pages.inc',
+    'weight' => 100, // Show the last one, there are dangerous settings here.
   );
-  // Add a subtab to Notifications / Queue
   $items['admin/messaging/notifications/queue/configure'] = array(
     'title' => 'Configure',
     'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -47,24 +33,6 @@ function notifications_tools_menu() {
     'access arguments' => array('administer notifications'),
     'file' => 'notifications_tools.pages.inc',
   );
-  // Test templates for node events
-  if (module_exists('notifications_content')) {
-    $items['admin/messaging/notifications/events/configure'] = array(
-      'title' => 'Configure',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-      'access arguments' => array('administer site configuration'),
-      'file' => 'notifications.admin.inc',
-    );
-    $items['admin/messaging/notifications/events/test'] = array(
-      'title' => 'Test',
-      'description' => 'Test event templates.',
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('notifications_tools_template_test_form'),
-      'type' => MENU_LOCAL_TASK,
-      'access arguments' => array('administer notifications'),
-      'file' => 'notifications_tools.pages.inc',
-    );
-  }
   return $items;
 }
 
