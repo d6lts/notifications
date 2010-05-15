@@ -164,7 +164,7 @@ class Notifications_Queue {
     switch ($op) {
       case 'start':
         $this->process_current = array('message' => 0, 'step' => 0, 'timer' => 0, 'row' => 0);
-        $defaults = variable_get('notifications_process_limit', array('time' => 0, 'message' => 0, 'row' => 0, 'percent' => 0));
+        $defaults = variable_get('notifications_process_limit', array('time' => 0, 'message' => 0, 'row' => 0, 'percent' => MESSAGING_DEFAULT_CRON_PERCENT));
         foreach ($defaults as $name => $value) {
           if ($value && !isset($this->process_limit[$name])) {
             $this->process_limit[$name] = $value;
