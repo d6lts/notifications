@@ -431,14 +431,12 @@ function notifications_object_options_form_submit($form, $form_state) {
 /**
  * Subform with subscription options so it can be reused for a fieldset on a bigger form
  * 
- * @param $form
- *   Main form to add the fieldset
  * @param $subscriptions
  *   List of subscription objects
  * @param $buttons
  *   Whether to add buttons to the fieldset
  */
-function notifications_object_options_subform($form, $subscriptions, $buttons = TRUE) {
+function notifications_object_options_subform($subscriptions, $buttons = TRUE) {
   $form['subscriptions'] = notifications_object_options_fieldset($subscriptions, TRUE);
   $form['subscriptions'] += array(
     '#type' => 'fieldset',
