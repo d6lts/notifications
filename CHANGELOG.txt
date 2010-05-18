@@ -3,6 +3,14 @@
 6.x-4.x-beta4 to 6.x-4.x-beta5
 ------------------------------
 - Fixed multiple issues with 'add subscription form', #801206, #801230
+- Moved some modules and advanced options to 'Notifications Tools', #799770
+- Fixed wrong parameters for notifications_object_options_subform(), #799848
+- Fixed "No sending methods available" for user/uid/notifiations/add/*, #799548
+- Added back author/content type tab options, by joshuajabbour, #452658
+- Some clean up  for notifications_process(), by joshuajabbour, #797064
+- Reworked queue as a class API: Notifications_Queue, #797828
+- Moved drush/autoload hack to messaging/includes/drush_hack.inc
+- Fixed multiple minor issues, warnigns, notices, etc..
 
 6.x-4.x-beta3 to 6.x-4.x-beta4
 ------------------------------
