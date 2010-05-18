@@ -338,7 +338,7 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
     $form['info'] = $subscription->form_info();
   }
   else {
-    $form['info'] = $subscription->fields_subform();
+    $form['fields'] = $subscription->fields_subform();
     $save_fields[] = 'fields'; 
   }
   if ($subscription->is_instance()) {

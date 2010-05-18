@@ -12,7 +12,7 @@ function notifications_ui_page_user_add($account, $type = NULL) {
   drupal_set_title(t('Add subscription'));
   if ($type && notifications_ui_access_user_add($account, $type)) {    
     $subscription = notifications_build_subscription($type);
-    $subscription->set_user($account);
+    $subscription->set_account($account);
     return drupal_get_form('notifications_subscription_add_form', $subscription, "user/$account->uid/notifications");
   }
   else {    

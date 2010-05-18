@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-4.x-beta4 to 6.x-4.x-beta5
+------------------------------
+- Fixed multiple issues with 'add subscription form', #801206, #801230
+
 6.x-4.x-beta3 to 6.x-4.x-beta4
 ------------------------------
 - Added some tests for anonymous subscriptions
