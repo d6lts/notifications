@@ -51,7 +51,8 @@ function notifications_custom_schema() {
         'description' => 'Module that defines this custom subscription.',
         'type' => 'varchar',
         'length' => 255,
-        'not null' => TRUE
+        'not null' => TRUE,
+        'default' => '',
       ),
       'name' => array(
         'type' => 'varchar',
@@ -124,5 +125,14 @@ function notifications_custom_schema() {
 function notifications_custom_update_6000() {
   $ret = array();
   db_change_field($ret, 'notifications_custom', 'explanation', 'description', array('type' => 'text', 'not null' => FALSE));
+  return $ret;
+}
+
+/**
+ * Add default to module field
+ */
+function notifications_custom_update_6001() {
+  $ret = array();
+  db_field_set_default($ret, 'notifications_custom', 'module', '');
   return $ret;
 }

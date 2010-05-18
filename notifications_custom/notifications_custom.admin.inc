@@ -54,6 +54,7 @@ function notifications_custom_form($form_state, $subs) {
   $form['subscription'] = array('#tree' => TRUE);
   $form['subscription']['csid'] = array('#type' => 'value', '#value' => $subs->csid);
   $form['subscription']['type'] = array('#type' => 'value', '#value' => $subs->type);
+  $form['subscription']['module'] = array('#type' => 'value', '#value' => !empty($subs->module) ? $subs->module : 'notifications_custom');
   $form['subscription']['title'] = array('#type' => 'textfield',
     '#title' => t('Title'),
     '#default_value' => $subs->title,
