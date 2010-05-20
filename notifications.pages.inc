@@ -672,7 +672,7 @@ function notifications_subscription_list_form($form_state, $subscription_type, $
       }
       else {
         // Add new subscription, editable fields
-        $form['subscriptions']['field_' . $type][$key] = notifications_field_form_element($type, NULL, $subscription_type, FALSE, FALSE, 30);
+        $form['subscriptions']['field_' . $type][$key] = notifications_field_form_element($type, NULL, $subscription, FALSE, FALSE, 30);
       }
     }
     if ($send_intervals)

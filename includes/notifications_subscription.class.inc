@@ -28,26 +28,34 @@ class Notifications_Subscription extends Messaging_Object {
   const FORMAT_TABLE = 5;
   // Format as item list (8 + 2(inline) + 1 (html))
   const FORMAT_LIST = 10;
+  
+  // This class inherits some properties from Messaging_Object
+  // public $uid;
+  // public $language;
+  
   // Unique subscription id
   public $sid = 0;
   // Destination id
   public $mdid;
   // Subscription type
   public $type;
+  // Event that triggers this subscription
   public $event_type;
+  // Number of conditions that must be met
   public $conditions;
+  // Values to pass on to the queue for composition
   public $send_interval;
   public $send_method;
   public $cron = 1;
   public $module = 'notifications';
-  public $status;
+  // Subscription status, defaults to active
+  public $status = 1;
+  // The address for the destination (Unused, just for logging. To be obsoleted)
   public $destination = '';
   // Subscription fields
   protected $fields;
-  // Language and temporary language object
-  //public $language;
-  //protected $_language;
-  // Temporary variables
+
+  // Temporary variables, not saved to the DB
   protected $destination_object;
   protected $format;
   protected $objects;
@@ -842,27 +850,13 @@ class Notifications_Subscription extends Messaging_Object {
    */
    function format_field($field, $format = self::FORMAT_HTML) {
     notifications_include('object.inc');
-    $format_name = $format_value = t('Unknown');
+
     $type = $field->field;
     $value = $field->value;
-    if ($info = notifications_subscription_fields($field->field)) {
-      $format_name = $info['name'];
-      // First try format callback
-      $format_value = _notifications_field_callback($type, 'format callback', $value, $format & self::FORMAT_HTML, $this->type);
-      // If not we try options callback, we can get the name from the array of options
-      if (!isset($format_value)) {
-        // For naming we don't pass subscription type, we need just to find the name
-        $options = _notifications_field_callback($type, 'options callback', NULL);
-        if (isset($options)) {
-          $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
-        }
-      }
-      // If nothing got, we return the value
-      if (!isset($format_value)) {
-        $format_value = check_plain($value);
-      }
-    }
-  
+    
+    $format_name = notifications_field_format_name($type);
+    $format_value = notifications_field_format_value($type, $value, $format & self::FORMAT_HTML, NULL);
+    
     return $format & self::FORMAT_INLINE ? $format_name . ': ' . $format_value : array('name' => $format_name, 'value' => $format_value);
   }
 
@@ -908,7 +902,7 @@ class Notifications_Subscription extends Messaging_Object {
    */
   public function field_element($type, $value = NULL, $title = FALSE, $required = FALSE ) {
     notifications_include('object.inc');
-    return notifications_field_form_element($type, $value, $this->type, $title, $required);
+    return notifications_field_form_element($type, $value, $this, $title, $required);
   }
   
   /**

@@ -48,14 +48,9 @@ function notifications_event_get_template($event) {
 }
 
 /**
- * Get message part
+ * Get message template for event
  * 
- * It searches for optional message group keys for options defaulting to $type
- * 1. $module-$type-[$event->type]-[$event->action]
- * 2. $module-$type-[$event->type]
- * 3. $module-$type
- * 
- * @param $type
+ * @param $event
  *   Message type to send, either 'event' or 'digest'
  * @param $key
  *   Id of message part, ie 'header'
@@ -63,11 +58,6 @@ function notifications_event_get_template($event) {
  *   Method by which message will be sent. Normally 'mail'
  * @param $param
  *   Event data if we have a single event (type = event), none if we are digesting multiple events (type = digest)
- * @param $module
- *   Module name to be prefixed to the template name. If different than notifications we first try
- *   with that module but if not found, try again with 'notifications'
- * @param $debug
- *   Produce debug text with information about templates.
  *   
  * @return
  *   Part of the message with tokens for replacement.
@@ -77,7 +67,7 @@ function notifications_event_message_part($event, $key, $method, $language, $mod
   if ($text = $event->get_text($key)) {
     return $text;
   }
-  elseif ($template = notifications_event_get_template($event)) {
+  elseif ($template = notifications_callback($module, 'event_get_template', $event)) {
     $text = messaging_template_text_part($template, $key, $method, $language);
   }
   // Default, template not found, return some information if debugging

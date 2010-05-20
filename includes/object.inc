@@ -8,6 +8,35 @@
  */
 
 /**
+ * Invoke a callback for a field type. 
+ * 
+ * If the field has no callback it will default to the field object type callback
+ * 
+ * @param $type
+ *   Subscription type
+ * @param $name
+ *   Callback name
+ * @param $arg1, $arg2...
+ *   Variable arguments
+ */
+function _notifications_field_callback() {
+  $args = func_get_args();
+  $type = array_shift($args);
+  $name = array_shift($args);
+  // We try first the field callback, then the field object type callback
+  $info = notifications_subscription_fields($type);
+  if (isset($info[$name])) {
+    return _notifications_info_callback($info, $name, $args);
+  }
+  elseif (!empty($info['object_type']) && ($object_info = notifications_object_type($info['object_type'])) && isset($object_info[$name])) {
+    return _notifications_info_callback($object_info, $name, $args);
+  }
+  else {
+    return NULL;
+  }
+}
+
+/**
  * Check access to an object for user account
  * 
  * @param $type
@@ -151,13 +180,15 @@ function notifications_object_user_subscriptions($type, $object, $account = NULL
 
 
 /**
- * Get full info array for field_type that has the property
+ * Get full info array for field type that has the property.
+ * 
+ * It will return the info array for the field it it has the property or the info for the object type
  * 
  * @param $type
  *   Field type
  * @param $property
  *   Property we are looking for
- * 
+ *   
  * @return array()
  *   Info array from field or from object type
  */
@@ -176,21 +207,31 @@ function notifications_field_get_info($type, $property) {
  * Format field type name
  */
 function notifications_field_format_name($type) {
-  return notifications_field_type($type, 'name');
+  $name = notifications_field_type($type, 'name');
+  return $name ? $name : t('Unknown');
 }
 
 /**
  * Format field value
+ * 
+ * @param $type
+ *   Field type
+ * @param $value
+ *   Field value
+ * @param $html
+ *   Whether to format the field as HTML (if FALSE will return plaintext format)
+ * @param $subscription
+ *   Subscription instance or template for which we want to format this field
  */
-function notifications_field_format_value($type, $value, $html = TRUE, $subscription_type = NULL) {
-  $format_value = _notifications_field_callback($type, 'format callback', $value, $html, $subscription_type);
-  // If not we try options callback, we can get the name from the array of options
-  if (!isset($format_value)) {
-    $options = _notifications_field_callback($type, 'options callback', $subscription_type);
-    if (isset($options)) {
-      $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
-    }
+function notifications_field_format_value($type, $value, $html = TRUE, $subscription = NULL) {
+  if ($format_info = notifications_field_get_info($type, 'format callback')) {
+    $format_value = _notifications_info_callback($format_info, 'format callback', $value, $html);
   }
+  elseif ($options = notifications_field_subscription_options($type)) {
+    // If not we try options callback, we can get the name from the array of options
+    $format_value = isset($options[$value]) ? $options[$value] : t('Not available');
+  }
+
   // If nothing got, we return the value
   if (!isset($format_value)) {
     $format_value = check_plain($value);
@@ -283,6 +324,22 @@ function notifications_field_type($type = NULL, $property = NULL) {
 }
 
 /**
+ * Get options for fields with options callback, may depend on subscription type
+ * 
+ * - First tries 'subscription_type options callback'
+ * - If not found try generic 'options callback'
+ */
+function notifications_field_subscription_options($type, $subscription = NULL) {
+  // First try specific options for this subscription type if any
+  if ($subscription && ($info = notifications_field_get_info($type, "$subscription->type options callback"))) {
+    return _notifications_info_callback($info, "$subscription->type options callback", array($subscription));
+  }
+  elseif ($info = notifications_field_get_info($type, 'options callback')) {
+    return _notifications_info_callback($info, 'options callback', array($subscription));
+  }
+}
+
+/**
  * Check if the field has a valid value
  */
 function notifications_field_valid_value($value, $type = NULL) {
@@ -311,15 +368,23 @@ function notifications_field_valid_value($value, $type = NULL) {
 
 /**
  * Build a form element to edit a field
+ * 
+ * @param $type
+ *   Field type
+ * @param $value
+ *   Field value
+ * @param $subscription
+ *   Subscription template or instance we are adding this field to
  */
-function notifications_field_form_element($type, $value, $subscription_type, $title = FALSE, $required = FALSE, $size = 40) {
+function notifications_field_form_element($type, $value, $subscription = NULL, $title = FALSE, $required = FALSE, $size = 40) {
+  $subscription_type = $subscription ? $subscription->type : NULL;
   $field_info = notifications_subscription_fields($type);
   $object_info = isset($field_info['object_type']) ? notifications_object_type($field_info['object_type']) : array();
   $merged_info = $field_info + $object_info;
 
   if (isset($merged_info['options callback'])) {
     $element['#type'] = 'select';
-    $element['#options'] = _notifications_field_callback($type, 'options callback', $subscription_type);
+    $element['#options'] = notifications_field_subscription_options($type, $subscription);
   }
   elseif (!empty($merged_info['autocomplete path'])) {
     $element['#type'] = 'textfield';
@@ -327,10 +392,10 @@ function notifications_field_form_element($type, $value, $subscription_type, $ti
     $element['#autocomplete_path'] = $merged_info['autocomplete path'];
     if ($value) {     
       if (!empty($merged_info['autocomplete callback'])) {
-        $value = _notifications_field_callback($type, 'autocomplete callback', $value, $subscription_type);
+        $value = _notifications_field_callback($type, 'autocomplete callback', $value, $subscription);
       }
       elseif (!empty($merged_info['format callback']))  {
-        $value = _notifications_field_callback($type, 'format callback', $value, FALSE, $subscription_type);
+        $value = _notifications_field_callback($type, 'format callback', $value, FALSE);
       }      
     }
   }

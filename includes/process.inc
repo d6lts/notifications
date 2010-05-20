@@ -40,7 +40,7 @@ function notifications_process_build_simple($template, $events, $subscriptions, 
   $sender_option = variable_get('notifications_sender', 0);
   foreach ($events as $event) {
     $event_subscriptions = isset($subscriptions[$event->eid]) ? array_filter($subscriptions[$event->eid]) : NULL;
-    $message = notifications_process_build_simple_message($template, $event, $event_subscriptions, $module);
+    $message = notifications_callback($module, 'process_build_simple_message', $template, $event, $event_subscriptions, $module);
     $message->set_sender($event->uid);
     $messages[] = $message;
   }

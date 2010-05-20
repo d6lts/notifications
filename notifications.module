@@ -770,12 +770,7 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
  *   Uid of the user account to load, none to use anonymous user
  */
 function notifications_load_user($uid) {
-  if ($uid) {
-    return messaging_load_user($uid);
-  }
-  else {
-    return drupal_anonymous_user();
-  }
+  return messaging_load_user($uid);
 }
 
 /**
@@ -1029,35 +1024,6 @@ function _notifications_subscription_callback() {
   $type = array_shift($args);
   $name = array_shift($args);
   return _notifications_info_callback(notifications_subscription_types($type), $name, $args);
-}
-
-/**
- * Invoke a callback for a field type. 
- * 
- * If the field has no callback it will default to the field object type callback
- * 
- * @param $type
- *   Subscription type
- * @param $name
- *   Callback name
- * @param $arg1, $arg2...
- *   Variable arguments
- */
-function _notifications_field_callback() {
-  $args = func_get_args();
-  $type = array_shift($args);
-  $name = array_shift($args);
-  // We try first the field callback, then the field object type callback
-  $info = notifications_subscription_fields($type);
-  if (isset($info[$name])) {
-    return _notifications_info_callback($info, $name, $args);
-  }
-  elseif (!empty($info['object_type']) && ($object_info = notifications_object_type($info['object_type'])) && isset($object_info[$name])) {
-    return _notifications_info_callback($object_info, $name, $args);
-  }
-  else {
-    return NULL;
-  }
 }
 
 /**
@@ -2003,6 +1969,32 @@ function notifications_include($file, $module = 'notifications') {
   return messaging_include($file, $module);
 }
 
+/**
+ * Callback for module dependent data
+ * 
+ * Some data stored in the notifications system is meant to be processed by other modules and
+ * this is indicated by a module column in the data.
+ * 
+ * This function calls the module function if available, defaulting to the notifications provided
+ * function when not. The arguments are passed as is
+ * 
+ * @param $module
+ *   Module name
+ * @param $function
+ *   Function name in module
+ */
+function notifications_callback() {
+  $args = func_get_args();
+  $module = array_shift($args);
+  $function = array_shift($args);
+  if ($module && function_exists($module .'_notifications_'. $function)) {
+    $callback = $module .'_notifications_'. $function;
+  }
+  else {
+    $callback = 'notifications_' . $function;
+  }
+  return call_user_func_array($callback, $args);
+}
 /**
  * Invoke hook_notifications($name) on all modules
  * 
