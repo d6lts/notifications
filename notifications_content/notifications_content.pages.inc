@@ -68,7 +68,13 @@ function notifications_content_test_template_form($form_state) {
     '#options' => notifications_info('event actions'),
     '#default_value' => isset($form_state['values']['action']) ? $form_state['values']['action'] : NULL,
   );
-
+  $form['subscription_type'] = array(
+    '#title' => t('Subscription type'),
+    '#type' => 'select',
+    '#options' => notifications_subscription_types(NULL, 'title'),
+    '#default_value' => isset($form_state['values']['subscription_type']) ? $form_state['values']['subscription_type'] : NULL,
+    '#description' => t('Some modules may define a different template for their subscription types.'),
+  );
   $form['send_method'] = array(
     '#title' => t('Send method'),
     '#type' => 'select',
@@ -138,6 +144,8 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
   if (!$event->queue) {
     drupal_set_message(t('That event type is not enabled though we try building a message for it.'), 'warning');
   }
+  // Get a subscription template, that may determine the module
+  $subscription = notifications_build_subscription($form_state['values']['subscription_type']);
 
   // Build the message and store it
   $send_method = $form_state['values']['send_method'];
@@ -146,7 +154,7 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
     $template->method = $send_method;
     $template->set_destination($destination);
     $template->language = $form_state['values']['language'];
-    $message = notifications_process_build_simple_message($template, $event, array(), 'notifications');
+    $message = notifications_process_build_simple_message($template, $event, array(), $subscription->module);
     // Store message and rebuild. The message will come with template information (text_parts);
     $form_state['values']['message'] = $message;
     $form_state['rebuild'] = TRUE;  

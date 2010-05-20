@@ -74,7 +74,8 @@ class Notifications_Subscription extends Messaging_Object {
   function __construct($object = NULL) {
     $this->status = self::STATUS_ACTIVE;
     if ($object) {
-      foreach ($object as $key => $value) {
+      $properties = (array)$object;
+      foreach ($properties as $key => $value) {
         // Set old fields format (array of field => value)
         if ($key == 'fields' || $key == 'destination') {
           $this->__set($key, $value);
@@ -90,9 +91,16 @@ class Notifications_Subscription extends Messaging_Object {
       if (!isset($this->conditions)) {
         $this->conditions = empty($this->fields) ? 0 : count($this->fields);
       }
-      if (!isset($this->event_type) && !empty($this->type)) {
-        $this->event_type = notifications_subscription_types($this->type, 'event_type');
+      // Set some properties from subscription type
+      if (!empty($this->type) && ($defaults = notifications_subscription_types($this->type))) {
+        foreach (array('event_type', 'module', 'cron') as $field) {
+          $value = notifications_subscription_types($this->type, $field);
+          if (!isset($properties[$field]) && isset($defaults[$field])) {
+            $this->$field =  $defaults[$field];
+          }          
+        }
       }
+
     }
   }
   /**

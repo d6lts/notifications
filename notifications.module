@@ -1995,6 +1995,7 @@ function notifications_callback() {
   }
   return call_user_func_array($callback, $args);
 }
+
 /**
  * Invoke hook_notifications($name) on all modules
  * 
@@ -2007,8 +2008,8 @@ function &notifications_info($name, $param = NULL, $refresh = FALSE) {
   $info = &messaging_static('notifications_info_' . $name);
   if (!isset($info) || $refresh) {
     $info = messaging_module_invoke_all('notifications', $name, $param);
-    // Provide alter hook
-    drupal_alter('notifications_' . strtr(' ', '_', $name), $info);
+    // Provide alter hook: notifications_name
+    drupal_alter('notifications_' . strtr($name, ' ', '_'), $info);
   }      
   return $info;
 }
