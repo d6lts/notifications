@@ -1042,6 +1042,7 @@ function notifications_digest_method($send_interval = NULL, $refresh = FALSE) {
     // Mapping interval -> method
     $intervals = variable_get('notifications_digest_methods', array());
   }
+
   if (is_null($send_interval)) {
     return $digest_methods;
   }
@@ -1049,8 +1050,8 @@ function notifications_digest_method($send_interval = NULL, $refresh = FALSE) {
     return $digest_methods[$intervals[$send_interval]];
   }
   else {
-    // Default, that will be 'short' if interval > 0, none otherwise
-    return ($send_interval > 0) ? $digest_methods['short'] : NULL;
+    // Default, that will be 'short' if not set and interval > 0, none otherwise
+    return (!isset($intervals[$send_interval]) && $send_interval > 0) ? $digest_methods['short'] : NULL;
   }
 }
 
