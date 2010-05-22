@@ -477,7 +477,7 @@ function notifications_submit_subscription($subscription) {
   }
 
   // Check permissions for current user to create this subscription
-  if (!notifications_user_allowed('subscription', $user, $subscription)) {
+  if (!$subscription->check_access($user)) {
     if (!empty($subscription->error_message)) {
       drupal_set_message($subscription->error_message);
     }

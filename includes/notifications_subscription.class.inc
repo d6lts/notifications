@@ -328,7 +328,7 @@ class Notifications_Subscription extends Messaging_Object {
     if (!isset($this->uid)) {
       return FALSE;
     }
-    elseif (!isset($this->send_method) && isset($this->send_interval)) {
+    elseif (!isset($this->send_method) || !isset($this->send_interval)) {
       return $this->set_account($this->get_user());
     }
     else {
@@ -356,6 +356,13 @@ class Notifications_Subscription extends Messaging_Object {
       // Last try, figure out a destination
       return $this->create_destination();
     }
+  }
+  /**
+   * Check permission for user account
+   */
+  function check_access($account = NULL) {
+    $account = $account ? $account : $this->get_account();
+    return notifications_user_allowed('subscription', $account, $this);
   }
   /**
    * Create destination for this subscription
