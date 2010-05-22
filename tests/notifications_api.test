@@ -28,16 +28,20 @@ class NotificationsBasicTests extends NotificationsTestCase {
     // Any user will do for exercising the API
     $user = $this->drupalCreateUser();
     // Create sample subscription object    
-    $s1 = new Stdclass();
-    $s1->uid = $user->uid;
-    $s1->type = $test_type;
-    $s1->event_type = $test_event_type;
-    $s1->send_method = 'mail';
-    $s1->fields = array('field1' => 1, 'field2' => 2);
-    $s1->destination = $user->mail;
+    $s1 = notifications_build_subscription(array(
+      'type' => $test_type,
+      'event_type' => $test_event_type,
+      'send_method' => 'mail',
+      'fields' => array('field1' => 1, 'field2' => 2),
+      'conditions' => 2,
+    ));
+    // Fill in other parameters
+    $s1->set_account($user);
+    $s1->check_destination();
+    
     $s2 = clone $s1;
-    // Create the subscription and check assigned sid
-    $result = notifications_save_subscription($s1);
+    // Create the subscription and check assigned sid (do not check, we don't have this type defined)
+    $result = notifications_save_subscription($s1, FALSE);
     $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
     // Check a destination has been created
     $dest = $s1->get_destination();
@@ -46,19 +50,21 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $s = notifications_load_subscription($s1->sid, TRUE);
     $this->assertEqual(array($s->sid, $s->uid, $s->fields), array($s1->sid, $s1->uid, $s1->fields), 'The subscription has been retrieved and values are ok');
     // Attempt to create a second one with the same values
-    $result = notifications_save_subscription($s2);
-    $this->assertTrue($result == SAVED_UPDATED && $s1->sid == $s2->sid, 'A duplicate subscription has been detected and updated');
+    $result = notifications_save_subscription($s2, FALSE);
+    $this->assertTrue($result == SAVED_UPDATED && $s1->sid == $s2->sid, 'A duplicate subscription has been detected and updated: ' . $result);
     // Now change some field, try again with a different send method
-    unset($s2->sid);
+    unset($s2->sid);   
     $s2->send_method = 'simple';
-    $result = notifications_save_subscription($s2);
+    $s2->check_destination();
+    $result = notifications_save_subscription($s2, FALSE);
     $this->assertTrue($result == SAVED_NEW && is_numeric($s2->sid) && $s2->sid > $s1->sid, 'Another subscription has been created');
 
     // Now change values for the second one
     unset($s2->send_method);
+    $s2->check_destination();
     $fields = $s2->get_fields();
     $fields[1]->value = 3; // As fields are objects (byref) we can just change the value
-    $result = notifications_save_subscription($s2);
+    $result = notifications_save_subscription($s2, FALSE);
     $this->assertEqual($result, SAVED_UPDATED, 'The second subscription has been updated');
     
     // Trying several recovery options

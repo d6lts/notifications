@@ -466,21 +466,30 @@ function notifications_submit_subscription($subscription) {
   global $user;
   
   $instance = $subscription->is_instance();
-  // Check the destination is ok, it may need to be rebuilt
-  if (!$subscription->check_destination()) {
-    drupal_set_message(t('The destination method or address for the subscription is not valid.'));
+  // If a new subscription we may need to set current user
+  if (!isset($subscription->uid)) {
+    $subscription->set_account($user);
+  }
+  // Check some parameters are ok (checking fills in some missing values too)
+  if (!notifications_check_subscription($subscription)) {
+    drupal_set_message($subscription->error_message, 'error');
     return FALSE;
   }
+
+  // Check permissions for current user to create this subscription
   if (!notifications_user_allowed('subscription', $user, $subscription)) {
     if (!empty($subscription->error_message)) {
       drupal_set_message($subscription->error_message);
     }
     else {
-      drupal_set_message(t("You are not allowed to create this type of subscription."));
+      drupal_set_message(t("You are not allowed to create this type of subscription."), 'error');
     }
     return FALSE;
   }
-  $result = notifications_save_subscription($subscription);
+
+  // Actually update or create subscription, skipping checks that we've already done.
+  $result = notifications_save_subscription($subscription, FALSE);
+
   switch ($result) {
     case SAVED_NEW:
       drupal_set_message(t('Your subscription has been created.'));

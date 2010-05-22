@@ -232,8 +232,13 @@ function notifications_custom_account_update($account, $update) {
       if ($value && !$subscription->is_instance()) {
         // Add new subscription       
         $subscription->set_account($account);
-        notifications_save_subscription($subscription);
-        $changed++;
+        if ($result = notifications_save_subscription($subscription)) {
+          $changed++;
+        }
+        else {
+          $message = !empty($subscription->error_message) ? $subscription->error_message : t('The subscription cannot be saved.');
+          drupal_set_message(t('Cannot create subscription !name. !message', array('!name' => $subscription->get_name(), '!message' => $message)), 'error');
+        }
       }
       elseif (!$value && $subscription->is_instance()) {
         // Disable existing subscription
@@ -371,6 +376,7 @@ function notifications_custom_build_subscription($template) {
  */
 function notifications_custom_get_subscription($type, $account, $return_template = FALSE) {
   if ($subscription = notifications_custom_build_subscription($type)) {
+    $subscription->set_account($account);
     return $subscription->get_instance(array('uid' => $account->uid), $return_template);
   }
 }

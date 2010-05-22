@@ -686,23 +686,26 @@ function notifications_build_subscription($subscription) {
  * 
  * @param $subscription
  *   Subscription object or array
+ * @param $check
+ *   Whether to check parameters, can be skipped if they've been previously checked
  * @return integer
  *   Failure to write a record will return FALSE. Otherwise SAVED_NEW or SAVED_UPDATED is returned depending on the operation performed.
  */
-function notifications_save_subscription(&$subscription) {
+function notifications_save_subscription(&$subscription, $check = TRUE) {
   // Build object if not built previously
   $subscription = notifications_build_subscription($subscription);
-  $subscription->conditions = count($subscription->get_fields());
-  // Set account that will fill in account parameters
-  $account = $subscription->uid ? messaging_load_user($subscription->uid) : $GLOBALS['user'];
-  $subscription->set_account($account);
-  // Update existing one or save new checking for duplicates
-  $result = FALSE;
+
+  // Check all the parameters are ok, add error message and return if not
+  if ($check && !notifications_check_subscription($subscription)) {
+    return FALSE;
+  }
+  
+  // Parameters are checked, now proceed
   if (!empty($subscription->sid)) {
     $op = 'update';
     $result = $subscription->save();
   }
-  elseif ($subscription->check_destination()) {
+  else {
     if ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->get_conditions(), TRUE)) {
       // We've found duplicates, resolve conflict updating first, deleting the rest
       // It is possible that we had a disabled one, this updating will fix it
@@ -718,7 +721,7 @@ function notifications_save_subscription(&$subscription) {
       while ($dupe = array_shift($duplicate)) {
         notifications_subscription_delete($dupe->sid);
       }
-      return notifications_save_subscription($subscription);  
+      return notifications_save_subscription($subscription, $check);  
     }
     else {
       $op = 'insert';    
@@ -732,6 +735,27 @@ function notifications_save_subscription(&$subscription) {
   }
 
   return $result;
+}
+
+/**
+ * Check subscription parameters
+ */
+function notifications_check_subscription($subscription) {
+  if (!$subscription->check_account()) {
+    $subscription->error_message = t('Invalid user account for this subscription.');
+    return FALSE;
+  }
+  elseif (!$subscription->check_fields()) {
+    $subscription->error_message = t('Invalid field values for this subscription.');
+    return FALSE;
+  }
+  elseif (!$subscription->check_destination()) {
+    $subscription->error_message = t('The destination method or address for the subscription is not valid.');
+    return FALSE;
+  }
+  else {
+    return TRUE;
+  }
 }
 
 /**

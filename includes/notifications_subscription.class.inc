@@ -88,12 +88,9 @@ class Notifications_Subscription extends Messaging_Object {
     // Default values for new objects
     if (empty($this->sid)) {
       $this->created = time();
-      if (!isset($this->conditions)) {
-        $this->conditions = empty($this->fields) ? 0 : count($this->fields);
-      }
       // Set some properties from subscription type
       if (!empty($this->type) && ($defaults = notifications_subscription_types($this->type))) {
-        foreach (array('event_type', 'module', 'cron') as $field) {
+        foreach (array('event_type', 'module', 'cron', 'conditions') as $field) {
           $value = notifications_subscription_types($this->type, $field);
           if (!isset($properties[$field]) && isset($defaults[$field])) {
             $this->$field =  $defaults[$field];
@@ -252,9 +249,13 @@ class Notifications_Subscription extends Messaging_Object {
   }
 
   /**
-   * Set user account
+   * Set user account as the owner of this subscription and take care of defaults for this account.
+   * 
+   * @param $account
+   *   User account or user uid
    */
   function set_account($account) {
+    $account = messaging_user_object($account);
     $this->set_user($account);
     if (!isset($this->send_interval)) {
       $this->send_interval = notifications_user_setting('send_interval', $account, 0);
@@ -262,7 +263,10 @@ class Notifications_Subscription extends Messaging_Object {
     if (!isset($this->send_method)) {
       $this->send_method = notifications_user_setting('send_method', $account);
     }
+    // Return TRUE if all parameters set
+    return isset($this->uid) && isset($this->send_interval) && isset($this->send_method);
   }
+
   /**
    * Get user account
    */
@@ -317,6 +321,21 @@ class Notifications_Subscription extends Messaging_Object {
       return parent::delete();
     }
   }
+  /**
+   * Check subscription user account and related parameters
+   */
+  function check_account() {
+    if (!isset($this->uid)) {
+      return FALSE;
+    }
+    elseif (!isset($this->send_method) && isset($this->send_interval)) {
+      return $this->set_account($this->get_user());
+    }
+    else {
+      return TRUE;
+    }
+  }
+  
   /**
    * Check destination or create it if new
    */
@@ -515,11 +534,18 @@ class Notifications_Subscription extends Messaging_Object {
         $instance_fields[] = $field->field;
       }
     }
-    $type_fields = $this->get_type('fields');
+    $type_fields = array();
+    foreach ($this->get_type_fields() as $field) {
+      $type_fields[] = $field->field;
+    }
     if (count($instance_fields) != count($type_fields)) {
       return FALSE;
     }
     else {
+      // Set the number of conditions if not set 
+      if (!isset($this->conditions)) {
+        $this->conditions = count($instance_fields);
+      }      
       // Order the arrays so we can compare them. Note that we can have the same field name more than once
       asort($instance_fields);
       asort($type_fields);
