@@ -798,6 +798,15 @@ function notifications_load_user($uid) {
 }
 
 /**
+ * Obsoleted (kept for backwards compatibility so some modules don't need to be updated)
+ *
+ * @see notifications_subscription_delete()
+ */
+function notifications_delete_subscription($sid) {
+  return notifications_subscription_delete($sid);
+}
+
+/**
  * Delete subscription and clean up related data, included the static cache
  * 
  * It also removes pending notifications related to that subscription 
