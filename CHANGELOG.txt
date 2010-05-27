@@ -2,6 +2,7 @@
 
 6.x-4.x-beta5 to .............
 -------------------------------
+- Enabled "notify users of own posts" by default, #382482
 - Added back (obsoleted) notifications_delete_subscription() so some old modules dont need upgrade.
 - Extended Subscription objects with some methods for checking parameters, added notifications_check_subscription()
 

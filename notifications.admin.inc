@@ -97,7 +97,7 @@ function notifications_settings_form() {
   $form['general']['notifications_sendself'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Notify poster of own posts'),
-    '#default_value' => variable_get('notifications_sendself', 0),
+    '#default_value' => variable_get('notifications_sendself', 1),
     '#description'   => t("Notifies a node poster about their own posts.  Useful principally during testing.  Default is OFF."),
   );
   $form['general']['notifications_send_immediate'] = array(

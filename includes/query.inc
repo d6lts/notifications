@@ -128,7 +128,7 @@ function notifications_query_event_queue($event) {
   $query['where'] = array('s.status = 1', "s.event_type = '%s'", 's.send_interval >= 0');
   $query['where args'] = array($event->type);
   // Add one more condition if we don't send notifications on own posts
-  if (!variable_get('notifications_sendself', 0) && !empty($event->uid)) {
+  if (!variable_get('notifications_sendself', 1) && !empty($event->uid)) {
     $query['where'][] = 's.uid <> %d';
     $query['where args'][] = $event->uid;
   }    
