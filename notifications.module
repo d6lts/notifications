@@ -731,6 +731,7 @@ function notifications_save_subscription(&$subscription, $check = TRUE) {
   
   // If the operation has worked so far, update fields and inform other modules
   if ($result !== FALSE) {
+    notifications_queue()->queue_init_subscription($subscription);
     module_invoke_all('notifications_subscription', $op, $subscription);
   }
 

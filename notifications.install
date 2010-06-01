@@ -171,6 +171,10 @@ function notifications_schema() {
         'description' => 'Messaging send method',
         'type' => 'varchar', 'length' => '255', 'not null' => FALSE,
       ),
+      'send_time' => array(
+        'description' => 'Unix timestamp, when this notification is to be sent, for scheduled notifications.',
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10',
+      ),
       'sent' => array(
         'description' => 'Unix timestamp, when this notification was actually sent for rows kept as logs.',
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10',
@@ -218,13 +222,13 @@ function notifications_schema() {
         'description' => 'The Notifications send interval.',
         'type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'
       ),
-      'send_method' => array(
-        'description' => 'The Messaging sending method.',
-        'type' => 'varchar', 'length' => '50', 'not null' => TRUE
-      ),
       'sent' => array(
         'description' => 'Unix timestamp, when the last notification was sent.',
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'
+      ),
+      'counter' => array(
+        'description' => 'Keeps a count of the notifications sent.',
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'
       ),
     ),
     'primary key' => array('mdid', 'send_interval'),
@@ -500,9 +504,24 @@ function notifications_update_6015() {
   return _messaging_update_duplicate_destinations();
 }
 
-
+/**
+ * Update destination fields
+ */
 function notifications_update_6016() {
   return _notifications_update_fix_destinations('update');
+}
+
+/**
+ * Drop unused columns and add fields for scheduled subscriptions
+ */
+function notifications_update_6017() {
+  $ret = array();
+  if (db_column_exists('notifications_sent', 'send_method')) {
+    db_drop_field($ret, 'notifications_sent', 'send_method');
+  }
+  db_add_field($ret, 'notifications_sent', 'counter', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0));
+  db_add_field($ret, 'notifications_queue', 'send_time', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0));
+  return $ret;  
 }
 
 /**

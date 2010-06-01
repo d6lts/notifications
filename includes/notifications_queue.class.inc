@@ -373,7 +373,7 @@ class Notifications_Queue {
         $this->process_callback($module, 'process_send', $send_method, $destination, $messages, $test);
       }
       if (!$test) {          
-        $this->queue_update_sent($destination->mdid, $send_interval, time());
+        $this->queue_update_sent($destination->mdid, $send_interval, time(), count($messages));
       }
     }
     if ($processed && $update) {
@@ -404,7 +404,7 @@ class Notifications_Queue {
     $max_sqid = isset($max_sqid) ? $max_sqid : $this->process_prepare();
     $language = $this->process_language;
     
-    notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max squid' => $max_sqid));
+    notifications_log('Starting queue processing', array('send interval' => $send_interval, 'max sqid' => $max_sqid));
     // Option for test running, marking messages as test, nor updating not sending
     $test = $this->process_option('test');
     // Option for normal running but without updating the queue records
@@ -412,8 +412,11 @@ class Notifications_Queue {
 
     // Count processed rows
     $count = 0;
+    // For scheduled notifications, send just rows after this time
+    $send_time = time();
     // This is the time from which stored rows will be sent
-    $timelimit = time() - $send_interval;
+    $timelimit = $send_time - $send_interval;
+
     // Check remaining rows to process to adjust query limits for both users and rows
     $step_users = NOTIFICATIONS_STEP_USERS;
     $step_rows = NOTIFICATIONS_STEP_ROWS;
@@ -429,13 +432,14 @@ class Notifications_Queue {
       'cron' => 1,
       'max_sqid' => $max_sqid,
       'send_interval' => $send_interval,
+      'send_time_after' => $send_time,
     );
     // Get users to process messages for, with this time interval and ordered by squid
     // Order by last sent for this send interval
     // Note: If we get the users with more messages pending first this may save some time
     $sql_select = "SELECT q.mdid, q.send_method, q.module, COUNT(q.sqid) AS count_rows FROM {notifications_queue} q ";
     $sql_select .= " LEFT JOIN {notifications_sent} su ON q.mdid = su.mdid AND q.send_interval = su.send_interval ";
-    $sql_select .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.sqid <= %d";
+    $sql_select .= " WHERE q.cron = 1 AND q.send_interval = '%d' AND q.send_time < %d AND q.sqid <= %d";
     $sql_select .= " AND (su.mdid IS NULL OR su.sent < %d) ";
     // Note: the group by su.sent seems to be needed by pgsql
     $sql_group = " GROUP BY q.mdid, q.send_method, q.module, su.sent ORDER BY su.sent";
@@ -443,9 +447,9 @@ class Notifications_Queue {
     if ($language) {
       $sql_select .= " AND q.language = '%s' ";
       $default_batch['language'] = $language->language;
-      $result = db_query_range($sql_select . $sql_group, $send_interval, $max_sqid, $timelimit, $language->language, 0, $step_users);
+      $result = db_query_range($sql_select . $sql_group, $send_interval, $send_time, $max_sqid, $timelimit, $language->language, 0, $step_users);
     } else {
-      $result = db_query_range($sql_select . $sql_group, $send_interval, $max_sqid, $timelimit, 0, $step_users);
+      $result = db_query_range($sql_select . $sql_group, $send_interval, $send_time, $max_sqid, $timelimit, 0, $step_users);
     }
     // We create a bach for each mdid (user, destination, method) and handle it to notifications_process_rows()
     while (($queue = db_fetch_object($result)) && $this->process_control('check')) {
@@ -491,14 +495,45 @@ class Notifications_Queue {
   }
   
   /**
-   * Update user last time sent for each sending method / interval
+   * Update user last time sent for each destination / interval
+   * 
+   * @param $mdid
+   *   Destination id
+   * @param $interval
+   *   Send interval
+   * @param $time
+   *   Timestamp, when notifications were sent
+   * @param $counter
+   *   How many messages were sent
    */
-  function queue_update_sent($mdid, $interval, $time) {
-    db_query("UPDATE {notifications_sent} SET sent = %d WHERE mdid = %d AND send_interval = '%d'", $time, $mdid, $interval);
+  function queue_update_sent($mdid, $interval, $time, $counter = 1) {
+    db_query("UPDATE {notifications_sent} SET sent = %d, counter = counter + %d WHERE mdid = %d AND send_interval = '%d'", $time, $counter, $mdid, $interval);
     if (!db_affected_rows()) {
-      db_query("INSERT INTO {notifications_sent}(mdid, send_interval, sent) VALUES(%d, '%d', %d)", $mdid, $interval, $time);
+      $this->queue_init_interval($mdid, $interval, $time, $counter);
     }
   }
+  
+  /**
+   * Init sent time when creating/updating a new subscription. 
+   * 
+   * This is to avoid delayed notifications (i.e. once a week) to be sent right away
+   */
+  function queue_init_subscription($subscription) {
+    $mdid = $subscription->get_destination()->mdid;
+    $interval = $subscription->send_interval;
+    // We don't need this for 'immediate' notifications
+    if ($interval && !db_result(db_query("SELECT sent FROM {notifications_sent} WHERE mdid = %d AND send_interval = %d", $mdid, $interval))) {
+      $this->queue_init_interval($mdid, $interval, time());
+    }
+  }
+  
+  /**
+   * Init user last time sent for destination, interval
+   */
+  protected function queue_init_interval($mdid, $interval, $time, $counter = 0) {
+    db_query("INSERT INTO {notifications_sent}(mdid, send_interval, sent, counter) VALUES(%d, '%d', %d, %d)", $mdid, $interval, $time, $counter);
+  }
+  
   
   /**
    * Message composition.
@@ -794,6 +829,12 @@ class Notifications_Queue {
       $args[] = $params['max_sqid'];
       unset ($params['max_sqid']);
     }
+    // Special condition send_time_after
+    if (isset($params['send_time_after'])) {
+      $where[] = $table_alias ? "$table_alias.send_time < %d" : "send_time < %d";
+      $args[] = $params['send_time_after'];
+      unset ($params['send_time_after']);
+    }  
     // User generic query builder for the rest of fields
     $values =  _messaging_query_conditions('notifications_queue', $params, $table_alias);  
     $where = array_merge($where, $values['conditions']);
