@@ -2,6 +2,7 @@
 
 6.x-4.x-beta5 to .............
 -------------------------------
+- Do not send notifications to blocked users, #663186
 - Updating subscription language after user account's default, #810736
 - Added support for scheduled notifications, and notifications counter, #681786
 - Fixed: notifications for newly created subscriptions sent right away whatever the interval is

@@ -344,6 +344,10 @@ class Notifications_Queue {
     elseif (!$account) {
       notifications_log('Cannot load account', (array)$params);
     }
+    elseif ($account->uid && !$account->status) {
+      $account = NULL;
+      notifications_log('User account blocked', (array)$params);
+    }
     // Process every row, but if we don't have destination or account we just do event tracking
     foreach ($group as $sqid => $queue) {
       $count++;
