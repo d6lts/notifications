@@ -416,6 +416,12 @@ function notifications_user($type, $edit, $user, $category = NULL) {
         }
       }
       break;
+    case 'after_update':
+      // Update language for all existing subscriptions
+      if ($language = user_preferred_language($user)) {
+        db_query("UPDATE {notifications} SET language = '%s' WHERE uid = %d", $language->language, $user->uid);
+      }
+      break;
   }
 }
 

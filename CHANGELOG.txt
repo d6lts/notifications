@@ -2,6 +2,7 @@
 
 6.x-4.x-beta5 to .............
 -------------------------------
+- Updating subscription language after user account's default, #810736
 - Added support for scheduled notifications, and notifications counter, #681786
 - Fixed: notifications for newly created subscriptions sent right away whatever the interval is
 - Group by language for PostgreSQL compatibility fix in query.inc, by halcyonCorsair, #811478

@@ -263,6 +263,9 @@ class Notifications_Subscription extends Messaging_Object {
     if (!isset($this->send_method)) {
       $this->send_method = notifications_user_setting('send_method', $account);
     }
+    if (empty($this->language)) {
+      $this->set_language(); 
+    }
     // Return TRUE if all parameters set
     return isset($this->uid) && isset($this->send_interval) && isset($this->send_method);
   }
