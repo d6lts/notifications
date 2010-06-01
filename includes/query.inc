@@ -133,7 +133,7 @@ function notifications_query_event_queue($event) {
     $query['where args'][] = $event->uid;
   }    
   // Some group by fields are not really needed but added for pgsql compatibility
-  $query['group'] = array('s.uid', 's.mdid', 's.send_method', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions');
+  $query['group'] = array('s.uid', 's.mdid', 's.send_method', 's.sid', 's.module', 's.send_interval', 's.cron', 's.conditions', 's.language');
   
   // We throw in all the conditions and check the number of matching conditions
   // that must be equal to the subscription conditions number    

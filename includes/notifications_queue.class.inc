@@ -326,7 +326,7 @@ class Notifications_Queue {
    * @param $group
    *   Array of queue rows indexed by destination id, send interval, queue id
    */
-  function process_group($group, $update, $params) {
+  protected function process_group($group, $update, $params) {
     $module = $params->module;
     $send_method = $params->send_method;
     $send_interval = $params->send_interval;
@@ -571,7 +571,7 @@ class Notifications_Queue {
    * @param $test
    *   Optional just test composition and formating but do not send
    */
-  function process_send($method, $destination, $messages) {
+  protected function process_send($method, $destination, $messages) {
     notifications_log('Sending out notifications', array('method' => $method, 'address' => $destination->address, 'messages' => count($messages)));
     $test = $this->process_option('test');
     foreach ($messages as $message) {      
@@ -597,7 +597,7 @@ class Notifications_Queue {
    * @return boolean
    *   TRUE if sending was successfull
    */
-  function message_send($method, $destination, $message, $test = FALSE) {
+  protected function message_send($method, $destination, $message, $test = FALSE) {
     notifications_debug('Preparing user notification for messaging', array('message' => $message, 'destination' => $destination));
     $message = messaging_message_build($message);
     $message->type = 'notifications';
@@ -634,9 +634,9 @@ class Notifications_Queue {
    * @arg $update
    *   Fields values to update. Array of field => value pairs
    */
-  function queue_update($params, $updates) {
+  public static function queue_update($params, $updates) {
     $values =  _messaging_query_conditions('notifications_queue', $updates);
-    $where = $this->queue_query($params);
+    $where = self::queue_query($params);
     $args = array_merge($values['args'], $where['args']);
     return db_query('UPDATE {notifications_queue} SET ' . implode(', ', $values['conditions']) . ' WHERE ' . implode(' AND ', $where['where']), $args);
   }
