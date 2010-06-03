@@ -193,11 +193,12 @@ class NotificationsContentTests extends NotificationsTestCase {
     variable_set('notifications_send_immediate', 0);
     variable_set('notifications_sendself', 1);
     
-    // Enable for update events, disble for comments
+    // Enable for update events, disable for comments
     $events['node-update'] = 1;
     variable_set('notifications_event_enabled', $events);
     
     // Trigger a node update event, with node unpublished
+    messaging_static_reset('notifications_content_nodeapi');
     $node = node_load($node->nid, NULL, TRUE);   
     $node->body .= 'Updated.';
     node_save($node);
@@ -211,6 +212,7 @@ class NotificationsContentTests extends NotificationsTestCase {
     variable_set('notifications_event_enabled', $events);
 
     // Trigger a node update event
+    messaging_static_reset('notifications_content_nodeapi');
     $node = node_load($node->nid, NULL, TRUE);   
     $node->body .= 'Updated.';
     node_save($node);

@@ -2,7 +2,8 @@
 
 6.x-4.x-beta5 to 6.x-4.x-beta6
 -------------------------------
-- Fixed WSOD on notifications_custom, refresh autoload after module enable, by yasheshb, #815812
+- Fixed: Duplicate emails when Content Notifications (used with Workflow module), #722432
+- Fixed: WSOD on notifications_custom, refresh autoload after module enable, by yasheshb, #815812
 - Do not send notifications to blocked users, #663186
 - Updating subscription language after user account's default, #810736
 - Added support for scheduled notifications, and notifications counter, #681786

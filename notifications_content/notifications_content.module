@@ -666,7 +666,9 @@ function _notifications_content_node_username($node) {
  */
 function notifications_content_nodeapi(&$node, $op, $arg = 0) {
   global $user;
-
+  // Keep track of nodes so we don't send notifications twice for the same node. See http://drupal.org/node/722432
+  $done = &messaging_static(__FUNCTION__);
+  
   switch ($op) {
     case 'load':
       // Store current status for later reference
@@ -676,7 +678,8 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
     case 'update':
     case 'insert':  
       // Notifications just for published nodes. If we don't have any option enabled for this content type, skip the event
-      if ($node->status && empty($node->notifications_content_disable) && notifications_content_type_enabled($node->type)) {
+      if (!isset($done[$node->nid]) && $node->status && empty($node->notifications_content_disable) && notifications_content_type_enabled($node->type)) {
+        $done[$node->nid] = TRUE;
         $event = array(
           'module' => 'node',
           'oid' => $node->nid,
