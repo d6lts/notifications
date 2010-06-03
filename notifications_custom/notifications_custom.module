@@ -16,8 +16,17 @@
 function notifications_custom_autoload_info() {
   return array(
     'Notifications_Custom_Subscription' => array('file' => 'notifications_custom.class.inc'),
-  ); 
+  );
 }
+
+/**
+ * Implementation of hook_enable().
+ */
+function notifications_custom_enable() {
+  // Needed by autoload
+  cache_clear_all();
+}
+
 /**
  * Implementation of hook_help().
  */
