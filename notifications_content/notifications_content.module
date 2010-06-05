@@ -191,6 +191,26 @@ function _notifications_content_add_disable_field(&$form, $default = 0) {
 }
 
 /**
+  * Implementation of hook hook_content_extra_fields().
+  *
+  * Enables CCK (admin/content/types/CONTENT_TYPE/fields) to configure the
+  * position of the notifications fieldset within the node.
+  *
+  * @ingroup hooks
+  */
+function notifications_content_content_extra_fields($type_name) {
+  $extra = array();
+  if (notifications_content_type_enabled($type_name) && (notifications_event_enabled('node-insert') || notifications_event_enabled('node-update'))) {
+    $extra['notifications'] = array(
+      'label' => t('Notifications'),
+      'description' => t('Notifications module form.'),
+      'weight' => 100,
+      );
+  }
+  return $extra;
+}
+
+/**
  * Implementation of hook_theme()
  */
 function notifications_content_theme() {

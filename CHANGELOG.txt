@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-4.x-beta6 to
+-------------------------------
+- Change weight of the notifications fieldset in CCK 'manage fields' page, by David Goode, #606454
+
 6.x-4.x-beta5 to 6.x-4.x-beta6
 -------------------------------
 - Fixed: Duplicate emails when Content Notifications (used with Workflow module), #722432

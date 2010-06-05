@@ -208,9 +208,29 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
        
     default: 
       if (isset($form['type']['#value']) && $form['type']['#value'] .'_node_form' == $form_id && ($subscriptions = notifications_ui_node_subscriptions($form['#node'], 'form'))) {
-        $form[] = notifications_subscriptions_options_subform($subscriptions);
+        $form = array_merge_recursive($form, notifications_subscriptions_options_subform($subscriptions, FALSE));
       }  
   }
+}
+
+/**
+  * Implementation of hook hook_content_extra_fields().
+  *
+  * Enables CCK (admin/content/types/CONTENT_TYPE/fields) to configure the
+  * position of the subscriptions fieldset within the node.
+  *
+  * @ingroup hooks
+  */
+function notifications_ui_content_extra_fields($type_name) {
+  $extra = array();
+  if (notifications_ui_node_options($type_name, 'form')) {
+    $extra['subscriptions'] = array(
+      'label' => t('Subscriptions'),
+      'description' => t('Notifications UI subscriptions form.'),
+      'weight' => 100,
+      );
+  }
+  return $extra;
 }
 
 /**
