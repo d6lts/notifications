@@ -809,7 +809,7 @@ function notifications_load_subscription($subs, $refresh = FALSE) {
  *   Uid of the user account to load, none to use anonymous user
  */
 function notifications_load_user($uid) {
-  return messaging_load_user($uid);
+  return messaging_load_user((int)$uid);
 }
 
 /**

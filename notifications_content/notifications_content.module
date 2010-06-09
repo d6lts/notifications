@@ -671,7 +671,7 @@ function _notifications_content_type_options($enabled = TRUE) {
 function _notifications_content_node_username($node) {
   // If the node comes from a page query, it may have an author name, otherwise we set it
   if (empty($node->name)) {      
-    if ($author = messaging_load_user($node->uid)) {
+    if ($author = notifications_load_user($node->uid)) {
       $node->name = $author->name;
     }
     else {

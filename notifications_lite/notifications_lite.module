@@ -46,7 +46,7 @@ function notifications_lite_send($uid, $subject, $body = '', $action = 'default'
   }
   elseif (module_exists('messaging')) {
     // We just have the Messaging system, that's something
-    $account = messaging_load_user($uid);
+    $account = notifications_load_user($uid);
     $message = array(
       'type' => 'notifications-lite',
       'subject' => $subject,

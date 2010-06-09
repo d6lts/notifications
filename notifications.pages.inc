@@ -68,7 +68,7 @@ function notifications_user_overview($form_state, $account) {
  */
 function notifications_edit_destination_form($form_state, $destination) {
   notifications_include('destination.inc');
-  $account = !empty($destination->uid) ? messaging_load_user($destination->uid) : drupal_anonymous_user();
+  $account = $destination->get_user();
   $form = notifications_destination_view_subform($destination);
   
   return $form;
