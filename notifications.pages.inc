@@ -91,7 +91,7 @@ function notifications_page_subscribe($account, $type, $fields, $values, $send_i
   $subscription->set_account($account);
 
   // Check permission again for these parameters
-  if ($account->uid && notifications_page_check_access($account->uid) && notifications_user_allowed('subscription', $account, $subscription)) {
+  if ($account->uid && notifications_page_check_access($account->uid) && notifications_user_allowed_subscription($account, $subscription)) {
     if (notifications_page_check_confirmation()) {
       // Subscribe, no confirmation
       notifications_save_subscription($subscription);

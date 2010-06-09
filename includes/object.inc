@@ -149,7 +149,7 @@ function notifications_object_user_subscriptions($type, $object, $account = NULL
     $type_key = $subscription->serialize_type();
     // If we have this type cached we don't search more
     if (!isset($cache[$account->uid][$type_key])) {
-      if (notifications_user_allowed('subscription', $account, $subscription)) {
+      if (notifications_user_allowed_subscription($account, $subscription)) {
         $subscription->set_account($account);
         // If anonymous user we don't search more because we cannot find by uid
         if ($account->uid) {

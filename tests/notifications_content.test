@@ -115,11 +115,11 @@ class NotificationsContentTests extends NotificationsTestCase {
     
     // Try permissions with anonymous user
     $user = drupal_anonymous_user();
-    $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), FALSE, 'Subscription not allowed for anonymous user');
+    $this->assertEqual(notifications_user_allowed_subscription($user, $subs_thread), FALSE, 'Subscription not allowed for anonymous user');
     
     // Create an authorized user and try permissions 
     $user = $this->drupalCreateUser($this->listPermissions());
-    $this->assertEqual(notifications_user_allowed('subscription', $user, $subs_thread), TRUE, 'Subscription is allowed for user with the right permissions');
+    $this->assertEqual(notifications_user_allowed_subscription($user, $subs_thread), TRUE, 'Subscription is allowed for user with the right permissions');
     $this->drupalLogin($user);
     
     // Check unsubscribe page, no subscriptions yet

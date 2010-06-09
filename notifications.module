@@ -1127,19 +1127,23 @@ function notifications_subscription_types($type = NULL, $field = NULL, $check_ac
  * 
  * @param $type
  *   Type to check, or nothing to return all
+ * @param $setvalue
+ *   Set this type as enabled (TRUE) / disabled (FALSE)
  */
-function notifications_subscription_type_enabled($type = NULL) {
+function notifications_subscription_type_enabled($type = NULL, $setvalue = NULL) {
   // By using a static, modules can peek and change this settings for specific pages
   $types = &messaging_static(__FUNCTION__);
   if (!isset($types)) {
-    $types = variable_get('notifications_subscription_types', NULL);
-    if (!isset($types)) {
-      // Not set, we assume all enabled.
-      $type_keys = array_keys(notifications_subscription_types());
-      $types = array_combine($type_keys, $type_keys);
-    }
+    $types = variable_get('notifications_subscription_types', array());
+    // For types not set, we assume enabled
+    $type_keys = array_keys(notifications_subscription_types());
+    $types += array_combine($type_keys, $type_keys);
   }
-  if ($type) {
+  if (isset($setvalue)) {
+    $types[$type] = $setvalue ? $type : 0;
+    variable_set('notifications_subscription_types', $types);
+  }
+  elseif ($type) {
     // If we don't have a setting yet for this type, return true
     return isset($types[$type]) ? (boolean)$types[$type] : TRUE;
   }
@@ -1686,6 +1690,19 @@ function notifications_user_allowed($type, $account, $object = NULL) {
 }
 
 /**
+ * Check access to create/edit subscriptions
+ */
+function notifications_user_allowed_subscription($account, $subscription) {
+  // For administrators, everything is allowed
+  if (user_access('administer notifications', $account)) {
+    return TRUE;
+  }
+  else {
+    return notifications_user_allowed('subscription', $account, $subscription);
+  }
+}
+
+/**
  * Implementation of hook_notifications()
  * 
  * Check access permissions to subscriptions and take care of some backwards compatibility
@@ -1746,11 +1763,12 @@ function notifications_notifications_subscription($op, $subscription = NULL, $ac
         if (!empty($info['access callback'])) {
           $access = call_user_func($info['access callback'], $account, $subscription);
         }
-        elseif (!empty($info['access']) && (user_access($info['access'], $account) || user_access('administer notifications', $account))) {
-          // Check matching fields
-          if (!empty($info['variable_fields']) || !array_diff($info['fields'], array_keys($subscription->get_conditions()))) {
-            $access = TRUE;
-          }
+        elseif (!empty($info['access'])) {
+          $access = $info['access'] === TRUE || user_access($info['access'], $account);
+        }
+        // If allowed access so far, check field values
+        if ($access) {
+          $access = $subscription->check_fields();
         }
       }
       return $access;

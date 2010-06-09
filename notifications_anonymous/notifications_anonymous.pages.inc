@@ -26,7 +26,7 @@ function notifications_anonymous_page_subscribe($type, $fields, $values, $send_i
   $subscription->set_account($account);
   $subscription->add_field_args($fields, $values);
   // Check permissions and if allowed, ask for confirmation
-  if (notifications_user_allowed('subscription', $account, $subscription)) {
+  if (notifications_user_allowed_subscription($account, $subscription)) {
     drupal_set_title(t('Confirm your subscription'));
     return drupal_get_form('notifications_anonymous_subscription_confirm_form', $subscription);
   }

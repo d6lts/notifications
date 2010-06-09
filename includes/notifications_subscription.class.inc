@@ -365,7 +365,7 @@ class Notifications_Subscription extends Messaging_Object {
    */
   function check_access($account = NULL) {
     $account = $account ? $account : $this->get_account();
-    return notifications_user_allowed('subscription', $account, $this);
+    return notifications_user_allowed_subscription($account, $this);
   }
   /**
    * Create destination for this subscription

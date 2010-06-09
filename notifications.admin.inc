@@ -366,7 +366,6 @@ function notifications_admin_subscriptions_settings_submit($form, &$form_state) 
     // Delete rows from queue and do some clean up.
     notifications_queue()->queue_clean(FALSE);
   }
-  
 }
 
 /**
