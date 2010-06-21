@@ -168,7 +168,6 @@ function notifications_custom_form_submit($form, &$form_state) {
 
 /**
  * Fields form: edit /add fields to custom subscription type
- * 
  */
 function notifications_custom_fields_form($form_state, $custom_type) {
   notifications_include('object.inc');
@@ -262,6 +261,23 @@ function notifications_custom_fields_form_submit($form, $form_state) {
   $fields = $form_state['field_values'];
   db_query("UPDATE {notifications_custom} SET fields = '%s' WHERE csid = %d", serialize($fields), $subscription->csid);
   drupal_set_message(t('The fields for this subscription have been updated.'));
+  $subscription->set_fields($fields);
+  notifications_custom_fields_update_all($subscription);
+}
+
+/**
+ * Update all fields for this subscription type
+ */
+function notifications_custom_fields_update_all($subscription) {
+  if ($count = db_result(db_query("SELECT COUNT(*) FROM {notifications} WHERE type = '%s'", $subscription->type))) {
+    // Delete all fields for this subscription type
+    db_query("DELETE FROM {notifications_fields} WHERE sid IN (SELECT sid FROM {notifications} WHERE type = '%s')", $subscription->type);
+    // Create the new fields
+    foreach ($subscription->get_fields() as $field) {
+      db_query("INSERT INTO {notifications_fields} (sid, field, value, intval) SELECT sid, '%s', '%s', %d FROM {notifications} WHERE type = '%s'", $field->field, $field->value, (int)$field->value, $subscription->type);
+    }
+    drupal_set_message(t('@count subscriptions have been updated with the new values.', array('@count' => $count)));
+  }
 }
 
 /**

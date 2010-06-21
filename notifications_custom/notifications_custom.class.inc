@@ -35,6 +35,7 @@ class Notifications_Custom_Subscription extends Notifications_Subscription {
   function get_description() {
     return check_plain(notifications_translate("custom:$this->type:title", $this->get_type('description')));
   }
+
   /**
    * Get default value for a possible checkbox
    */
