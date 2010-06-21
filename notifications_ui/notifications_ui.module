@@ -71,7 +71,7 @@ function notifications_ui_menu() {
  */
 function notifications_ui_menu_alter(&$items) {
   foreach (notifications_subscription_types() as $type => $info) {
-    if (!empty($info['user page'])) {
+    if (!empty($info['user page']) && isset($items[$info['user page']])) {
       $items[$info['user page']]['access callback'] = 'notifications_ui_access_page';
       $items[$info['user page']]['access arguments'] = array($type, 1);
     }
