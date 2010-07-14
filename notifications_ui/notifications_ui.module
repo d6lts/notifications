@@ -188,7 +188,7 @@ function notifications_ui_form_alter(&$form, $form_state, $form_id) {
       // Add to comment forms.
       $node = node_load($form['nid']['#value']);
       if ($subscriptions = notifications_ui_node_subscriptions($node, 'comment')) {
-        $form[] = notifications_subscriptions_options_subform($subscriptions);    
+        $form[] = notifications_subscriptions_options_subform($subscriptions, FALSE);    
       }
       break;
     
