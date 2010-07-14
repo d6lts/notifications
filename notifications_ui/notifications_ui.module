@@ -97,9 +97,9 @@ function notifications_ui_access_page($type, $account) {
         // On insert some field information will be missing, we need to recreate it.
         // @todo Check this one, we may not need it anymore
         foreach ($node->subscriptions['params'] as $i => $subscriptions) {
-          foreach ($subscriptions['fields'] as $key => $value) {
+          foreach ($subscriptions->fields as $key => $value) {
             if (!$value && isset($event->params[$key])) {
-              $event->node->subscriptions['params'][$i]['fields'][$key] = $event->params[$key];
+              $event->node->subscriptions['params'][$i]->fields[$key] = $event->params[$key];
             }
           }
         }
