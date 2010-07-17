@@ -84,7 +84,7 @@ function notifications_process_build_simple_message($template, $event, $subscrip
   $subscription = $subscriptions ? notifications_load_subscription(current($subscriptions)) : NULL;
   $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
   $objects = array_merge($objects, $event->get_objects());
-  $text = messaging_template_text_replace($parts, $objects);
+  $text = messaging_template_text_replace($parts, $objects, $language);
 
   // Get subject out of text and build the message array
   $message->subject = $text['subject'];

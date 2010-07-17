@@ -171,7 +171,7 @@ function notifications_digest_build_short($template, $events, $subscriptions, $m
   $text['footer'] = notifications_digest_message_part('footer', $send_method, NULL, NULL, $language, $module);
   $message->text_parts = $text;
   // We dont pass a subscription object here, won't be too much use anyway
-  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
+  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL), $language);
   $message->subject = $text['subject'];
 
   // Compile list of events for each object. Build up the digested list with text replacement
@@ -196,7 +196,7 @@ function notifications_digest_build_short($template, $events, $subscriptions, $m
       );
       $message->text_parts['list'][$digest_type][$digest_value]['group'] = $group;
       // The objects passed here for tokens will be the ones from the first event only
-      $list[$digest_type][$digest_value]['group'] = messaging_template_text_replace($group, $objects);
+      $list[$digest_type][$digest_value]['group'] = messaging_template_text_replace($group, $objects, $language);
       notifications_debug('Digesting object', array('type' => $digest_type, 'value' => $digest_value));
     }
     // Check duplicate notifications for the same event so we do some deduping
@@ -204,7 +204,7 @@ function notifications_digest_build_short($template, $events, $subscriptions, $m
       $line = notifications_digest_line($event, $send_method, $language);
       $messsage->text_parts['list'][$digest_type][$digest_value]['line'][$event->eid] = $line;
       $objects['event'] = $event; 
-      $list[$digest_type][$digest_value]['line'][$event->eid] = messaging_template_text_replace($line, $objects);
+      $list[$digest_type][$digest_value]['line'][$event->eid] = messaging_template_text_replace($line, $objects, $language);
     }
   }
 
@@ -244,7 +244,7 @@ function notifications_digest_build_long($template, $events, $subscriptions, $mo
   $message->text_parts = $text;
 
   // We dont pass a subscription object here, won't be too much use anyway
-  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL));
+  $text = messaging_template_text_replace($text, array('destination' => $destination, 'user' => $account, 'subscription' => NULL), $language);
   $message->subject = $text['subject'];
   
   // Build the message body as an array of event notifications
@@ -262,7 +262,7 @@ function notifications_digest_build_long($template, $events, $subscriptions, $mo
     // Pass only the first subscription here
     $subscription = $event_subscriptions ? notifications_load_subscription(current($event_subscriptions)) : NULL;
     $objects = $event->get_objects() + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
-    $body = array_merge($body, messaging_template_text_replace($part, $objects));
+    $body = array_merge($body, messaging_template_text_replace($part, $objects, $language));
     $message->text_parts['list'][$event->eid] = $part;
   }
 

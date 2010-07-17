@@ -1306,13 +1306,14 @@ function notifications_messaging($op, $arg1 = NULL, $arg2 = NULL) {
  * @ TODO: Work out event tokens
  */
 function notifications_token_values($type, $object = NULL, $options = array()) {
+  $language = isset($options['language']) ? $options['language'] : $GLOBALS['language'];
   switch ($type) {
     case 'subscription':
       $values = array();
       // Tokens only for registered users
       if ($subscription = messaging_check_object($object, 'Notifications_Subscription')) {
-        $values['subscription-unsubscribe-url'] = notifications_build_url('unsubscribe', 'subscription', $subscription);
-        $values['subscription-edit-url'] = notifications_build_url('edit', 'subscription', $subscription);
+        $values['subscription-unsubscribe-url'] = notifications_build_url('unsubscribe', 'subscription', $subscription, array('language' => $language));
+        $values['subscription-edit-url'] = notifications_build_url('edit', 'subscription', $subscription, array('language' => $language));
         $values['subscription-type'] = $subscription->get_type('name');
         $values['subscription-name'] = $subscription->get_name();
         $values['subscription-description-short'] = $subscription->format_short(FALSE);
@@ -1326,8 +1327,8 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
       // Only for registered users.
       if (($account = $object) && !empty($account->uid)) {
         // We have a real user, so we produce full links
-        $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE));
-        $values['unsubscribe-url-global'] = notifications_build_url('unsubscribe', 'user', $account);
+        $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE, 'language' => $language));
+        $values['unsubscribe-url-global'] = notifications_build_url('unsubscribe', 'user', $account, array('language' => $language));
         return $values;
       }
       break;
@@ -1335,19 +1336,20 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
     case 'destination':
       // These are just for registered users. For anonymous, notifications_anonymous will do it
       if (($destination = messaging_check_object($object, 'Messaging_Destination')) && !empty($destination->uid)) {
-        $values['destination-unsubscribe-url'] = notifications_build_url('unsubscribe', 'destination', $destination);
-        $values['destination-manage-url'] = notifications_build_url('manage', 'destination', $destination);
-        $values['destination-edit-url'] = notifications_build_url('edit', 'destination', $destination);
+        $values['destination-unsubscribe-url'] = notifications_build_url('unsubscribe', 'destination', $destination, array('language' => $language));
+        $values['destination-manage-url'] = notifications_build_url('manage', 'destination', $destination, array('language' => $language));
+        $values['destination-edit-url'] = notifications_build_url('edit', 'destination', $destination, array('language' => $language));
         return $values;
       }
       break;
 
     case 'event':
       if ($event = messaging_check_object($object, 'Notifications_Event')) {
+        $timezone = isset($options['timezone']) ? $options['timezone'] : variable_get('date_default_timezone', 0);
         $values['event-type-description'] = $event->get_type('description');
-        $values['event-date-small'] = format_date($event->created, 'small');
-        $values['event-date-medium'] = format_date($event->created, 'medium');
-        $values['event-date-large'] = format_date($event->created, 'large');
+        $values['event-date-small'] = format_date($event->created, 'small', '', $timezone, $language->language);
+        $values['event-date-medium'] = format_date($event->created, 'medium', '', $timezone, $language->language);
+        $values['event-date-large'] = format_date($event->created, 'large', '', $timezone, $language->language);
         return $values;
       }
       break;
@@ -1438,6 +1440,7 @@ function notifications_cron() {
  *   - destination, form destination or TRUE to use current path
  *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
  *   - type, object type
+ *   - language, language object to get the url
  *   - Other subscription parameters: type, fields...
  * @param $format
  *   Whether to return a formatted link instead of a raw one (array)
@@ -1482,6 +1485,7 @@ function notifications_get_link($op, $params, $format = FALSE) {
  *   - confirm, whether to show confirmation page or not
  *   - destination, form destination or TRUE to use current path
  *   - signed, to produce a signed link that can be used by anonymous users (Example: unsubscribe link in emails)
+ *   - language, language object to user for generating the url
  *   - Other subscription parameters: type, fields...
  * @param $type
  *   Object type: 'subscription', 'destination'
@@ -1608,6 +1612,13 @@ function notifications_subscription_get_link($op, $subscription, $options = arra
 
 /**
  * Get notifications link from elements and params
+ * 
+ * @param $elements
+ *   Array of path elements, not including the 'notifications' prefix
+ * @param $params
+ *   Notifications link parameters as in notifications_build_link()
+ * @param $options
+ *   Aditional parameters for the url() function
  */
 function _notifications_get_link($elements, $params = array()) {
   // Add some default values
@@ -1616,6 +1627,7 @@ function _notifications_get_link($elements, $params = array()) {
     'signed' => FALSE,
     'destination' => FALSE,
     'query' => array(),
+    'options' => array(),
   );
   if ($params['destination'] === TRUE) {
     $params['destination'] = $_GET['q'];
@@ -1636,8 +1648,10 @@ function _notifications_get_link($elements, $params = array()) {
     $query['signature'] =  _notifications_signature($elements, $query);
   }
   // Build final link parameters
+  $options = $params['options'];
   $options['query'] = $query;
-  foreach (array('absolute', 'html') as $name) {
+
+  foreach (array('absolute', 'html', 'language') as $name) {
     if (isset($params[$name])) {
       $options[$name] = $params[$name];
     }

@@ -2,6 +2,7 @@
 
 6.x-4.x-beta6 to
 -------------------------------
+- Added some support for language for tokens, based on patch by jmiccolis
 - Fields for custom subscription types updated for all existing subscriptions, #638710 
 - Reworked subscription access checking, was not working for custom subscriptions, fixed #795890
 - Improved notifications_subscription_type_enabled(). More consistent, add setting option.
