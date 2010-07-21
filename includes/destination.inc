@@ -464,13 +464,18 @@ function notifications_destination_request_form_submit($form, &$form_state) {
  * @param $message
  *   Message data or message template name ('notifications-' will be prepended)
  * @param $destination
- *   Destination object, will have 
+ *   Destination object
  */
 function notifications_destination_message_send($message, $destination, $send_method = NULL, $objects = array(), $priority = 0) {
   if (is_string($message) && $send_method) {
     // We have a template name, message needs to be built
     $template = 'notifications-' . $message;
-    $message = notifications_destination_message_build($template , $send_method, $destination, $objects, $priority);
+    $account = $destination->get_account();
+    $objects += array('destination' => $destination, 'user' => $account);
+    $language = user_preferred_language($account);
+    $message = messaging_template_build($template, $send_method, $language, $objects);
+    $message->set_destination($destination);
+    $message->priority = $priority;
   }
   if ($message && $send_method) {
     return messaging_message_send_destination($send_method, $destination, $message);
@@ -479,34 +484,6 @@ function notifications_destination_message_send($message, $destination, $send_me
     // Something's gone wrong
     return FALSE;
   }
-}
-
-/**
- * Build message for destination
- * 
- * @param $template
- *   Template name to get text parts from
- */
-function notifications_destination_message_build($template , $send_method, $destination, $objects = array(), $priority = 0) {
-  notifications_include('process.inc');
-  global $language;
-
-  $objects += array('destination' => $destination, 'user' => $destination->get_account());
-  $parts = array(
-    'subject' => messaging_template_text_part($template, 'subject', $send_method, $language),
-    'header' => messaging_template_text_part($template, 'header', $send_method, $language),
-    'main'  => messaging_template_text_part($template, 'main', $send_method, $language),
-    'footer' => messaging_template_text_part($template, 'footer', $send_method, $language),
-  );
-  // Run token replacement 
-  $text = messaging_template_text_replace($parts, $objects);
-  // Get subject out of text and build the message array
-  $subject = $text['subject'];
-  unset($text['subject']);
-  $message = messaging_message_build(array('subject' => $subject, 'body' => $text));
-  $message->set_destination($destination);
-  $message->priority = $priority;
-  return $message;
 }
 
 /**
