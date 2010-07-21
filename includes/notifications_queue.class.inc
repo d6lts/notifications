@@ -126,7 +126,6 @@ class Notifications_Queue {
   function process_prepare() {
     if (!isset($this->process_max_sqid)) {
       notifications_include('event.inc');
-      notifications_include('process.inc');
       $this->process_control('start');
       // This will get the latest notification in queue so we don't mess with new ones being created during cron run
       // It will also prevent clashes with the immediate sending feature
@@ -559,27 +558,37 @@ class Notifications_Queue {
   function process_compose($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
     notifications_log('Processing for sending', array('method' => $send_method, 'interval' => $send_interval, 'module' => $module, 'events' => count($events)));
     // Build message template that will be used for all produced messages
-    $template = new Notifications_Message();
+    $template = $this->message_template();
     $template->method = $send_method;
     $template->set_destination($destination);
     $template->send_interval = $send_interval;  
     
     // Find build method for this interval. Check the function is there in case some module has been disabld
     $build_method = $this->build_method($template, array('events' => $events, 'subscriptions' => $subscriptions, 'module' => $module));
-    if ($build_method) {
+    if ($build_method && !empty($build_method['build callback'])) {
       $build_function = $build_method['build callback'];
       $template->digest = !empty($build_method['digest']);
       $template->build_method = $build_method['type'];
     }
     else {
       // Default building function
-      $build_function = 'notifications_process_build_simple';
+      $build_function = array($template, 'build_simple');
       $template->build_method = 'simple';
     }
   
     // Invoke building function that will return an array of messages  
-    $messages = $build_function($template, $events, $subscriptions, $module);
+    $messages = call_user_func($build_function, $template, $events, $subscriptions, $module);
     return $messages;
+  }
+  
+  /**
+   * Get message template for notifications
+   * 
+   * This is a hidden variable that can be overridden to use a different class: notifications_message_template
+   */
+  public static function message_template() {
+    $class = variable_get('notifications_message_template', 'Notifications_Message');
+    return new $class();
   }
   
   /**
@@ -597,7 +606,7 @@ class Notifications_Queue {
    *   Ditest information for that interval, or all the information if no interval
    */
   function build_method($template, $params = array()) {
-    return notifications_process_build_method($template->send_interval);
+    return notifications_build_method($template->send_interval);
   }
   
   /**
@@ -846,5 +855,4 @@ class Notifications_Queue {
    
     return array('where' => $where, 'args' => $args);
   }
-  
 }

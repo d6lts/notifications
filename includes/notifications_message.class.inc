@@ -83,4 +83,71 @@ class Notifications_Message extends Messaging_Message {
       }
     }
   }
+
+  /**
+   * Digest multiple events in a single message, short format.
+   * 
+   * Was: notifications_process_build_simple()
+   * 
+   * @return array with messages ready to be sent
+   */
+  public static function build_simple($template, $events, $subscriptions, $module = 'notifications') {
+    $messages = array();
+    $sender_option = variable_get('notifications_sender', 0);
+    foreach ($events as $event) {
+      $event_subscriptions = isset($subscriptions[$event->eid]) ? array_filter($subscriptions[$event->eid]) : NULL;
+      $message = self::build_simple_message($template, $event, $event_subscriptions, $module);
+      $message->set_sender($event->uid);
+      $messages[] = $message;
+    }
+    return $messages;
+  }
+  
+  /**
+   * Creates a single message for a single event
+   * 
+   * @param $account
+   *   Destination user account
+   * @param $event
+   *   Event object which caused this notification
+   * @param $subscriptions
+   *   Array of subscription ids
+   * @param $debug
+   *   Return template parts information with the message
+   * 
+   * @return
+   *   Message object
+   */
+  public static function build_simple_message($template, $event, $subscriptions, $module = 'notifications') {
+    $send_method = $template->method;
+    $destination = $template->get_destination();
+    $account = $template->get_user();
+    $language = $template->get_language();
+  
+    // Start the message by cloning the template
+    $message = clone $template;
+    $message->add_event($event, $subscriptions);
+    // Create message. Do all this in one replacemente
+    $parts = array(
+      'subject' => notifications_event_message_part($event, 'subject', $send_method, $language, $module),
+      'header' => notifications_event_message_part($event , 'header', $send_method, $language, $module),
+      'event'  => notifications_event_message_part($event, 'main', $send_method, $language, $module),
+      'footer' => notifications_event_message_part($event, 'footer', $send_method, $language, $module),
+    );
+    // We pass only the first subscription, which is at least something
+    // @ TODO Handle nicely the case where there are more than one subscription
+    $subscription = $subscriptions ? notifications_load_subscription(current($subscriptions)) : NULL;
+    $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
+    $objects = array_merge($objects, $event->get_objects());
+    $text = messaging_template_text_replace($parts, $objects, $language);
+  
+    // Get subject out of text and build the message array
+    $message->subject = $text['subject'];
+    unset($text['subject']);
+    $message->body = $text;
+    $message->text_parts = $parts;
+  
+    return $message;
+  }
+  
 }

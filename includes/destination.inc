@@ -303,7 +303,7 @@ function notifications_destination_manage_subform($destination) {
   $subscriptions = notifications_destination_get_subscriptions($destination, 20);
   // List of subscriptions for selection
   $select = array();
-  $status = _notifications_subscription_status();
+  $status = Notifications_Subscription::status_list();
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = notifications_send_intervals();
   $drupal_destination = drupal_get_destination();
@@ -373,12 +373,12 @@ function notifications_destination_subscriptions_operations($account = NULL) {
     'activate' => array(
       'label' => t('Activate'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_ACTIVE)),
     ),
     'deactivate' => array(
       'label' => t('Deactivate'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_INACTIVE)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_INACTIVE)),
     ),
     'delete' => array(
       'label' => t('Delete'),
@@ -390,7 +390,7 @@ function notifications_destination_subscriptions_operations($account = NULL) {
     $operations['block'] = array(
       'label' => t('Block'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_BLOCKED)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_BLOCKED)),
     );
   }
   $parent = t('Change send interval to');
@@ -526,7 +526,7 @@ function notifications_destination_method_replace($old, $new) {
     }
   }
   // Block remaining subscriptions for old sending method
-  db_query("UPDATE {notifications} SET status = %d WHERE send_method = '%s'", NOTIFICATIONS_SUBSCRIPTION_BLOCKED, $old);
+  db_query("UPDATE {notifications} SET status = %d WHERE send_method = '%s'", Notifications_Subscription::STATUS_BLOCKED, $old);
   $blocked = db_affected_rows();
   // Print out some messages about what's happened
   if (!empty($replaced)) {

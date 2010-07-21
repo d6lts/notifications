@@ -19,16 +19,6 @@
  *
  */
 
-// Define some values for subscription status
-// Blocked subscriptions, for blocked users
-define('NOTIFICATIONS_SUBSCRIPTION_BLOCKED', 0);
-// Enabled ones, will produce notifications
-define('NOTIFICATIONS_SUBSCRIPTION_ACTIVE', 1);
-// Temporarily disabled ones, maybe user on holidays
-define('NOTIFICATIONS_SUBSCRIPTION_INACTIVE', 2);
-// Disabled because the subscription type is disabled
-define('NOTITICATIONS_SUBSCRIPTION_DISABLED', -1);
-
 /**
  * Implementation of hook_autoload_info().
  */
@@ -415,12 +405,12 @@ function notifications_user($type, $edit, $user, $category = NULL) {
       if (isset($edit['status'])) {
         if ($edit['status'] == 0) { // user is being blocked now
           // Delete pending notifications and block existing active subscriptions
-          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_BLOCKED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $user->uid);
+          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', Notifications_Subscription::STATUS_BLOCKED, Notifications_Subscription::STATUS_ACTIVE, $user->uid);
           notifications_queue()->queue_clean(array('uid' => $user->uid));
         }
         else {
           // User may be being unblocked, unblock subscriptions if any
-          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_ACTIVE, NOTIFICATIONS_SUBSCRIPTION_BLOCKED, $user->uid);
+          db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', Notifications_Subscription::STATUS_ACTIVE, Notifications_Subscription::STATUS_BLOCKED, $user->uid);
         }
       }
       break;
@@ -980,7 +970,7 @@ function notifications_user_get_subscriptions($account, $type, $object, $refresh
     $subscribe_options = notifications_object_subscribe_options($type, $object, messaging_user_object($account));
     foreach ($subscribe_options as $template) {
       $type_subscriptions = notifications_get_subscriptions(
-        array('uid' => $uid, 'type' => $template['type'], 'status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE), // Main conditions
+        array('uid' => $uid, 'type' => $template['type'], 'status' => Notifications_Subscription::STATUS_ACTIVE), // Main conditions
         $template['fields'], // Field conditions
         TRUE // Match exactly these condition fields, no less, no more
       );
@@ -1427,6 +1417,28 @@ function notifications_cron() {
 }
 
 /**
+ * Information about digesting method for a send interval.
+ * 
+ * @return array()
+ *   Ditest information for that interval, or all the information if no interval
+ */
+function notifications_build_method($send_interval = NULL, $refresh = FALSE) {
+  $build_methods = notifications_info('build methods', NULL, $refresh);
+  $intervals = variable_get('notifications_digest_methods', array());
+
+  if (is_null($send_interval)) {
+    return $build_methods;
+  }
+  elseif (!empty($intervals[$send_interval]) && isset($build_methods[$intervals[$send_interval]])) {
+    return $build_methods[$intervals[$send_interval]];
+  }
+  else {
+    // Default, that will be always the simple one
+    return $build_methods['simple'];
+  }
+}
+
+/**
  * Return link array for subscriptions. OBSOLETED.
  * 
  * This one is kept just for backwards compatibility. Use notifications_build_link() instead.
@@ -1729,7 +1741,8 @@ function notifications_notifications($op) {
         'type' => 'simple',
         'name' => t('Simple'),
         'description' => t('Produces one message per event, without digesting.'),
-        'build callback' => 'notifications_process_build_simple',
+         // This is a built in method so we don't have a 'build callback' for it
+         //'build callback' => array('Notifications_Message', 'build_simple',
         'digest' => FALSE,
       );
       return $info;
@@ -1902,22 +1915,10 @@ function _notifications_subscription_defaults($account = NULL) {
     'send_interval' => notifications_user_setting('send_interval', $account, 0),
     'send_method' => notifications_user_setting('send_method', $account, ''),
     'module' => 'notifications',
-    'status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE,
+    'status' => Notifications_Subscription::STATUS_ACTIVE,
     'destination' => '',
     'cron' => 1,
   ); 
-}
-
-/**
- * Status list
- */
-function _notifications_subscription_status() {
-  return array(
-    NOTIFICATIONS_SUBSCRIPTION_ACTIVE => t('active'),
-    NOTIFICATIONS_SUBSCRIPTION_BLOCKED => t('blocked'),
-    NOTIFICATIONS_SUBSCRIPTION_INACTIVE => t('inactive'),
-    NOTITICATIONS_SUBSCRIPTION_DISABLED => t('disabled'),
- );
 }
 
 /**

@@ -18,6 +18,9 @@ class Notifications_Subscription extends Messaging_Object {
   const STATUS_ACTIVE = 1;
   // Temporarily disabled ones, maybe user on holidays
   const STATUS_INACTIVE = 2;
+  // Disabled because the subscription type is disabled
+  const STATUS_DISABLED = -1;
+
   // Format as plaintext. Note it evaluates to false.
   const FORMAT_PLAIN = 0;
   // Format as html. Note it evaluates to true
@@ -948,7 +951,19 @@ class Notifications_Subscription extends Messaging_Object {
     notifications_include('object.inc');
     return notifications_field_form_element($type, $value, $this, $title, $required);
   }
-  
+
+  /**
+   * Status list
+   */
+  public static function status_list() {
+    return array(
+      self::STATUS_ACTIVE => t('active'),
+      self::STATUS_BLOCKED => t('blocked'),
+      self::STATUS_INACTIVE => t('inactive'),
+      self::STATUS_DISABLED => t('disabled'),
+   );
+  }
+
   /**
    * Magic method, set protected properties
    * 

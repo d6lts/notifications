@@ -60,7 +60,7 @@ function notifications_manage_subscriptions_form($account = NULL, $full = TRUE) 
   $form = notifications_manage_subscriptions_form_options($account);
   $form_destination = drupal_get_destination();
   $subscriptions = array();
-  $status = _notifications_subscription_status();
+  $status = Notifications_Subscription::status_list();
   $send_methods = messaging_method_info(NULL, 'name');
   $send_intervals = notifications_send_intervals();
   while ($object = db_fetch_object($result)) {
@@ -269,7 +269,7 @@ function notifications_subscriptions_filters($admin = FALSE) {
 
   $filters['status'] = array(
     'title' => t('status'),
-    'options' => _notifications_subscription_status(),
+    'options' => Notifications_Subscription::status_list(),
   );
   $filters['type'] = array(
     'title' => t('type'),
@@ -305,12 +305,12 @@ function notifications_subscriptions_operations($account = NULL) {
     'activate' => array(
       'label' => t('Activate'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_ACTIVE)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_ACTIVE)),
     ),
     'deactivate' => array(
       'label' => t('Deactivate'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_INACTIVE)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_INACTIVE)),
     ),
     'delete' => array(
       'label' => t('Delete'),
@@ -322,7 +322,7 @@ function notifications_subscriptions_operations($account = NULL) {
     $operations['block'] = array(
       'label' => t('Block'),
       'callback' => 'notifications_subscriptions_mass_update',
-      'callback arguments' => array('updates' => array('status' => NOTIFICATIONS_SUBSCRIPTION_BLOCKED)),
+      'callback arguments' => array('updates' => array('status' => Notifications_Subscription::STATUS_BLOCKED)),
     );
   }
   // Sending methods, not for destination

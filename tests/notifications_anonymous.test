@@ -23,7 +23,6 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     variable_set('notifications_default_send_method', 'mail'); // Mail for everybody
     variable_set('messaging_method_mail', array('queue' => 1, 'log' => 1)); // Enable queue, log for mail
     // This send interval (0) and method (mail) are defaults enabled for anonymous
-    notifications_include('process.inc');
   }
   
   function testAnonymousSubscriptions() {

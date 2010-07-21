@@ -16,7 +16,6 @@ class NotificationsBasicTests extends NotificationsTestCase {
   
   function setUp() {
     parent::setUp('messaging_mail', 'messaging_simple', 'notifications_tools', 'notifications_lite');
-    notifications_include('process.inc');
   }
 
   /**

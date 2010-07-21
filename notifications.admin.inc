@@ -137,7 +137,6 @@ function notifications_settings_form() {
  * Send intervals administration
  */
 function notifications_send_intervals_form() {
-  notifications_include('process.inc');
   // Collect information about digesting methods and print out some help
   // Collect information about building methods and print out some help
   $form['build'] = array(
@@ -145,7 +144,7 @@ function notifications_send_intervals_form() {
     '#type' => 'fieldset',
     '#description' => t('These are the building formats available for each interval.')
   );
-  foreach (notifications_process_build_method() as $type => $method) {
+  foreach (notifications_build_method() as $type => $method) {
     $build_methods[$type] = $method['name'];
     $rows[] = array($method['name'], $method['description']);    
   }
@@ -206,7 +205,7 @@ function notifications_send_intervals_form() {
       '#default_value' => $name,
       '#size' => 40,
     );
-    $build = notifications_process_build_method($time);
+    $build = notifications_build_method($time);
     $form['intervals'][$index]['build'] = array(
       '#type' => 'select',
       '#disabled' => ($number < 0),
@@ -344,15 +343,15 @@ function notifications_admin_subscriptions_settings_submit($form, &$form_state) 
     // Enable subscriptions of these types that were disabled before
     $placeholders = db_placeholders($types, 'varchar');
     $sql_where = ' AND type IN (' . $placeholders . ')';
-    $params = array_merge(array(NOTIFICATIONS_SUBSCRIPTION_ACTIVE, NOTITICATIONS_SUBSCRIPTION_DISABLED), $types);
+    $params = array_merge(array(Notifications_Subscription::STATUS_ACTIVE, Notifications_Subscription::STATUS_DISABLED), $types);
     db_query($sql_update . $sql_where, $params);
     $enabled = db_affected_rows();
 
-    $params = array_merge(array(NOTITICATIONS_SUBSCRIPTION_DISABLED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE), $types);
+    $params = array_merge(array(Notifications_Subscription::STATUS_DISABLED, Notifications_Subscription::STATUS_ACTIVE), $types);
     $sql_where = ' AND type NOT IN (' . $placeholders . ')';
   }
   else {
-    $params = array(NOTITICATIONS_SUBSCRIPTION_DISABLED, NOTIFICATIONS_SUBSCRIPTION_ACTIVE);
+    $params = array(Notifications_Subscription::STATUS_DISABLED, Notifications_Subscription::STATUS_ACTIVE);
     $sql_where = '';
   }
   db_query($sql_update . $sql_where, $params);

@@ -25,7 +25,6 @@ class NotificationsContentTests extends NotificationsTestCase {
     // Default send interval will be: immediately
     variable_set('notifications_default_send_interval', 0);
     variable_set('notifications_default_send_method', 'debug');
-    notifications_include('process.inc');
   }
   
   /**
@@ -99,7 +98,8 @@ class NotificationsContentTests extends NotificationsTestCase {
       'body' => 'This is a test node for content subscriptions.',
       'type' => $ctype->type,
       'uid' => $author->uid,
-      'status' => 1,    
+      'status' => 1,
+      'log' => '', // If not set, token module produces a notice
     ));
 
     $subs_thread = notifications_build_subscription(array(
@@ -259,7 +259,8 @@ class NotificationsContentTests extends NotificationsTestCase {
       'body' => 'This is a test node for content subscriptions.',
       'type' => $ctype->type,
       'uid' => $author->uid,
-      'status' => 0,    
+      'status' => 0,
+      'log' => '', // If not set, token module produces a notice
     ));
     // There should be no events and nothing in the queue
     $this->assertRowCount('notifications_event', 0);

@@ -18,7 +18,7 @@ function notifications_user_overview($form_state, $account) {
   
   // Status, send method, interval
   $count = db_query("SELECT status, COUNT(*) AS num FROM {notifications} WHERE uid = %d GROUP BY status", $account->uid);
-  $status_list = _notifications_subscription_status();
+  $status_list = Notifications_Subscription::status_list();
   while ($current = db_fetch_object($count)) {
     $status[$current->status] = t('You have %count @status subscriptions.', array('%count' => $current->num, '@status' => $status_list[$current->status]));
   }
@@ -47,10 +47,10 @@ function notifications_user_overview($form_state, $account) {
   
   // Enable / disable all subscriptions
   if (notifications_access_user($account, 'maintain')) {
-    if (!empty($status[NOTIFICATIONS_SUBSCRIPTION_ACTIVE])) {
+    if (!empty($status[Notifications_Subscription::STATUS_ACTIVE])) {
       $tips['disable'] = l(t('Temporarily disable all your subscriptions'), "$path/notifications/update/disable");
     }
-    if (!empty($status[NOTIFICATIONS_SUBSCRIPTION_INACTIVE]) || !empty($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED])) {
+    if (!empty($status[Notifications_Subscription::STATUS_INACTIVE]) || !empty($status[Notifications_Subscription::STATUS_BLOCKED])) {
       $tips['enable'] = l(t('Enable all your subscriptions'), "$path/notifications/update/enable");
     }    
   }
@@ -396,9 +396,9 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
   // Status field, show blocked only to administrators
   if ($subscription->is_instance()) {
     $save_fields[] = 'status';
-    $status = _notifications_subscription_status();
+    $status = Notifications_Subscription::status_list();
     if (!user_access('administer notifications') && !user_access('manage all subscriptions')) {
-      unset($status[NOTIFICATIONS_SUBSCRIPTION_BLOCKED]);
+      unset($status[Notifications_Subscription::STATUS_BLOCKED]);
     }
     $form['status'] = array(
       '#type' => 'radios',
@@ -552,11 +552,11 @@ function notifications_update_user_subscriptions_submit($form, $form_state) {
   switch ($form_state['values']['operation']) {
     case 'enable':
       // Enable also blocked subscriptions just in case there are some
-      db_query('UPDATE {notifications} SET status = %d WHERE uid = %d', NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
+      db_query('UPDATE {notifications} SET status = %d WHERE uid = %d', Notifications_Subscription::STATUS_ACTIVE, $account->uid);
       drupal_set_message(t('All your subscriptions have been enabled.'));
       break;
     case 'disable':
-      db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', NOTIFICATIONS_SUBSCRIPTION_INACTIVE, NOTIFICATIONS_SUBSCRIPTION_ACTIVE, $account->uid);
+      db_query('UPDATE {notifications} SET status = %d WHERE status = %d AND uid = %d', Notifications_Subscription::STATUS_INACTIVE, Notifications_Subscription::STATUS_ACTIVE, $account->uid);
       notifications_queue()->queue_clean(array('uid' => $account->uid));
       drupal_set_message(t('All your subscriptions have been disabled.'));
       break;

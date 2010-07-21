@@ -96,7 +96,6 @@ function notifications_event_send_immediate($event = NULL) {
  */
 function notifications_event_process_immediate() {
   if ($events = notifications_event_send_immediate()) {
-    notifications_include('process.inc');
     foreach ($events as $event) {
       notifications_queue()->process_rows(array('cron' => 1, 'eid' => $event->eid, 'send_interval' => 0));
     }    

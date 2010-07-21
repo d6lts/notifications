@@ -22,8 +22,6 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     variable_set('notifications_default_send_method', 'debug');
     // Set fake site name for comparison after token replacement
     variable_set('site_name', 'Test Site');
-    
-    notifications_include('process.inc');
   }
 
   /**
@@ -67,7 +65,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $interval_long = 2;
     variable_set('notifications_digest_methods', array($interval_short => 'short', $interval_long => 'long'));  
     
-    $digest = notifications_process_build_method(1);
+    $digest = notifications_build_method(1);
     $this->assertEqual($digest['type'], 'short', 'Get information about intervals and digest methods.');
     
     $info = $event1->get_type();

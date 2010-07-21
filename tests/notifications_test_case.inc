@@ -70,7 +70,6 @@ class NotificationsTestCase extends MessagingTestCase {
   }
   // Process queued notifications
   function notificationsProcessQueue($before = 0, $after = 0) {
-    notifications_include('process.inc');
     if ($before) {
       $this->assertTableRows('notifications_queue', $before);
     }

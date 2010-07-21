@@ -106,7 +106,6 @@ function notifications_content_test_template_form($form_state) {
  */
 function notifications_content_test_template_submit(&$form, &$form_state) { 
   global $user;
-  notifications_include('process.inc');
 
   // Load node or build fake node
   if ($nid = (int)$form_state['values']['node']) {
@@ -154,7 +153,7 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
     $template->method = $send_method;
     $template->set_destination($destination);
     $template->language = $form_state['values']['language'];
-    $message = notifications_process_build_simple_message($template, $event, array(), $subscription->module);
+    $message = Notifications_Message::build_simple_message($template, $event, array(), $subscription->module);
     // Store message and rebuild. The message will come with template information (text_parts);
     $form_state['values']['message'] = $message;
     $form_state['rebuild'] = TRUE;  
