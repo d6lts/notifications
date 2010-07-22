@@ -591,45 +591,11 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
  */
 function notifications_event($event, $objects = array()) {
   if (is_array($event)) {
-    $event = notifications_event_build($event, $objects);
+    $event = Notifications_Event::create($event, $objects);
   }
   if ($event->save || $event->queue) {
-    notifications_include('event.inc');
-    notifications_event_trigger($event);   
+    $event->trigger();   
   }
-  return $event;
-}
-
-/**
- * Build event object from array of data
- * 
- * @param $params
- *   Event properties
- * @param $objects
- *   Array of event objects (type => $object)
- */
-function notifications_event_build($params, $objects = array()) {
-  notifications_include('event.inc');
-  global $user, $language;
-  
-  // Fill in event with default values
-  $params += array(
-    'uid' => $user->uid,
-    'language' => $language->language,
-    'type' => 'default', // Object/event type
-    'action' => 'default', // Action that happened to the object
-  );
-  $params += array('typekey' => $params['type'] . '-' . $params['action']);
-  // Check whether we have to save and queue this event, defaults to yes if not set
-  // If not enabled, do not store nor queue this event, can be changed by plug-in modules
-  $enabled = notifications_event_enabled($params['typekey']);
-  $params += array('save' => $enabled, 'queue' => $enabled);
-  $event = new Notifications_Event($params);
-  foreach ($objects as $type => $object) {
-    $event->add_object($type, $object);
-  }
-  // Modules can do cleanup operations or modify event properties
-  module_invoke_all('notifications_event', 'build', $event);
   return $event;
 }
 
@@ -661,8 +627,8 @@ function notifications_event_enabled($key, $default = TRUE) {
  */
 function notifications_exit() {
   // We don't load the function if not loaded, which means no events were triggered
-  if (function_exists('notifications_event_process_immediate')) {
-    notifications_event_process_immediate();
+  if (class_exists('Notifications_Event', FALSE)) {
+    Notifications_Event::process_immediate();
   }
 }
 
@@ -1394,7 +1360,6 @@ function notifications_event_types($typekey = NULL, $property = NULL, $disabled 
   $info = &notifications_info('event types');
   $enabled = &messaging_static(__FUNCTION__ . '_enabled');
   if (!isset($enabled)) {
-    notifications_include('event.inc');
     $enabled = array();
     foreach ($info as $key => &$event) {
       if (empty($event['disabled']) && notifications_event_enabled($key)) {

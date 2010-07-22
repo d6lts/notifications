@@ -129,10 +129,10 @@ class Notifications_Message extends Messaging_Message {
     $message->add_event($event, $subscriptions);
     // Create message. Do all this in one replacemente
     $parts = array(
-      'subject' => notifications_event_message_part($event, 'subject', $send_method, $language, $module),
-      'header' => notifications_event_message_part($event , 'header', $send_method, $language, $module),
-      'event'  => notifications_event_message_part($event, 'main', $send_method, $language, $module),
-      'footer' => notifications_event_message_part($event, 'footer', $send_method, $language, $module),
+      'subject' => $event->message_part('subject', $send_method, $language, $module),
+      'header' => $event->message_part('header', $send_method, $language, $module),
+      'event'  => $event->message_part('main', $send_method, $language, $module),
+      'footer' => $event->message_part('footer', $send_method, $language, $module),
     );
     // We pass only the first subscription, which is at least something
     // @ TODO Handle nicely the case where there are more than one subscription

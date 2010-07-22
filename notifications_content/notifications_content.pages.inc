@@ -131,7 +131,7 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
     $comment->nid = $node->nid;
     $objects['comment'] = $comment;
   }
-  $event = notifications_event_build(
+  $event = Notifications_Event::create(
     array(
      'eid' => 1,
      'module' => 'node',

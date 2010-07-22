@@ -98,7 +98,7 @@ function notifications_lite_add_to_queue($uid, $subject, $body = '', $action = '
   $event['params']['text']['digest'] = $body ? $subject . ': ' . $body : $subject;
   $event['params'] = array_merge($event['params'], $params);
   // Build event and store row in notifications queue and for immediate sending
-  $event = notifications_event_build($event);  
+  $event = Notifications_Event::create($event);  
   notifications_lite_queue_event($event);
 }
 
@@ -160,7 +160,7 @@ function notifications_lite_queue_event($event) {
     notifications_queue()->queue_item($queue);
     // Run hooks and store for immediate sending
     module_invoke_all('notifications_event', 'queued', $event);
-    notifications_event_send_immediate($event);
+    Notifications_Event::send_immediate($event);
   }
 }
 

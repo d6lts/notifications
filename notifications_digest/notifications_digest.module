@@ -257,8 +257,8 @@ function notifications_digest_build_long($template, $events, $subscriptions, $mo
     $message->add_event($event, $event_subscriptions);
     // We use the regular template for the events
     $part = array();
-    $part[] = notifications_event_message_part($event, 'subject', $send_method, $language, $module);
-    $part[] = notifications_event_message_part($event, 'main', $send_method, $language, $module);
+    $part[] = $event->message_part('subject', $send_method, $language, $module);
+    $part[] = $event->message_part('main', $send_method, $language, $module);
     // Pass only the first subscription here
     $subscription = $event_subscriptions ? notifications_load_subscription(current($event_subscriptions)) : NULL;
     $objects = $event->get_objects() + array('user' => $account, 'subscription' => $subscription, 'event' => $event);
@@ -326,7 +326,7 @@ function notifications_digest_line($event, $method, $language) {
     // The event may have an specific digest line, otherwise use template if present or even information
     if ($text = $event->get_text('digest')) {
       $line = $text;
-    } elseif ($part = notifications_event_message_part($event, 'digest', $method, $language)) {
+    } elseif ($part = $event->message_part('digest', $method, $language)) {
       $line = $part;
     } else { // Get it from event information
       $line = $event->get_type('line');

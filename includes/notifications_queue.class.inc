@@ -125,7 +125,6 @@ class Notifications_Queue {
    */
   function process_prepare() {
     if (!isset($this->process_max_sqid)) {
-      notifications_include('event.inc');
       $this->process_control('start');
       // This will get the latest notification in queue so we don't mess with new ones being created during cron run
       // It will also prevent clashes with the immediate sending feature
@@ -313,7 +312,7 @@ class Notifications_Queue {
     }
     // Done with queue, update event tracker
     if ($update) {
-      notifications_event_tracker('update');
+      Notifications_Event::track_update();
     }
     // Return number of rows processed
     return $count;
@@ -351,12 +350,12 @@ class Notifications_Queue {
     foreach ($group as $sqid => $queue) {
       $count++;
       $processed[] = $sqid;
-      $event = notifications_event_tracker('load', $queue->eid);
+      $event = Notifications_Event::track_load($queue->eid);
       if ($destination && $account) {
         if (!$event) {
           notifications_log('Cannot load event', (array)$queue);
         }
-        elseif (!notifications_event_user_access($event, $account)) {
+        elseif (!$event->user_access($account)) {
           notifications_log('Access denied for event', (array)$queue);
         }
         else {
@@ -489,7 +488,7 @@ class Notifications_Queue {
     // If not doing a test run, update event counter and return count
     // If doing a test run, return 0 so we don't go through this again
     if (!$test && !$keep) {
-      notifications_event_tracker('update');
+      Notifications_Event::track_update();
       return $count;
     }
     else {
@@ -717,7 +716,6 @@ class Notifications_Queue {
    *   Array of conditions. If none, all rows for disabled subscriptions will be deleted
    */
   function queue_clean($params) {
-    notifications_include('event.inc');
     $this->queue_delete($params);
     $this->event_clean(TRUE);
   }
@@ -803,7 +801,7 @@ class Notifications_Queue {
     // Return number of queued rows
     return db_result(db_query('SELECT COUNT(*) FROM {notifications_queue} WHERE eid = %d', $event->eid));
   }
-
+  
   /**
    * Clean up event table. Drop expired events for which we don't have pending rows.
    * 

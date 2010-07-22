@@ -82,7 +82,7 @@ class NotificationsTemplatesTests extends NotificationsTestCase {
     $event1->text['test'] = 'Text part';
     $digest_line = 'type key [type-name] [title] [site-name]';
     $event1->text['digest'] = $digest_line;
-    $part = notifications_event_message_part($event1, 'test', 'test', $language);
+    $part = $event1->message_part('test', 'test', $language);
     $this->assertEqual($part, 'Text part', 'Retrieved message part from event');
     $digest_info = notifications_digest_event_info($event1); // Fields will be type, action
     // function notifications_digest_message_part($key, $method, $type, $field, $module = 'notifications')

@@ -441,7 +441,7 @@ function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
     );
     $form['notifications_event_template'][$key] = array(
       '#type' => 'select',
-      '#default_value' => notifications_event_get_template($key),
+      '#default_value' => Notifications_Event::template_map($key),
       '#options' => notifications_template_list(),
     );
     if (!empty($event['children'])) {
