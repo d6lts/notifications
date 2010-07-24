@@ -225,7 +225,7 @@ function notifications_field_format_name($type) {
  */
 function notifications_field_format_value($type, $value, $html = TRUE, $subscription = NULL) {
   if ($format_info = notifications_field_get_info($type, 'format callback')) {
-    $format_value = _notifications_info_callback($format_info, 'format callback', $value, $html);
+    $format_value = _notifications_info_callback($format_info, 'format callback', array($value, $html));
   }
   elseif ($options = notifications_field_subscription_options($type)) {
     // If not we try options callback, we can get the name from the array of options

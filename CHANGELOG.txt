@@ -2,7 +2,8 @@
 
 6.x-4.x-beta6 to
 -------------------------------
-- Deleted module: notifications_lite()
+- Fixed: wrong parameters for _notifications_info_callback(), by roderik, #828860
+- Fixed: language not being carried over from queue to message composition
 - Added some support for language for tokens, based on patch by jmiccolis
 - Fields for custom subscription types updated for all existing subscriptions, #638710 
 - Reworked subscription access checking, was not working for custom subscriptions, fixed #795890

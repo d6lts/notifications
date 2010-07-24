@@ -298,7 +298,7 @@ class Notifications_Queue {
     // This loop has to run a final time after all rows have been fetched
     $last = $pending = NULL;
     while (($queue = db_fetch_object($result)) || $pending) {
-      if (!$queue || $last && ($queue->module != $last->module || $queue->mdid != $last->mdid || $queue->send_method != $last->send_method || $queue->send_interval != $last->send_interval)) {
+      if (!$queue || $last && ($queue->module != $last->module || $queue->mdid != $last->mdid || $queue->send_method != $last->send_method || $queue->send_interval != $last->send_interval || $queue->language != $last->language)) {
         // New destination, send if not the first row and reset
         $count += $this->process_group($pending, $update, $last);
         $pending = NULL;
@@ -368,7 +368,7 @@ class Notifications_Queue {
     }
   
     if ($events) {
-      $messages = $this->process_callback($module, 'process_compose', $send_method, $destination, $events, $subscriptions, $send_interval);
+      $messages = $this->process_callback($module, 'process_compose', $send_method, $destination, $events, $subscriptions, $send_interval, $params->language);
       notifications_log('Composed messages', array('number' => count($messages), 'send_method' => $send_method));
       // Note that we pass the testing parameter to notifications_process_send
       if ($messages) {
@@ -544,7 +544,7 @@ class Notifications_Queue {
    * 
    * Adds some more information into $message['notifications'] that may be used by other modules
    *
-   * @param $account
+   * @param $destination
    *   User account to send the notification to
    * @param $events
    *   Array of loaded event objects to be processed
@@ -554,13 +554,16 @@ class Notifications_Queue {
    * @return array()
    *   Array of messages ready for sending out
    */
-  function process_compose($send_method, $destination, $events, $subscriptions, $send_interval, $module = 'notifications') {
+  function process_compose($send_method, $destination, $events, $subscriptions, $send_interval, $langcode = NULL, $module = 'notifications') {
     notifications_log('Processing for sending', array('method' => $send_method, 'interval' => $send_interval, 'module' => $module, 'events' => count($events)));
     // Build message template that will be used for all produced messages
-    $template = $this->message_template();
-    $template->method = $send_method;
+    $template = $this->message_template(array(
+      'language' => $langcode,
+      'method' => $send_method,
+      'send_interval' => $send_interval,
+    ));
     $template->set_destination($destination);
-    $template->send_interval = $send_interval;  
+
     
     // Find build method for this interval. Check the function is there in case some module has been disabld
     $build_method = $this->build_method($template, array('events' => $events, 'subscriptions' => $subscriptions, 'module' => $module));
@@ -585,9 +588,9 @@ class Notifications_Queue {
    * 
    * This is a hidden variable that can be overridden to use a different class: notifications_message_template
    */
-  public static function message_template() {
+  public static function message_template($params = NULL) {
     $class = variable_get('notifications_message_template', 'Notifications_Message');
-    return new $class();
+    return new $class($params);
   }
   
   /**
