@@ -121,7 +121,7 @@ function notifications_ui_access_page($type, $account) {
  *   Subscription type
  */
 function notifications_ui_type_enabled($type) {
-  $settings = variable_get('notifications_ui_types', array());
+  $settings = variable_get('notifications_ui_types', array('thread', 'nodetype', 'author'));
   return notifications_subscription_type_enabled($type) && in_array($type, $settings, TRUE);
 }
 
@@ -394,7 +394,7 @@ function notifications_ui_node_subscriptions($node, $display) {
  */
 function notifications_ui_node_options($type = NULL, $option = NULL) {
   // We can use global options or per content type options. The default setting will be 'links' = 1
-  $options = variable_get('notifications_ui_node_options', array('links'));
+  $options = variable_get('notifications_ui_node_options', array('links', 'block'));
   if ($type && variable_get('notifications_ui_per_type', 0)) {
     $options = variable_get('notifications_node_ui_' . $type, $options);
   }
@@ -428,7 +428,7 @@ function notifications_ui_user_options($display = NULL) {
  * @pram $check_option
  *   Option to check for object type: 'links', 'form', 'page', 'create'
  */
-function notifications_ui_display_options($type, $check_option = NULL, $object = NULL, $defaults = array('links')) {
+function notifications_ui_display_options($type, $check_option = NULL, $object = NULL, $defaults = array('links', 'block')) {
   if ($type == 'node' && $object) {
     $options = notifications_ui_node_options($object->type);
   }

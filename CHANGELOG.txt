@@ -2,6 +2,8 @@
 
 6.x-4.x-beta6 to
 -------------------------------
+- Added token for rendered node content, #736328
+- Removed variable settings from notifications_ui_install(), by jmiccolis, #856270
 - Fixed: wrong parameters for _notifications_info_callback(), by roderik, #828860
 - Fixed: language not being carried over from queue to message composition
 - Added some support for language for tokens, based on patch by jmiccolis

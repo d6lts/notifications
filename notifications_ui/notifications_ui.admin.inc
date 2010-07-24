@@ -40,12 +40,8 @@ function notifications_ui_settings_form() {
     '#type' => 'checkboxes',
     '#title' => t('Visible subscription types'),
     '#options' => array_map('notifications_format_title_description', notifications_ui_subscription_types()),
-    '#default_value' => variable_get('notifications_ui_types', array()),
+    '#default_value' => variable_get('notifications_ui_types', array('thread', 'nodetype', 'author')),
     '#description' => t('Check the subscription types the UI module should show. If not checked no options for this subscription type will be displayed at all.'),
-  );
-  $options = array(
-    'page' => t('<strong>Tab</strong>. A full tab for some subscription types will be displayed for each enabled subscription type when available.'),
-    'create' => t('<strong>Create</strong>. A create link and a custom page for adding subscriptions will be available for each enabled subscription type.'),
   );
   // UI elements on user account pages
   $form['users'] = array(
@@ -58,13 +54,16 @@ function notifications_ui_settings_form() {
     '#type' => 'checkboxes',
     '#title' => t('Manage own subscriptions'),
     '#default_value' => notifications_ui_user_options(),
-    '#options' => $options,
+    '#options' => array(
+      'page' => t('<strong>Tab</strong>. A full tab for some subscription types will be displayed for each enabled subscription type when available.'),
+      'create' => t('<strong>Create</strong>. A create link and a custom page for adding subscriptions will be available for each enabled subscription type.'), 
+    ),
     '#description' => t('Check elements to display on user account tabs for site users to manage their own subscriptions'),  
   );
   $form['users']['notifications_ui_account_options'] = array(
     '#title' => t('Subscribe to other users'),
     '#type' => 'checkboxes',
-    '#default_value' => variable_get('notifications_ui_account_options', array()),
+    '#default_value' => variable_get('notifications_ui_account_options', array('links', 'block')),
     '#options' => _notifications_ui_account_options(),
     '#description' => t('Check elements to display on user account tabs for other users to subscribe to them'),     
   );
@@ -87,7 +86,7 @@ function notifications_ui_settings_form() {
   $form['content']['notifications_ui_node_options'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Global settings'),
-    '#default_value' => variable_get('notifications_ui_node_options', array()),
+    '#default_value' => variable_get('notifications_ui_node_options', array('links', 'block')),
     '#options' => _notifications_ui_node_options(),
     '#description' => t('Check elements to display on each node for users to subscribe / unsubscribe.'),
        
