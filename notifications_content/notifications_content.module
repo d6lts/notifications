@@ -910,7 +910,6 @@ function notifications_content_token_list($type = 'all') {
     $tokens['node']['node-teaser']    = t('The node teaser.');
     $tokens['node']['node-body']    = t('The node body.');
     $tokens['node']['node-content']    = t('The fully rendered node content.');
-    $tokens['node']['node-url']      = t('The node view url for read more links.');
     $tokens['node']['node-teaser-raw']    = t('Unfiltered node teaser. WARNING - raw user input.');
     $tokens['node']['node-body-raw']    = t('Unfiltered node body. WARNING - raw user input.');
   }
@@ -930,7 +929,6 @@ function notifications_content_token_values($type, $object = NULL, $options = ar
       if ($node = $object) {
         $values['node-teaser'] = !empty($node->teaser) ? check_markup($node->teaser, $node->format, FALSE) : '';
         $values['node-body'] = !empty($node->body) ? check_markup($node->body, $node->format, FALSE) : '';
-        $values['node-url'] = url('node/'. $node->nid, array('absolute' => TRUE));
         $values['node-teaser-raw'] = !empty($node->teaser) ? $node->teaser : '';
         $values['node-body-raw'] = !empty($node->body) ? $node->body : '';
         // Fully rendered node content

@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-4.x-beta7 to .............
+-------------------------------
+- Removed 'node-url' token, now added by token module >= 6.x-1.14, by Dave Reid, #845250
+
 6.x-4.x-beta6 to 6.x-4.x-beta7
 -------------------------------
 - Added token for rendered node content, #736328
