@@ -671,7 +671,7 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
     case 'update':
     case 'insert':  
       // Notifications just for published nodes. If we don't have any option enabled for this content type, skip the event
-      if (!isset($done[$node->nid]) &&$node->status && empty($node->notifications_content_disable) && notifications_content_type_enabled($node->type)) {
+      if (!isset($done[$node->nid]) && $node->status && empty($node->notifications_content_disable) && notifications_content_type_enabled($node->type)) {
         $done[$node->nid] = TRUE;
         $event = array(
           'module' => 'node',
@@ -705,6 +705,11 @@ function notifications_content_nodeapi(&$node, $op, $arg = 0) {
     case 'delete':
       // Remove all subscriptions for this node
       notifications_delete_subscriptions(array('event_type' => 'node'), array('nid' => $node->nid), FALSE);
+      break;
+    case 'notifications reset':
+      // Needed to be able to reset static variable for tests.
+      $done = array();
+      break;
   }
 }
 
