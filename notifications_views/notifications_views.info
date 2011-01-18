@@ -1,7 +1,0 @@
-; $Id$
-name = "Notifications Views"
-description = "Views integration for Notifications."
-package = "Notifications"
-dependencies[] = views
-dependencies[] = notifications
-core = 6.x

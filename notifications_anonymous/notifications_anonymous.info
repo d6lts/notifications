@@ -1,7 +1,0 @@
-; $Id$
-name = "Anonymous subscriptions"
-description = "Provides subscriptions to anonymous users."
-package = Notifications
-dependencies[] = notifications
-core = 6.x
-php = 5.x

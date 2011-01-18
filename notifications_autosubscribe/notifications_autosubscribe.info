@@ -1,7 +1,0 @@
-; $Id$
-name = Notifications Autosubscribe
-description = Provides automatic notifications.
-package = "Notifications"
-dependencies[] = notifications 
-dependencies[] = notifications_content
-core = 6.x

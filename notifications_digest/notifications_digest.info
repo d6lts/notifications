@@ -1,9 +1,0 @@
-; $Id$
-name = Digest notifications
-description = Digest notifications to include more than one in a single message.
-package = "Notifications"
-dependencies[] = messaging
-dependencies[] = token
-dependencies[] = notifications
-core = 6.x
-php = 5.0
