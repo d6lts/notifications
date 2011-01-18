@@ -3,4 +3,5 @@ name = Content Notifications
 description = Allows users to subscribe to content related events.
 package = "Notifications"
 dependencies[] = notifications
-core = 6.x
+core = 7.x
+files[] = notifications_content.inc

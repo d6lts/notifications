@@ -1,0 +1,8 @@
+; $Id$
+name = User account tabs
+description = Display user account tabs to manage own subscriptions
+package = Notifications
+version = VERSION
+core = 7.x
+dependencies[] = notifications
+configure = admin/config/messaging

@@ -8,29 +8,29 @@
 /**
  * Admin settings form
  */
-function notifications_content_settings_form() {
+function notifications_content_settings_form($form, &$form_state) {
   // Build check boxes table with content types x subscription types
   $form['content'] = array(
     '#type' => 'fieldset',
     '#title' => t('Enabled subscription types'),
     '#weight' => -10,
     '#collapsible' => TRUE,
-    '#description' => t('Check the subscription types that will be enabled. You can use the global settings here or set different options for each content type. On this second case these will be the defaults for new content types.'),
+    '#description' => t('Check the subscription types that will be enabled. You can use the global settings here or set different options for each content type.'),
   );
   $form['content']['notifications_content_per_type'] = array(
     '#type' => 'radios',
     '#default_value' => variable_get('notifications_content_per_type', 0),
     '#options' => array(
       t('Use global settings on this page for all content types'),
-      t('Set up for each content type on <a href="@content-type-settings">Administer Content Types</a>.', array('@content-type-settings' => url('admin/content/types'))),
+      t('Set up for each content type on <a href="@content-type-settings">Administer Content Types</a>.', array('@content-type-settings' => url('admin/structure/types'))),
     ),
-  );  
+  );
   $form['content']['notifications_content_type'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Global options'),
-    '#options' => _notifications_content_type_options(),
+    '#options' => node_type_get_names(),
     '#default_value' => variable_get('notifications_content_type', array()),
-    '#description' => t('Define the available subscription types that will be enabled globally'),
+    '#description' => t('Content types for which subscriptions will be enabled.'),
   );
 
   return system_settings_form($form);
@@ -71,7 +71,7 @@ function notifications_content_test_template_form($form_state) {
   $form['subscription_type'] = array(
     '#title' => t('Subscription type'),
     '#type' => 'select',
-    '#options' => notifications_subscription_types(NULL, 'title'),
+    '#options' => notifications_subscription_type(NULL, 'title'),
     '#default_value' => isset($form_state['values']['subscription_type']) ? $form_state['values']['subscription_type'] : NULL,
     '#description' => t('Some modules may define a different template for their subscription types.'),
   );
@@ -144,7 +144,7 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
     drupal_set_message(t('That event type is not enabled though we try building a message for it.'), 'warning');
   }
   // Get a subscription template, that may determine the module
-  $subscription = notifications_build_subscription($form_state['values']['subscription_type']);
+  $subscription = Notifications_Subscription::build_type($form_state['values']['subscription_type']);
 
   // Build the message and store it
   $send_method = $form_state['values']['send_method'];
@@ -209,7 +209,7 @@ function _notifications_content_test_format_template($parts) {
     }
     $rows[] = $row;
   }
-  return theme('table', $header, $rows);
+  return theme('table', array('header' => $header, 'rows' =>$rows));
 }
 /**
  * Theme content type settings
@@ -228,7 +228,7 @@ function theme_notifications_content_type_settings(&$elements) {
     }
     $rows[] = $row;
   }
-  $output .= theme('table', $header, $rows);
+  $output .= theme('table', array('header' => $header, 'rows' =>$rows));
   $output .= drupal_render($elements);
   return $output;
 }

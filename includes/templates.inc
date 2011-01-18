@@ -30,7 +30,7 @@ function notifications_get_templates($op = 'info', $type = 'all', $language = NU
         }
         elseif ($type == 'enabled') {
           // Get a list of templates for enabled event types
-          $enabled = array_filter(notifications_event_types(NULL, 'template', FALSE));
+          $enabled = array_filter(notifications_event_type(NULL, 'template'));
           return messaging_template_extract_group($enabled, $all_templates);
         }
       }

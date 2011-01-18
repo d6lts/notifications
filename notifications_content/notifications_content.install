@@ -5,13 +5,29 @@
  * Implementation of hook_install().
  */
 function notifications_content_install() {
+  // Set two actions for triggers
+  notifications_content_install_trigger_action('node_publish', 'notifications_content_node_post_action');
+  notifications_content_install_trigger_action('node_update', 'notifications_content_node_update_action');
+  // Commented out for D7, not sure it is needed anymore
   // Module weight. It must run after most modules, to make sure they've done
   // their work before we add the notifications queries.
-  db_query("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
+  //db_query("UPDATE {system} SET weight = 100 WHERE name = 'notifications_content' AND type = 'module'");
   // Enable the most common subscription types
-  variable_set('notifications_content_type', array('thread' => 'thread', 'nodetype' => 'nodetype', 'author' => 'author'));
+  //variable_set('notifications_content_type', array('thread' => 'thread', 'node_type' => 'node_type', 'author' => 'author'));
 }
 
+/**
+ * Create trigger assignement
+ */
+function notifications_content_install_trigger_action($trigger, $action) {
+   db_insert('trigger_assignments')
+    ->fields(array(
+      'hook' => $trigger,
+      'aid' => $action,
+      //'weight' => $weight + 2,
+    ))
+    ->execute();
+}
 /**
  * Implementation of hook_uninstall().
  */
@@ -20,10 +36,9 @@ function notifications_content_uninstall() {
   variable_del('notifications_content_types');
   variable_del('notifications_content_per_type');
   // Delete per content type variables
-  foreach (array_keys(node_get_types()) as $type) {
+  foreach (array_keys(node_type_get_types()) as $type) {
     variable_del('notifications_content_type_'. $type);
-  }  
-  drupal_set_message(t('Content notifications uninstallation script complete.'));
+  }
 }
 
 /**

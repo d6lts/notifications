@@ -1,7 +1,8 @@
 ; $Id$
 name = Notifications UI
-description = Provides an UI to notifications
-package = "Notifications"
+description = Provides a generic UI to create and manage subscriptions
+package = Notifications
+version = VERSION
+core = 7.x
 dependencies[] = notifications
-core = 6.x
-
+files[] = notifications_ui.pages.inc
