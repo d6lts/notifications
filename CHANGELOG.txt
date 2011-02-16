@@ -1,5 +1,9 @@
 // $Id$
 
+6.x-2.3 to .......
+------------------------------
+- #498220, by foxtrotcharlie: Prevent multiple notifications when comments are edited
+
 6.x-2.2 to 6.x-2.3
 -------------------------------
 - Removed 'node-url' token, now added by token module >= 6.x-1.14, by Dave Reid, #845250

@@ -111,9 +111,13 @@ function notifications_content_form_alter(&$form, &$form_state, $form_id) {
         if (notifications_event_enabled('node', 'comment')) {
           _notifications_content_add_disable_field($form);
         }
-        // If editing the comment, add values to remember
-        if (!empty($form['cid']['#value']) && !empty($form['admin']['status'])) {
-          $form['notifications_comment_status'] = array('#type' => 'value', '#value' => $form['admin']['status']['#default_value']);
+        // If editing the comment, add values to remember. If no admin fieldset, set the default value to published
+        // because if a user without the 'administer comments' permission is editing, then it must be published.
+        if (!empty($form['cid']['#value'])) {
+          $form['notifications_comment_status'] = array(
+            '#type' => 'value', 
+            '#value' => !empty($form['admin']['status']) ? $form['admin']['status']['#default_value'] : COMMENT_PUBLISHED,
+          );
         }
       }
 
