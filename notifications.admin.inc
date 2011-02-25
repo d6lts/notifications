@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 // Library for managing subscriptions, pages and forms
 require_once drupal_get_path('module', 'notifications') . '/notifications.manage.inc';

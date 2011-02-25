@@ -1,4 +1,3 @@
-; $Id$
 name = Content Notifications
 description = Allows users to subscribe to content related events.
 package = "Notifications"

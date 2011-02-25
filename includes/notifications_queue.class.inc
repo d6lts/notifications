@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * Notifications module. Queue processing.
  * 

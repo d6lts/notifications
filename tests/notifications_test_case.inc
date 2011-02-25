@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 // Base class and some utility functions need this one
 require_once drupal_get_path('module', 'messaging') . '/tests/messaging_test_case.inc';

@@ -1,5 +1,4 @@
 <?php
-// $Id$
 require_once drupal_get_path('module', 'notifications') . '/tests/notifications_test_case.inc';
 /**
  * Class for testing notifications module.

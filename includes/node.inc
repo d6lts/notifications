@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Notifications node API for use by plug-in modules providing node related features

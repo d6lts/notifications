@@ -1,4 +1,3 @@
-; $Id$
 name = "Anonymous subscriptions"
 description = "Provides subscriptions to anonymous users."
 package = Notifications

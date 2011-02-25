@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Notifications query API - Helper functions to build monster queries
