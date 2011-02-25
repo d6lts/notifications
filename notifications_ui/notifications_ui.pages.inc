@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  *   User pages for User Interface for subscriptions modules

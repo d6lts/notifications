@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * Field handler that provides a link to delete the message.

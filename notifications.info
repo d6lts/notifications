@@ -1,4 +1,3 @@
-; $Id$
 name = Notifications
 description = The basic notifications framework
 package = "Notifications"

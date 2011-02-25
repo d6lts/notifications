@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Subscriptions to content events

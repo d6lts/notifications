@@ -1,4 +1,3 @@
-; $Id$
 name = "Notifications Lite"
 description = "Extra Simple Notifications API. Enable only when required by other modules."
 package = Notifications
