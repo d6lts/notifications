@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * Drupal Notifications Framework - Templates

@@ -1,4 +1,3 @@
-; $Id$
 name = User account tabs
 description = Display user account tabs to manage own subscriptions
 package = Notifications

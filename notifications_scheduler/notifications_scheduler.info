@@ -1,4 +1,3 @@
-; $Id$
 name = Notifications scheduler
 description = Configurable scheduler for Notifications.
 package = "Notifications"

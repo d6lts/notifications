@@ -1,4 +1,3 @@
-; $Id$
 name = User subscriptions
 description = Subscribe to content created by user
 package = Notifications

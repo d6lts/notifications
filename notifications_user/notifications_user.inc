@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * User subscriptions for Notifications
