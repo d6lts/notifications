@@ -31,7 +31,7 @@ class Notifications_Message extends Messaging_Message {
   /**
    * Check parameters and go for alter hook
    */
-  public function message_build() {  
+  public function build() {  
     if (empty($this->built)) {
       // Provide a specific notifications alter hook
       drupal_alter('notifications_message', $this);
@@ -41,7 +41,7 @@ class Notifications_Message extends Messaging_Message {
       unset($this->subscriptions);
       unset($this->text_parts);
     }
-    return parent::message_build();
+    return parent::build();
   }
   
   /**
