@@ -870,9 +870,10 @@ function notifications_object($type, $value) {
 /**
  * Get enabled subscription types
  */
-function notifications_subscription_enabled_types($type = NULL) {
-  $types = &drupal_static(__FUNCTION__);
+function notifications_subscription_enabled_types($type = NULL, $reset = FALSE) {
+  $types = &drupal_static(__FUNCTION__, NULL, $reset);
   if (!isset($types)) {
+    $types = array();
     foreach (notifications_subscription_type() as $key => $info) {
       if (empty($info['disabled']) && notifications_subscription_type_enabled($key)) {
         $types[$key] = notifications_subscription($key);
