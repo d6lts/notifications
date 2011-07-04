@@ -797,7 +797,7 @@ function notifications_save_subscription(&$subscription, $check = TRUE) {
     $result = $subscription->save();
   }
   else {
-    if ($duplicate = notifications_get_subscriptions(array('mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'module' => $subscription->module, 'send_interval' => $subscription->send_interval), $subscription->get_conditions(), TRUE)) {
+    if ($duplicate = notifications_get_subscriptions(array('uid' => $subscription->uid, 'mdid' => $subscription->mdid, 'type' => $subscription->type, 'event_type' => $subscription->event_type, 'send_interval' => $subscription->send_interval, 'module' => $subscription->module), $subscription->get_fields(), TRUE)) {
       // We've found duplicates, resolve conflict updating first, deleting the rest
       // It is possible that we had a disabled one, this updating will fix it
       $update = array_shift($duplicate);
@@ -834,6 +834,23 @@ function notifications_save_subscription(&$subscription, $check = TRUE) {
 function notifications_delete_destination($mdid) {
   Notifications_Subscription::delete_multiple(array('mdid' => $mdid));
   Messaging_Destination::delete_multiple(array('mdid' => $mdid));
+}
+
+/**
+ * Load multiple subscriptions.
+ */
+function notifications_get_subscriptions($conditions = array(), $fields = array(), $limit = FALSE) {
+  // all fields in {notifications_subscription} are NOT NULL, so NULL is an undefined condition.
+  // remove NULL from coditions, preseve 0 and FALSE.
+  $conditions = array_filter($conditions, 'notifications_get_subscriptions_not_null');
+  return Notifications_Subscription::load_multiple($conditions, $fields, $limit);
+}
+
+/**
+ * Filter callback.
+ */
+function notifications_get_subscriptions_not_null($value) {
+  return !is_null($value);
 }
 
 /**
