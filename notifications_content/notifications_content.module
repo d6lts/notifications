@@ -711,7 +711,7 @@ function notifications_content_type_enabled($node_type, $subscription_type = NUL
   else {
     // In this case, settings is a list of content types for which global subscriptions are enabled
     $settings = variable_get('notifications_content_type', array());
-    return in_array($node_type, $settings);
+    return in_array($node_type, $settings, TRUE);
   }
 }
 
