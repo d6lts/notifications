@@ -276,10 +276,10 @@ function notifications_access_unsubscribe($subscription = NULL, $account = NULL)
   }
   elseif ($subscription && $GLOBALS['user']->uid && $subscription->uid == $GLOBALS['user']->uid
     || $account && $GLOBALS['user']->uid == $account->uid) {
-    return user_access('manage own subscriptions');
+    return user_access('maintain own subscriptions');
   }
   elseif (!$subscription && !$account) {
-    return user_access('manage own subscriptions');
+    return user_access('maintain own subscriptions');
   }
 }
 
