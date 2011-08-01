@@ -1307,6 +1307,7 @@ function notifications_token_info() {
     'description' => t('Tokens related to notifications subscriptions.'), 
     'needs-data' => 'subscription',
   );
+  $tokens['subscription'] = array();
   $tokens['user']['unsubscribe-url'] = array(
     'name' => t("Unsubscribe URL"), 
     'description' => t("Signed URL for cancelling all user subscriptions."), 
