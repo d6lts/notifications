@@ -148,7 +148,7 @@ function notifications_user_notifications_object_node($op, $node, $account = NUL
       $options = array();
       $author = user_load($node->uid);
       // Node author subscriptions
-      if (notifications_content_type_enabled($node->type, 'content_author')) {       
+      if (notifications_content_type_enabled($node->type, 'user_content')) {
         $options[] = notifications_subscription('user_content')
           ->set_author($node->uid)
           ->set_name(t('Posts by @name', array('@name' => $author->name)));
