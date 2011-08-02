@@ -141,7 +141,7 @@ function notifications_user_notifications_object_user($op, $user, $account = NUL
  */
 function notifications_user_notifications_object_node($op, $node, $account = NULL) {
   switch ($op) {
-    case 'subscription_types':
+    case 'subscription types':
       return array('user_content', 'user_content_type');
     case 'subscriptions':
       // Return available subscription options for this node and this user account

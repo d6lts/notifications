@@ -555,7 +555,7 @@ function notifications_content_notifications_subscription($op, $subscription = N
  */
 function notifications_content_notifications_object_node($op, $node, $account = NULL) {
   switch ($op) {
-    case 'subscription_types':
+    case 'subscription types':
       return array('content_thread', 'content_type');
     case 'subscriptions':
       // Return available subscription options for this node and this user account
