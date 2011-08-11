@@ -647,7 +647,7 @@ function notifications_content_node_delete($node) {
 }
 
 /**
- * Implementation of hook node_type_delete().
+ * Implements hook_node_type_delete().
  */
 function notifications_content_node_type_delete($info) {
   // Remove all subscriptions for this node type
@@ -655,9 +655,9 @@ function notifications_content_node_type_delete($info) {
 }
 
 /**
- * Implementation of hook node_type_update().
+ * Implements hook_node_type_update().
  */
-function hook_node_type_update($info) {
+function notifications_content_node_type_update($info) {
   if (!empty($info->old_type) && $info->old_type != $info->type) {
     db_update('notifications_subscription_fields')
     ->fields(array('value' => $info->type))
