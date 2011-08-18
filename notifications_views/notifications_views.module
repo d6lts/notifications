@@ -127,7 +127,7 @@ function notifications_views_views_data() {
       'table' => 'notifications_subscription',
       'left_field' => 'sid',
       'field' => 'sid',
-      'left_table' => 'notifications_fields',
+      'left_table' => 'notifications_subscription_fields',
     ),
     'users' => array(
       'table' => 'notifications',
@@ -227,63 +227,54 @@ function notifications_views_views_data() {
   );
 
   // -------------------------------------------------------------
-  // Notifications_fields joins to users, node, and notifications
+  // notifications_subscription_fields joins to users, node, and notifications
   // -------------------------------------------------------------
 
-  $data['notifications_fields']['table']['group'] = t('Notifications');
-  $data['notifications_fields']['table']['join'] = array(
+  $data['notifications_subscription_fields']['table']['group'] = t('Notifications Fields');
+  $data['notifications_subscription_fields']['table']['join'] = array(
     'users' => array(
-      'table' => 'notifications_fields',
-      'left_field' => 'sid',
-      'field' => 'sid',
-      'left_table' => 'notifications',
+      'field' => 'usid',
     ),
     'node' => array(
-      'table' => 'notifications_fields',
-      'left_field' => 'nid',
       'field' => 'value',
+      'left_field' => 'nid',
       'extra' => array(
-        array('field' => 'field', 'value' => 'nid'),
-      ),
+        'field' => 'type',
+        'value' => 'node:nid'
+      )
     ),
-    'notifications' => array(
-      'table' => 'notifications_fields',
-      'left_field' => 'sid',
+    'notifications_subscription' => array(
       'field' => 'sid',
-      'left_table' => 'notifications',
+      'left_field' => 'sid',
     ),
   );
 
-  //filter by the nid of the subscribed node
-  $data['notifications_fields']['nid'] = array(
-    'title' => t('Subscribed Nid'),
-    'help' => t('The node ID of the subscribed node.'), // The help that appears on the UI,
-    // Information for accepting a nid as an argument
-    'argument' => array(
-      'real field' => 'value',
-      'handler' => 'views_handler_argument_node_nid',
-      'parent' => 'views_handler_argument_numeric', // make sure parent is included
-      // 'name field' => 'title', // the field to display in the summary.
-      'numeric' => TRUE,
-      'validate type' => 'nid',
-      'extra' => array(
-        array('field' => 'field', 'value' => 'nid'),
-      ),
-    ),
-    //link to the node
+  // Relationships between files and nodes.
+  $data['notifications_subscription_fields']['subscription_to_node'] = array(
+    'title' => t('Content'),
+    'help' => t('Content that is associated with this subscription.'),
+    // Only provide this field/relationship/etc. when the 'notifications_subscription_fields' base table is present.
+    // 'skip base' => array('node', 'node_revision', 'users', 'comment', 'taxonomy_term_data', 'taxonomy_vocabulary'),
+    'real field' => 'value',
     'relationship' => array(
+      'title' => t('Content'),
+      'label' => t('Content'),
       'base' => 'node',
-      'real field' => 'value',
-      'handler' => 'notifications_views_handler_relationship',
-      'label' => t('Thread'),
+      'base field' => 'nid',
+      'relationship field' => 'value',
       'extra' => array(
-        array('field' => 'field', 'value' => 'nid', 'table' => 'notifications_fields'),
+        array(
+          'table' => 'notifications_subscription_fields',
+          'field' => 'type',
+          'operator' => '=',
+          'value' => 'node:nid',
+        ),
       ),
     ),
   );
 
   //filter by the author to which people are subscribed
-  $data['notifications_fields']['author'] = array(
+  $data['notifications_subscription_fields']['author'] = array(
     'title' => t('Subscribed Author'),
     'help' => t('The UID of the subscribed author.'), // The help that appears on the UI,
     // Information for accepting an author as an argument
@@ -304,7 +295,7 @@ function notifications_views_views_data() {
       'handler' => 'notifications_views_handler_relationship',
       'label' => t('Author'),
       'extra' => array(
-        array('field' => 'field', 'value' => 'author', 'table' => 'notifications_fields'),
+        array('field' => 'field', 'value' => 'author', 'table' => 'notifications_subscription_fields'),
       ),
     ),
   );
