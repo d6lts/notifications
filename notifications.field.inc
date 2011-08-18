@@ -149,7 +149,7 @@ abstract class Notifications_Field {
    * @param $value
    *   Single value or array of values for this field
    * @param $alias
-   *   Alias of the notifications_fields table
+   *   Alias of the notifications_subscription_fields table
    */
   function get_value_condition($value, $alias = 'f') {
     $and = db_and();

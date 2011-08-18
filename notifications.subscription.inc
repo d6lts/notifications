@@ -770,7 +770,7 @@ class Notifications_Subscription extends Notifications_Entity {
    * @param array $params
    *   Array of multiple conditions in the notifications table to delete subscriptions
    * @param array $field_conditions
-   *   Array of multiple conditions in the notifications_fields table to delete subscriptions
+   *   Array of multiple conditions in the notifications_subscription_fields table to delete subscriptions
    * @param $limit
    *   Whether to limit the result to subscriptions with exactly that condition fields
    *
@@ -790,7 +790,7 @@ class Notifications_Subscription extends Notifications_Entity {
    * @param array $conditions
    *   Array of multiple conditions in the notifications table to delete subscriptions
    * @param array $field_conditions
-   *   Array of field objects or multiple (type => value) conditions in the notifications_fields table to delete subscriptions
+   *   Array of field objects or multiple (type => value) conditions in the notifications_subscription_fields table to delete subscriptions
    * @param $limit
    *   Whether to limit the result to subscriptions with exactly that condition fields
    */
