@@ -81,7 +81,7 @@ function notifications_node_autocomplete_title($string = '') {
     // Add a class wrapper for a few required CSS overrides.
     $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
   }
-  drupal_json($matches);
+  drupal_json_output($matches);
 }
 
 /**
@@ -97,35 +97,53 @@ function notifications_node_autocomplete_type($node_types, $string = '') {
     // Add a class wrapper for a few required CSS overrides.
     $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
   }
-  drupal_json($matches);
+  drupal_json_output($matches);
 }
 
 /**
  * Find node title matches.
- * 
- * Some code from CCK's nodereference.module
+ *
+ * Some code from node_reference.module
  */
 function _notifications_node_references($string, $match = 'contains', $types = array(), $limit = 10) {
-  $match_operators = array(
-    'contains' => "LIKE '%%%s%%'",
-    'equals' => "= '%s'",
-    'starts_with' => "LIKE '%s%%'",
-  );
+  $query = db_select('node', 'n');
+  $node_nid_alias = $query->addField('n', 'nid');
+  $node_title_alias = $query->addField('n', 'title', 'node_title');
+  $node_type_alias = $query->addField('n', 'type',  'node_type');
+  $query->addTag('node_access');
+
   if ($types) {
-    $where[] = 'n.type IN (' . db_placeholders($types, 'char') . ') ';
-    $args = $types;
+    $query->condition('n.type', $types, 'IN');
   }
-  $where[] = 'n.title '. (isset($match_operators[$match]) ? $match_operators[$match] : $match_operators['contains']);
-  $args[] = $string;
-  $sql = db_rewrite_sql('SELECT n.nid, n.title, n.type FROM {node} n WHERE ' . implode(' AND ', $where) . ' ORDER BY n.title, n.type');
-  $result = db_query_range($sql, $args, 0, $limit) ;
+
+  switch ($match) {
+    default: // no match type or incorrect match type: use "="
+    case 'contains':
+      $query->condition('n.title', '%' . $string . '%', 'LIKE');
+      break;
+
+    case 'starts_with':
+      $query->condition('n.title', $string . '%', 'LIKE');
+      break;
+
+    case 'equals':
+      $query->condition('n.title', $string);
+      break;
+  }
+
+  $query
+    ->range(0, $limit)
+    ->orderBy($node_title_alias)
+    ->orderBy($node_type_alias);
+
+  $result = $query->execute()->fetchAll();
   $references = array();
-  while ($node = db_fetch_object($result)) {
+  foreach ($result as $node) {
     $references[$node->nid] = array(
-      'title' => $node->title,
-      'rendered' => check_plain($node->title),
+      'title'    => $node->node_title,
+      'rendered' => check_plain($node->node_title),
     );
   }
-  return $references; 
+  return $references;
 }
 

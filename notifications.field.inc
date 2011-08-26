@@ -483,6 +483,7 @@ abstract class Notifications_Field_Select extends Notifications_Field {
  */
 class Notifications_Node_Field extends Notifications_Field_Autocomplete {
   public $type = 'node:nid';
+  public $field = 'nid';
   public $object_type = 'node';
   
   /**
@@ -515,7 +516,8 @@ class Notifications_Node_Field extends Notifications_Field_Autocomplete {
   /**
    * Parse value from autocomplete
    */
-  function autocomplete_parse($string) {
+  function autocomplete_parse($string, $field = NULL) {
+    module_load_include('inc', 'notifications', 'includes/node');
     return notifications_node_title2nid($string, $field);
   }
   /**

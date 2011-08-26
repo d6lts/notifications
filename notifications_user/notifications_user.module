@@ -147,17 +147,18 @@ function notifications_user_notifications_object_node($op, $node, $account = NUL
       // Return available subscription options for this node and this user account
       $options = array();
       $author = user_load($node->uid);
+      $author_name = check_plain(format_username($author));
       // Node author subscriptions
       if (notifications_content_type_enabled($node->type, 'user_content')) {
         $options[] = notifications_subscription('user_content')
           ->set_author($node->uid)
-          ->set_name(t('Posts by @name', array('@name' => $author->name)));
+          ->set_name(t('Posts by @name', array('@name' => $author_name)));
       }
       // Subscribe to content type by author
       if (notifications_content_type_enabled($node->type, 'user_content_type')) {
         $options[] = notifications_subscription('user_content_type')
           ->set_node($node)
-          ->set_name(t('@type posts by @name', array('@name' => $author->name, '@type' => node_type_get_name($node))));
+          ->set_name(t('@type posts by @name', array('@name' => $author_name, '@type' => node_type_get_name($node))));
       }
       return $options;
       break;
