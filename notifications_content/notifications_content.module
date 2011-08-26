@@ -91,7 +91,7 @@ function notifications_content_permission() {
  * Implementation of hook_help()
  */
 function notifications_content_help($path, $arg) {
-  if ($path == 'admin/messaging/notifications/content') {
+  if ($path == 'admin/config/messaging/subscriptions/content') {
     $output = '<p>' . t('Content subscriptions are subscriptions to nodes that will produce notifications when a node is posted or updated or when a comment is posted for that nodes. Notifications will be sent only for published content so if you need to be notified of unpublished content waiting for approval you better use Triggers and Actions or some other module for that.') . '</p>';
     $output .= '<p>'. t('On this page you can set which of the available subscription types are allowed. Alternatively you can select the <em>Set up for each content type</em> option and use the <a href="@content-type-settings">Administer Content types</a> page. These settings will be combined with permissions and other options (See user interface options if enabled) to determine which subscriptions will be finally available for users.', array('@content-type-settings' => url( 'admin/content/types'))) .'</p>';
     return $output;
@@ -169,7 +169,7 @@ function notifications_content_form_node_type_form_alter(&$form, $form_state) {
     );
     if (!variable_get('notifications_content_per_type', 0)) {
       $form['notifications']['notifications_content_type']['#disabled'] = TRUE;
-      $form['notifications']['notifications_content_type']['#description'] .= ' <strong>' . t('To enable these options check the <a href="@notifications-settings">Notifications content settings</a>', array('@notifications-settings' => url('admin/messaging/notifications/content'))) . '</strong>';
+      $form['notifications']['notifications_content_type']['#description'] .= ' <strong>' . t('To enable these options check the <a href="@notifications-settings">Notifications content settings</a>', array('@notifications-settings' => url('admin/config/messaging/subscriptions/content'))) . '</strong>';
     }
   }
 }
