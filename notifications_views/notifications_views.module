@@ -12,30 +12,6 @@ function notifications_views_views_api() {
 function notifications_views_views_data() {
   $data = array();
 
-  // --------------------
-  // Miscellaneous
-  // --------------------
-  // Permissions table
-  $data['permission']['table']['join'] = array(
-    // Directly links to users table.
-    // the extra is an evil hack to join users to the authenticated user rid
-    // as well as to roles they have. we thus need an OR, which isn't supported,
-    // at least not easily (check 'extra_type' for backstory/to look into it)
-    // Depends on order of ops going and THEN or, which is true of mysql5.
-    // don't know about other databases...
-    'users' => array(
-     'left_table' => 'users_roles',
-     'left_field' => 'rid',
-     'field' => 'rid',
-     'extra' => 'TRUE) OR permission.rid = '. DRUPAL_AUTHENTICATED_RID .' AND (TRUE',
-    ),
-    'user_roles' => array(
-      'left_field' => 'rid',
-      'field' => 'rid',
-      'extra' => 'TRUE) OR permission.rid = '. DRUPAL_AUTHENTICATED_RID .' AND (TRUE',
-    ),
-  );
-  
   // ---------------------
   // Messaging base table
   // @TODO: Should be part of the messaging module.
