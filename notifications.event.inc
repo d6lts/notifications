@@ -459,7 +459,7 @@ class Notifications_Event extends Notifications_Entity {
       $results = $this->send_list($sids);
       $sent = count($results['sent']);
       $skip = count($results['skip']);
-      $success = $results['success'];
+      $success = count($results['success']);
       $errors = $sent - $success;
       watchdog('notifications', 'Sent event @event to @count subscriptions: @success success, @errors errors, @skip skipped.', array('@event' => $this->get_title(), '@count' => $count, '@success' => $success, '@errors' => $errors, '@skip' => $skip));
       $total_count += $count;
