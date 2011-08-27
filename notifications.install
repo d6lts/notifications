@@ -45,14 +45,14 @@ function notifications_schema() {
     'description' => 'The base table for subscriptions',
     'fields' => array(
       'sid' => array(
-        'description' => 'Unique Subscription id',    
+        'description' => 'Unique Subscription id',
         'type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'
       ),
       'uid' => array(
         'description' => 'User id this subscription belongs to.',
         'type' => 'int', 'not null' => TRUE, 'disp-width' => '11'
       ),
-      'mdid'    => array(      
+      'mdid'    => array(
         'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
         'description' => 'Unique destination id.',
       ),
@@ -205,7 +205,7 @@ function notifications_schema() {
     'primary key' => array('eid'),
   );
 
-  return $schema;  
+  return $schema;
 }
 
 /**

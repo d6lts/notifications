@@ -12,7 +12,7 @@ function notifications_ui_settings_form() {
   $subscription_types = array();
   foreach (notifications_subscription_type_enabled() as $type) {
     $subscription_types[] = array(
-      array('data' => notifications_subscription_type($type, 'title'), 'header' => TRUE), 
+      array('data' => notifications_subscription_type($type, 'title'), 'header' => TRUE),
       notifications_subscription_type($type, 'description')
     );
   }
@@ -23,7 +23,7 @@ function notifications_ui_settings_form() {
     '#description' => t('Only options for enabled subscription types will be displayed. To enable or disable more subscription types go to <a href="@subscription-options">Subscription Options</a>.', array('@subscription-options' => url('admin/config/messaging/subscriptions'))),
   );
 
-  // Widget options for each subscription type  
+  // Widget options for each subscription type
   $form['notifications_ui_options'] = array(
     '#type' => 'vertical_tabs',
     '#title' => t('Subscription widgets'),
@@ -43,8 +43,8 @@ function notifications_ui_settings_form() {
     }
     $form[$type] = array(
       '#type' => 'fieldset',
-      '#title' => $info['title'],
-      '#description' => $info['description'],
+      '#title' => check_plain($info['title']),
+      '#description' => check_plain($info['description']),
       '#collapsible' => TRUE,
       '#collapsed' => TRUE,
       '#group' => 'notifications_ui_options',
@@ -96,8 +96,8 @@ function theme_notifications_ui_add_list($content) {
   if ($content) {
     $output = '<dl class="subscriptions-type-list">';
     foreach ($content as $item) {
-      $output .= '<dt>'. l($item['title'], $item['href']) .'</dt>';      
-      $output .= '<dd>'. filter_xss_admin($item['description']) .'</dd>';
+      $output .= '<dt>' . l($item['title'], $item['href']) . '</dt>';
+      $output .= '<dd>' . filter_xss_admin($item['description']) . '</dd>';
     }
     $output .= '</dl>';
   }

@@ -6,14 +6,14 @@
 
 /**
  * Wrapper for Notifications messages
- * 
+ *
  * Store some more temporary properties on the message that will be dropped if the message is stored
  */
 class Notifications_Message extends Messaging_Message {
   // Message type, set property
   public $type = 'notifications';
   // Send interval used for grouping
-  public $send_interval = 0;  
+  public $send_interval = 0;
   // Notifications events
   public $events = array();
   // Map events to subscriptions
@@ -27,11 +27,11 @@ class Notifications_Message extends Messaging_Message {
   // Build method used for this
   public $build_method;
 
-  
+
   /**
    * Check parameters and go for alter hook
    */
-  public function message_build() {  
+  public function message_build() {
     if (empty($this->built)) {
       // Provide a specific notifications alter hook
       drupal_alter('notifications_message', $this);
@@ -43,7 +43,7 @@ class Notifications_Message extends Messaging_Message {
     }
     return parent::message_build();
   }
-  
+
   /**
    * Add event to the message. One message can be produced by one or more events.
    */
@@ -52,7 +52,7 @@ class Notifications_Message extends Messaging_Message {
     $this->events_subscriptions[$event->eid] = $subscriptions;
     $this->add_subscriptions($subscriptions);
   }
-  
+
   /**
    * Add subscriptions
    */
@@ -65,7 +65,7 @@ class Notifications_Message extends Messaging_Message {
   }
   /**
    * Set message sender. Depending on options this will set sender account too.
-   * 
+   *
    * Optional sender, if chosen will be the user account who produced the event
    * It will be up to the sending method modules what to do with this information.
    */
@@ -85,9 +85,9 @@ class Notifications_Message extends Messaging_Message {
 
   /**
    * Digest multiple events in a single message, short format.
-   * 
+   *
    * Was: notifications_process_build_simple()
-   * 
+   *
    * @return array with messages ready to be sent
    */
   public static function build_simple($template, $events, $subscriptions, $module = 'notifications') {
@@ -101,10 +101,10 @@ class Notifications_Message extends Messaging_Message {
     }
     return $messages;
   }
-  
+
   /**
    * Creates a single message for a single event
-   * 
+   *
    * @param $account
    *   Destination user account
    * @param $event
@@ -113,7 +113,7 @@ class Notifications_Message extends Messaging_Message {
    *   Array of subscription ids
    * @param $debug
    *   Return template parts information with the message
-   * 
+   *
    * @return
    *   Message object
    */
@@ -122,7 +122,7 @@ class Notifications_Message extends Messaging_Message {
     $destination = $template->get_destination();
     $account = $template->get_user();
     $language = $template->get_language();
-  
+
     // Start the message by cloning the template
     $message = clone $template;
     $message->add_event($event, $subscriptions);
@@ -139,14 +139,14 @@ class Notifications_Message extends Messaging_Message {
     $objects = array('destination' => $destination, 'user' => $account, 'event' => $event, 'subscription' => $subscription);
     $objects = array_merge($objects, $event->get_objects());
     $text = messaging_template_text_replace($parts, $objects, $language);
-  
+
     // Get subject out of text and build the message array
     $message->subject = $text['subject'];
     unset($text['subject']);
     $message->body = $text;
     $message->text_parts = $parts;
-  
+
     return $message;
   }
-  
+
 }

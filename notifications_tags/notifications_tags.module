@@ -26,7 +26,7 @@ function notifications_tags_menu() {
   // Hidden user account tab, unless notifications_user enabled
   $items['user/%user/notifications/taxonomy'] = array(
     'type' => MENU_LOCAL_TASK,
-    'title' => 'Tags',     
+    'title' => 'Tags',
     'access callback' => 'notifications_tags_user_access',
     'access arguments' => array(1, 'taxonomy_term'),
     'page callback' => 'notifications_account_subscription_list_page',
@@ -105,7 +105,7 @@ function notifications_tags_notifications($op) {
         'class' => 'Notifications_Taxonomy_Vocabulary_Field',
       );
       return $fields;
-    
+
     case 'object types':
       // Define object types used by subscriptions and events
       $types['taxonomy_term'] = array(
@@ -157,7 +157,7 @@ function notifications_tags_notifications_subscription($op, $subscription = NULL
         $objects[] = notifications_object('taxonomy_vocabulary', $vocabulary);
       }
       return $objects;
-  }  
+  }
 }
 
 
@@ -243,7 +243,7 @@ function notifications_tags_notifications_object_taxonomy_vocabulary($op, $vocab
       $options = array();
       if (!$account || user_access('subscribe to taxonomy vocabulary')) {
         $options[] = notifications_subscription('taxonomy_vocabulary')
-          ->add_field('vocabulary:vid', $vocabulary->vid);        
+          ->add_field('vocabulary:vid', $vocabulary->vid);
       }
       return $options;
   }
@@ -265,7 +265,7 @@ function notifications_tags_taxonomy_vocabulary_delete($vocabulary) {
 
 /**
  * Implements hook_action_info().
- * 
+ *
  * These actions are a bit tricky because they are not unconditional. We check node status before.
  */
 function notifications_tags_action_info() {
@@ -293,7 +293,7 @@ function notifications_tags_term_create_action($object, $context = array()) {
 
 /**
  * Get list of allowed vocabularies
- * 
+ *
  * @param $field
  *   Optional field to retrieve as array value.
  *   If empty the whole vocalubary object will be returned.
@@ -336,7 +336,7 @@ function notifications_tags_vocabulary_enabled($vid = NULL) {
 
 /**
  * Helper function to get latest node terms that belong to our vocabularies for subscriptions
- * 
+ *
  * We cannot use the one from taxonomy module because it has static caching and we'll be sending
  * notifications right after the node has been updated
  */
@@ -349,7 +349,7 @@ function notifications_tags_node_get_terms($node) {
       // We just get terms for allowed vocabularies
       $vids = array_keys($vocabularies);
       $args = array_merge(array($node->nid), $vids);
-      $result = db_query('SELECT t.tid FROM {term_node} t INNER JOIN {term_data} d ON t.tid = d.tid WHERE t.nid = %d AND d.vid IN(' . db_placeholders($vids) . ')', $args);      
+      $result = db_query('SELECT t.tid FROM {term_node} t INNER JOIN {term_data} d ON t.tid = d.tid WHERE t.nid = %d AND d.vid IN(' . db_placeholders($vids) . ')', $args);
       while ($term = db_fetch_object($result)) {
         $terms[$node->nid][] = $term->tid;
       }
@@ -360,11 +360,11 @@ function notifications_tags_node_get_terms($node) {
 
 /**
  * Helper function for autocompletion
- * 
+ *
  * It is similar to taxonomy_autocomplete but:
  * - Just searches terms in allowed vocabularies
  * - Has single/multiple switch in the path
- * 
+ *
  * @param $type
  *   'simple' or 'multiple'
  */
@@ -430,7 +430,7 @@ function notifications_tags_autocomplete_validate($element, &$form_state) {
     $vids = notifications_tags_vocabulary_enabled();
     if (!$vids) {
       form_set_error(implode('][', $element['#parents']), t('You must have at least one vocabulary enabled for tag subscriptions.'));
-      return;      
+      return;
     }
     foreach ($typed_terms as $typed_term) {
       // See if the term exists in the chosen vocabulary and return the tid;

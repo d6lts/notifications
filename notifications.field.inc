@@ -86,7 +86,7 @@ abstract class Notifications_Field {
    * Get title for field
    */
   public function get_title() {
-    return $this->get_property('title', ''); 
+    return $this->get_property('title', '');
   }
   /**
    * Get description
@@ -145,7 +145,7 @@ abstract class Notifications_Field {
   }
   /**
    * Get query condition for a given value
-   * 
+   *
    * @param $value
    *   Single value or array of values for this field
    * @param $alias
@@ -181,13 +181,13 @@ abstract class Notifications_Field {
    */
   function format_value($format = NOTIFICATIONS_FORMAT_HTML) {
     if ($format & NOTIFICATIONS_FORMAT_HTML) {
-      return $this->get_path() ? $this->get_link() : check_plain($this->get_name()); 
+      return $this->get_path() ? $this->get_link() : check_plain($this->get_name());
     }
     else {
       return check_plain($this->get_name());
     }
   }
-  
+
   /**
    * Check user access
    */
@@ -245,7 +245,7 @@ abstract class Notifications_Field {
     }
   }
   /**
-   * Set subscription 
+   * Set subscription
    */
   function set_subscription($subscription) {
     $this->subscription = $subscription;
@@ -261,7 +261,7 @@ abstract class Notifications_Field {
    * Parse value from form submission
    */
   function parse_value($value) {
-    switch($this->data_type) {
+    switch ($this->data_type) {
       case 'int':
         return (int)$value;
       case 'float':
@@ -307,7 +307,7 @@ abstract class Notifications_Field {
   }
   /**
    * Check if the value is valid for this field has a valid value
-   * 
+   *
    * Was: notifications_field_valid_value($value, $type = NULL)
    */
   static function validate_value($value, $data_type = NULL) {
@@ -333,10 +333,10 @@ abstract class Notifications_Field {
       return TRUE;
     }
   }
- 
+
   /**
    * Build a form element to edit this field
-   * 
+   *
    * Was: notifications_field_form_element($type, $value, $subscription = NULL, $title = FALSE, $required = FALSE, $size = 40)
    */
   function element_edit($element = array()) {
@@ -396,7 +396,7 @@ class Notifications_Field_Default extends Notifications_Field {
    */
   function get_description() {
     return t('Notifications field');
-  }  
+  }
 }
 /**
  * Field with autocomplete values
@@ -437,7 +437,7 @@ abstract class Notifications_Field_Autocomplete extends Notifications_Field {
     $element['#autocomplete_path'] = $this->autocomplete_path();
     return $element;
   }
-    
+
 }
 
 /**
@@ -474,7 +474,7 @@ abstract class Notifications_Field_Select extends Notifications_Field {
    * Check valid value
    */
   function valid_value($value = NULL) {
-    return ($options = $this->select_options()) && isset($options[$value]); 
+    return ($options = $this->select_options()) && isset($options[$value]);
   }
 }
 
@@ -485,7 +485,7 @@ class Notifications_Node_Field extends Notifications_Field_Autocomplete {
   public $type = 'node:nid';
   public $field = 'nid';
   public $object_type = 'node';
-  
+
   /**
    * Get field name
    */
@@ -498,12 +498,12 @@ class Notifications_Node_Field extends Notifications_Field_Autocomplete {
   function get_description() {
     return t('Node');
   }
-  
+
   /**
    * Get system path
    */
   function get_path() {
-    return isset($this->value) ? 'node/' . $this->value : ''; 
+    return isset($this->value) ? 'node/' . $this->value : '';
   }
 
   /**
@@ -512,7 +512,7 @@ class Notifications_Node_Field extends Notifications_Field_Autocomplete {
   function autocomplete_path() {
     return 'notifications/autocomplete/node/title';
   }
-  
+
   /**
    * Parse value from autocomplete
    */
@@ -525,7 +525,7 @@ class Notifications_Node_Field extends Notifications_Field_Autocomplete {
    */
   function autocomplete_value() {
     $node = $this->drupal_object();
-    return $node ? check_plain($node->title) . ' [nid:' . $node->nid .']' : '';
+    return $node ? check_plain($node->title) . ' [nid:' . $node->nid . ']' : '';
   }
   /**
    * Get query condition for nodes
@@ -554,7 +554,7 @@ class Notifications_User_Field extends Notifications_Field_Autocomplete {
    */
   function get_description() {
     return t('User name');
-  } 
+  }
    /**
    * Get autocomplete path
    */

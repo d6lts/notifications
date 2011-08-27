@@ -98,7 +98,7 @@ class Notifications_Message_Template extends Messaging_Message_Template {
     return array(
       '#tokens' => TRUE,
       '#markup' => t("Greetings [user:name],", array(), $options),
-    );    
+    );
   }
   /**
    * Content text
@@ -124,7 +124,7 @@ class Notifications_Message_Template extends Messaging_Message_Template {
         '#text' => t('You can unsubscribe at', array(), $options),
         '#url' => '[user:unsubscribe-url]',
       ),
-    );    
+    );
   }
   /**
    * Declare all tokens used for this template

@@ -6,15 +6,15 @@
 
 /**
  * Menu callback. Overview page for user subscriptions.
- * 
+ *
  * We create the page as a form so it can be altered
- * 
+ *
  */
 function notifications_account_overview($account) {
   $form['account'] = array('#type' => 'value', '#value' => $account);
-  
+
   $path = 'user/' . $account->uid;
-  
+
   // Status, send method, interval
   $count = db_query("SELECT status, COUNT(*) AS num FROM {notifications_subscription} WHERE uid = :uid GROUP BY status", array(':uid' => $account->uid));
   $status_list = Notifications_Subscription::status_list();
@@ -27,23 +27,23 @@ function notifications_account_overview($account) {
   $send_intervals = notifications_send_intervals($account);
   $send_methods = notifications_send_methods($account);
   if ($method = notifications_user_setting('send_method', $account)) {
-    if (isset($send_methods[$method])) {      
+    if (isset($send_methods[$method])) {
       $status['method'] = t('Your default sending method for new subscriptions is @send_method', array('@send_method' => $send_methods[$method]));
     }
   }
   $interval = notifications_user_setting('send_interval', $account);
-  if (isset($send_intervals[$interval])) {      
+  if (isset($send_intervals[$interval])) {
     $status['interval'] = t('Your default sending interval for new subscriptions is @send_interval', array('@send_interval' => $send_intervals[$interval]));
   }
-  
+
   $form['status'] = array('#type' => 'item', '#weight' => 10, '#title' => t('Current status'), '#markup' => theme('item_list', array('items' => $status)));
-  
+
   // Build shortcut tips
   if (notifications_access_user($account, 'manage')) {
     $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
   }
   $tips['edit'] = l(t('Edit your notifications settings'), "$path/edit");
-  
+
   // Enable / disable all subscriptions
   if (notifications_access_user($account, 'maintain')) {
     if (!empty($status[Notifications_Subscription::STATUS_ACTIVE])) {
@@ -51,7 +51,7 @@ function notifications_account_overview($account) {
     }
     if (!empty($status[Notifications_Subscription::STATUS_INACTIVE]) || !empty($status[Notifications_Subscription::STATUS_BLOCKED])) {
       $tips['enable'] = l(t('Enable all your subscriptions'), "$path/notifications/update/enable");
-    }    
+    }
   }
   /*
   $link = notifications_get_link('unsubscribe', array('uid' => $account->uid, 'destination' => TRUE));
@@ -59,8 +59,8 @@ function notifications_account_overview($account) {
   */
   //$output .= theme('item_list', $tips, t('You can'));
   $form['tips'] = array('#type' => 'item', '#weight' => 20, '#title' => t('You can'), '#markup' => theme('item_list', array('items' => $tips)));
-   
-  return $form;  
+
+  return $form;
 }
 
 /**
@@ -84,10 +84,10 @@ function notifications_account_manage_subscriptions_form($form, &$form_state, $a
 
 /**
  * List form for subscriptions of the same type for a user
- * 
+ *
  * @todo Add enable /disable operations
  * @todo Add pager
- * 
+ *
  * @param $type
  *   Subscription type
  * @param $account
@@ -101,19 +101,19 @@ function notifications_account_subscription_list_form($form, &$form_state, $type
   if (isset($form_state['values']['op']) && $form_state['values']['op'] == t('Delete')) {
     if ($selected = array_filter($form_state['values']['subscriptions']['select'])) {
       $list = Notifications_Subscription_List::build_sids(array_keys($selected));
-      return notifications_subscription_list_form($form, $form_state, 'delete', $list);     
+      return notifications_subscription_list_form($form, $form_state, 'delete', $list);
     }
   }
   $account = messaging_user_object($account);
   $substype = notifications_subscription($type);
   $form['account'] = array('#type' => 'value', '#value' => $account);
   $form['subscription_type'] = array('#type' => 'value', '#value' => $type);
-  
+
   // Build a template subscriptions. These subscriptions should have a unique subscription variable field
   $form['info'] = array(
     '#type' => 'item',
     '#title' => t('@type subscriptions', array('@type' => $substype->get_title())),
-    '#description' => $substype->get_description(),
+    '#description' => check_plain($substype->get_description()),
   );
 
   $subscriptions = new Notifications_Subscription_Table();
@@ -122,7 +122,7 @@ function notifications_account_subscription_list_form($form, &$form_state, $type
     ->set_conditions(array('uid' => $account->uid, 'type' => $type))
     ->query_load();
   $form['subscriptions'] = $subscriptions->table_select();
-  
+
   if (count($subscriptions)) {
     $form['operations'] = array(
       '#type' => 'fieldset',
@@ -136,7 +136,7 @@ function notifications_account_subscription_list_operations() {
   $form['operations']['update'] = array('#type' => 'submit', '#value' => t('Update'));
   $form['operations']['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
   //$form['operations']['enable'] = array('#type' => 'submit', '#value' => t('Enable'));
-  //$form['operations']['disable'] = array('#type' => 'submit', '#value' => t('Disable'));  
+  //$form['operations']['disable'] = array('#type' => 'submit', '#value' => t('Disable'));
 }
 
 /**
@@ -218,14 +218,14 @@ function notifications_account_subscription_list_form_values($form_values, $subs
     if (isset($form_values[$field][$key]) && (!isset($subscription->$field) || $subscription->$field != $form_values[$field][$key])) {
       // We just set the values that have changed and return them if any
       $subscription->$field = $values[$field] = $form_values[$field][$key];
-    }         
+    }
   }
   return $values;
 }
 
 /**
  * Bulk update all user subscriptions, confirmation form
- * 
+ *
  * @param $account
  *   User account
  * @param $operation
@@ -233,7 +233,7 @@ function notifications_account_subscription_list_form_values($form_values, $subs
  */
 function notifications_account_update_subscriptions($form_state, $account, $operation) {
   $form['account'] = array('#type' => 'value', '#value' => $account);
-  $form['operation'] = array('#type' => 'value', '#value' => $operation);  
+  $form['operation'] = array('#type' => 'value', '#value' => $operation);
   $destination = 'user/' . $account->uid . '/notifications';
   $form['#redirect'] = $destination;
   if ($operation == 'enable') {
@@ -246,7 +246,7 @@ function notifications_account_update_subscriptions($form_state, $account, $oper
     return confirm_form($form,
                       t('Are you sure you want to disable all your subscriptions?'),
                       $destination, t('You will stop getting notifications until you enable them again.'),
-                      t('Disable'), t('Cancel'));    
+                      t('Disable'), t('Cancel'));
   }
   else {
     drupal_access_denied();
@@ -258,7 +258,7 @@ function notifications_account_update_subscriptions($form_state, $account, $oper
  */
 function notifications_account_update_subscriptions_submit($form, $form_state) {
   $account = $form_state['values']['account'];
-  
+
   switch ($form_state['values']['operation']) {
     case 'enable':
       // Enable also blocked subscriptions just in case there are some
@@ -275,7 +275,7 @@ function notifications_account_update_subscriptions_submit($form, $form_state) {
 
 /**
  * Form for unsubscription confirmation
- * 
+ *
  * It works for both single subscription or account (all subscriptions)
  */
 function notifications_account_form_unsubscribe_confirm($form_state, $subscription, $account = NULL) {
@@ -285,7 +285,7 @@ function notifications_account_form_unsubscribe_confirm($form_state, $subscripti
   if ($subscription) {
     $message = t('Are you sure you want to delete this subscription?');
     // The subscription description will be added here
-    $form['info'] = $subscription->form_info();    
+    $form['info'] = $subscription->form_info();
   }
   else {
     $message = t('Are you sure you want to remove all your subscriptions on this site?');

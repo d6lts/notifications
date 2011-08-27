@@ -6,14 +6,14 @@
 require_once drupal_get_path('module', 'notifications') . '/tests/notifications_test_case.inc';
 
 class NotificationsAnonymousTests extends NotificationsTestCase {
-  
+
   function getInfo() {
     return array(
       'name' => 'Anonymous Subscriptions',
       'group' => 'Notifications',
       'description' => 'Subscriptions and Notifications for anonymous users.' );
   }
-  
+
   function setUp() {
     parent::setUp('messaging_mail', 'notifications_content', 'notifications_ui', 'notifications_anonymous');
     $this->anonymousCreatePermissions(array('access content', 'access comments', 'maintain own subscriptions', 'subscribe to author', 'subscribe to content', 'subscribe to content type'));
@@ -23,7 +23,7 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     variable_set('messaging_method_mail', array('queue' => 1, 'log' => 1)); // Enable queue, log for mail
     // This send interval (0) and method (mail) are defaults enabled for anonymous
   }
-  
+
   function testAnonymousSubscriptions() {
     // Create a new content-type for subscribing to
     $ctype = $this->drupalCreateContentType();
@@ -37,7 +37,7 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     $mail = $this->createMail();
     // Create a content type subscription
     $subscription = $this->anonymousCreateSubscription($mail, 'nodetype', array('type' => $ctype->type));
-  
+
     // Create a node and a comment and check the subscription has worked
     $author = $this->drupalCreateUser(array("create $ctype->type content", 'post comments'));
     $node = $this->drupalCreateNode(array('type' => $ctype->type, 'uid' => $author->uid));
@@ -52,7 +52,7 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     $message2 = array_shift($messages);
     $this->assertTrue(strpos($message1->body, $node->body), "One message sent for the node post.");
     $this->assertTrue(strpos($message2->body, $comment->subject), "One message sent for the comment.");
-    
+
     // Unsubscribe with a signed link
     $link = notifications_subscription_get_link('unsubscribe', $subscription, array('absolute' => TRUE, 'destination' => ''));
     $this->drupalGet(url($link['href'], $link['options']));
@@ -60,13 +60,13 @@ class NotificationsAnonymousTests extends NotificationsTestCase {
     $this->drupalPost(NULL, array(), t('Unsubscribe'));
     $this->assertText('Your subscription has been removed.');
   }
-  
+
   function anonymousCreateSubscription($mail, $type, $fields, $messages = array()) {
     $anonymous = drupal_anonymous_user();
     $post["destination_address[mail]"] = $mail;
     return $this->contentCreateSubscription($anonymous, $type, $fields, $messages, $post);
   }
-  
+
   function createMail() {
     return $this->randomName() . '@example.com';
   }

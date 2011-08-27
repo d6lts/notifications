@@ -21,7 +21,7 @@ function notifications_user_menu() {
         'page arguments' => array($type, 1),
         'weight' => 10,
       );
-    } 
+    }
   }
   return $items;
 }
@@ -83,7 +83,7 @@ function notifications_user_notifications($op) {
       $types['user_links'] = array(
         '#title' => t('User links'),
         '#description' => t('Display subscription links on user account page.'),
-      );    
+      );
       return $types;
   }
 }
@@ -97,10 +97,10 @@ function notifications_user_notifications_subscription($op, $subscription = NULL
       $objects = array();
       // Return objects on current page to which we can subscribe
       if (arg(0) == 'user' && is_numeric(arg(1)) && ($user = menu_get_object('user'))) {
-        $objects[] = notifications_object('user', $user);  
+        $objects[] = notifications_object('user', $user);
       }
       return $objects;
-  }  
+  }
 }
 
 /**
@@ -185,6 +185,6 @@ function notifications_user_user_view($account) {
       '#title' => t('Subscriptions'),
       '#markup' => theme('item_list', array('items' => $list->get_links())),
       '#attributes' => array('class' => array('notifications')),
-    );    
+    );
   }
 }

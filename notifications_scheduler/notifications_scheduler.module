@@ -5,16 +5,16 @@
  * Notifications scheduler module
  *
  * Send scheduled notifications depending on timely triggers
- * 
+ *
  * Hidden variables (can be set programatically, have no UI):
- * 
+ *
  * - 'notifications_scheduler_last'
  *   Timestamp from which content will be considered 'new' for the first time a scheduler runs (notifications for new content)
  *   After an initial import, set this value to current time so no 'new content' notifications are sent for this content
- * 
+ *
  * This is based on the previous subscriptions module
- * 
- * Development Seed, http://www.developmentseed.org, 2007 
+ *
+ * Development Seed, http://www.developmentseed.org, 2007
  *
  */
 
@@ -83,7 +83,7 @@ function notifications_scheduler_notifications($op) {
 
 /**
  * Implementation of hook_action_info()
- * 
+ *
  * Automatically creates actions for scheduled notifications.
  */
 function notifications_scheduler_action_info() {
@@ -97,7 +97,7 @@ function notifications_scheduler_action_info() {
           'label' => t('Scheduled notification: @name', array('@name' => $info['title'])),
           'configurable' => !empty($info['configurable']),
           'behavior' => array('sends_notification'),
-          'triggers' => array('any'),        
+          'triggers' => array('any'),
         );
       }
     }
@@ -117,7 +117,7 @@ function notifications_scheduler_default_action($job, $context, $a1, $a2) {
 
 /**
  * Action: Configuration form
- * 
+ *
  * @param $context
  *   Regular action context plus 'event_type' element
  */
@@ -129,7 +129,7 @@ function notifications_scheduler_default_action_form($context, $event_type) {
   foreach (notifications_info('message templates') as $key => $template) {
     if ($template['object'] == 'node_list') {
       $template_list[$key] = $template['title'];
-    } 
+    }
   }
   $form['template'] = array(
     '#title' => t('Template'),
@@ -152,7 +152,7 @@ function notifications_scheduler_default_action_submit($form, &$form_state) {
 
 /**
  * Action callback
- * 
+ *
  * @param $job,
  *   Job object from job_scheduler
  */
@@ -162,7 +162,7 @@ function notifications_scheduler_latest_posts_action($job, $context, $a1, $a2) {
 
 /**
  * Action callback
- * 
+ *
  * @param $job,
  *   Job object from job_scheduler
  */
@@ -226,7 +226,7 @@ function notifications_scheduler_new_posts_action_form($context) {
     );
   }
 
-  return $form;  
+  return $form;
 }
 
 /**
@@ -240,5 +240,5 @@ function notifications_scheduler_new_posts_action_submit($form, &$form_state) {
   if (isset($form_state['values']['taxonomy_term'])) {
     $params['taxonomy_term'] = $form_state['values']['taxonomy_term'];
   }
-  return $params;  
+  return $params;
 }

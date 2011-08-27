@@ -7,7 +7,7 @@
 /**
  * Generic content subscription Thread subscription
  */
-class Notifications_User_Content_Subscription extends Notifications_Content_Subscription {  
+class Notifications_User_Content_Subscription extends Notifications_Content_Subscription {
   /**
    * Set all the fields we can from node
    */
@@ -46,7 +46,6 @@ class Notifications_User_Content_Subscription extends Notifications_Content_Subs
         return t('All posts by @author', array('@author' => $author_name));
       }
     }
-  }  
+  }
 }
-
 

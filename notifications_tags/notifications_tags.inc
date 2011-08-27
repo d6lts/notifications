@@ -24,7 +24,7 @@ class Notifications_Taxonomy_Term extends Notifications_Object {
   }
   /**
    * Load object
-   */  
+   */
   public static function object_load($value) {
     return taxonomy_term_load($value);
   }
@@ -64,7 +64,7 @@ class Notifications_Taxonomy_Term_Field extends Notifications_Field_Autocomplete
    * Get system path
    */
   function get_path() {
-    return isset($this->value) ? 'taxonomy/term/' . $this->value : ''; 
+    return isset($this->value) ? 'taxonomy/term/' . $this->value : '';
   }
    /**
    * Get autocomplete path
@@ -178,7 +178,7 @@ class Notifications_Taxonomy_Vocabulary_Field extends Notifications_Field_Select
    * Get system path
    */
   function get_path() {
-    return isset($this->value) ? 'taxonomy/vocabulary/' . $this->value : ''; 
+    return isset($this->value) ? 'taxonomy/vocabulary/' . $this->value : '';
   }
 
   /**
@@ -189,7 +189,7 @@ class Notifications_Taxonomy_Vocabulary_Field extends Notifications_Field_Select
       //foreach (taxonomy_get_vocabularies() as $vocab) {
       $this->vocabulary_names = db_query('SELECT vid, name FROM {taxonomy_vocabulary}')->fetchAllKeyed();
     }
-    return $this->vocabulary_names;    
+    return $this->vocabulary_names;
   }
 }
 
@@ -346,7 +346,7 @@ class Notifications_Taxonomy_Term_Create_Template extends Notifications_Message_
           'more' => array(
             '#type' => 'messaging_link',
             '#text' => t('Read more', array(), $options),
-            '#url' => '[term:url]',        
+            '#url' => '[term:url]',
           ),
         );
       case 'digest':

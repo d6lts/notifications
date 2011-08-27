@@ -2,7 +2,7 @@
 /**
  * @file
  * Drupal Notifications Framework - Default class file
- * 
+ *
  * Hidden variables
  * - notifications_frontpage - Where to redirect after notifications operations, defaults to site_frontpage
  */
@@ -21,7 +21,7 @@ class Notifications_Subscription extends Notifications_Entity {
   const FORMAT_TABLE = 5;
   // Format as item list (8 + 2(inline) + 1 (html))
   const FORMAT_LIST = 10;
-  
+
   // Blocked subscriptions, for blocked users
   const STATUS_BLOCKED = 0;
   // Enabled ones, will produce notifications
@@ -79,11 +79,11 @@ class Notifications_Subscription extends Notifications_Entity {
   // Subscription type. Array of field values
   public $field_values;
   // Subscription type. Array of object types
-  public $object_types;  
+  public $object_types;
 
   /**
    * Build from db object or template.
-   * 
+   *
    * @param $subscription
    *   Notifications_Subscription object, or generic object
    * @return Notifications_Subscription
@@ -116,9 +116,9 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Load from db
-   * 
+   *
    * @param $sid
-   *   Subscription id 
+   *   Subscription id
    * @param $full
    *   Whether to load all fields in the same operation
    */
@@ -128,7 +128,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Load multiple from db
-   * 
+   *
    * @see select_subscriptions
    */
   public static function load_multiple($conditions, $fields = array(), $limit = FALSE) {
@@ -152,7 +152,7 @@ class Notifications_Subscription extends Notifications_Entity {
     else {
       return array();
     }
-  }  
+  }
   /**
    * Get all existing instances form the db
    */
@@ -191,7 +191,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Get unique field per type.
-   * 
+   *
    * A subscription may have more than one field of the same type
    */
   function get_unique_fields() {
@@ -217,7 +217,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Get subscription type data
-   * 
+   *
    * @todo replace by get_info
    */
   function get_type($property = NULL, $default = NULL) {
@@ -244,11 +244,11 @@ class Notifications_Subscription extends Notifications_Entity {
         $options += array(
           'base_path' => 'notifications/unsubscribe',
           'skip_confirmation' => variable_get('notifications_option_unsubscribe_links', 0)
-        );     
+        );
         break;
       default:
         $options += array(
-          'base_path' => 'notifications/subscription/' . ($this->is_stored() ? $this->sid . '/' : '')  . $operation        
+          'base_path' => 'notifications/subscription/' . ($this->is_stored() ? $this->sid . '/' : '') . $operation
         );
         break;
     }
@@ -263,9 +263,9 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Get default link type (susbscribe || unsubscribe)
-   * 
+   *
    * 'subscription' type will translate on subscribe/unsubscribe depending on current status
-   * 
+   *
    * @param $type
    *   Link type.
    */
@@ -292,7 +292,7 @@ class Notifications_Subscription extends Notifications_Entity {
     $options += array('absolute' => TRUE, 'signed' => TRUE);
     return $this->get_path($operation, $options);
   }
-  
+
   /**
    * Get link element
    */
@@ -306,7 +306,7 @@ class Notifications_Subscription extends Notifications_Entity {
         '#href'  => $path,
         '#options' => notifications_url_options($path, $options) + array('html' => TRUE),
         '#description' => $this->get_description(),
-      );    
+      );
   }
 
   /**
@@ -315,10 +315,10 @@ class Notifications_Subscription extends Notifications_Entity {
   public static function type_info($type = NULL, $property = NULL, $default = NULL) {
     return notifications_subscription_type($type, $property, $default);
   }
-  
+
   /**
-   * Filter out fields that have or don't have a value set 
-   * 
+   * Filter out fields that have or don't have a value set
+   *
    * @param $fields
    *   Array of field objects to be filtered
    * @param $filter
@@ -332,9 +332,9 @@ class Notifications_Subscription extends Notifications_Entity {
         }
       }
     }
-    return $fields;    
+    return $fields;
   }
- 
+
   /**
    * Save fields from form submission
    */
@@ -355,12 +355,12 @@ class Notifications_Subscription extends Notifications_Entity {
             break;
           default:
             $this->$key = $values[$key];
-            break;         
+            break;
         }
       }
     }
   }
-  
+
   /**
    * Validate form
    */
@@ -382,7 +382,7 @@ class Notifications_Subscription extends Notifications_Entity {
     }
     return $this->form_operation($operation, $form, $form_state);
   }
-  
+
   /**
    * Run form operation
    */
@@ -394,7 +394,7 @@ class Notifications_Subscription extends Notifications_Entity {
         break;
 
       case 'subscribe':
-      case 'add':     
+      case 'add':
       case 'edit':
         $this->result = $this->save();
         switch ($this->result) {
@@ -425,14 +425,14 @@ class Notifications_Subscription extends Notifications_Entity {
         break;
 
       default:
-        drupal_set_message('Operation not implemented yet.', 'warning');
+        drupal_set_message(t('Operation not implemented yet.'), 'warning');
         $this->result = FALSE;
         break;
     }
   }
   /**
    * Get form for this subscription
-   * 
+   *
    * @return $form
    */
   public function get_form($operation, $form, &$form_state) {
@@ -461,7 +461,7 @@ class Notifications_Subscription extends Notifications_Entity {
     $form['controls'] = $this->element_operation($operation);
     return $form;
   }
-  
+
   /**
    * Get edit form for this subscription
    */
@@ -514,7 +514,7 @@ class Notifications_Subscription extends Notifications_Entity {
         '#default_value' => $this->send_method,
       );
     }
-    return $element;    
+    return $element;
   }
   /**
    * Form element: send interval
@@ -533,7 +533,7 @@ class Notifications_Subscription extends Notifications_Entity {
         '#default_value' => $this->send_interval,
       );
     }
-    return $element;    
+    return $element;
   }
   /**
    * Get all fields (editable and not editable)
@@ -606,7 +606,7 @@ class Notifications_Subscription extends Notifications_Entity {
     $this->set_properties_from_values($form_state['values'], TRUE);
     // There may be optional fields to add
     if ($fields = $this->build_fields_from_submission($form, $form_state)) {
-      $this->set_fields($fields); 
+      $this->set_fields($fields);
     }
     return $this;
   }
@@ -629,11 +629,11 @@ class Notifications_Subscription extends Notifications_Entity {
         $this->set_property($field, $values[$field]);
       }
     }
-    return $this; 
+    return $this;
   }
   /**
    * Build instance fields form URL parameters
-   * 
+   *
    * @param $values
    *   Array of field values indexed by field position
    */
@@ -682,7 +682,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Build subscriptions for array of objects and user account.
-   * 
+   *
    * @return Notifications_Subscription_List
    */
   static function object_subscriptions($objects, $account) {
@@ -697,9 +697,9 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get event conditions OR'd
-   * 
+   *
    * These will look like
-   * 
+   *
    * s.type = 'node' AND (field_condition1 OR field_condition2)
    * s.type = 'term' AND (field_condition1)
    */
@@ -715,7 +715,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get OR'd field conditions for this subscription type and object
-   * 
+   *
    * Conditions will look like
    *   f.type = 'nid' AND f.value = 100
    *   f.type = 'term' AND f.value IN (1, 2, 3, 4)
@@ -732,10 +732,10 @@ class Notifications_Subscription extends Notifications_Entity {
     }
     return $add;
   }
-  
+
   /**
    * Build a form element for a field
-   * 
+   *
    * A subscription type can override its form elements
    */
   function field_form_element($field, $element = array()) {
@@ -746,7 +746,7 @@ class Notifications_Subscription extends Notifications_Entity {
    * Run module_invoke_all('notifications_subscription') with this object
    */
   public function invoke_all($op, $param = NULL) {
-    return module_invoke_all('notifications_subscription', $op, $this, $param);    
+    return module_invoke_all('notifications_subscription', $op, $this, $param);
   }
   /**
    * Status list
@@ -759,21 +759,21 @@ class Notifications_Subscription extends Notifications_Entity {
       self::STATUS_DISABLED => t('disabled'),
    );
   }
-  
+
   /**
    * Delete multiple subscriptions and clean up related data (pending notifications, fields).
-   * 
+   *
    * Was notifications_delete_subscriptions ($params, $field_conditions = array(), $limit = FALSE)
-   * 
+   *
    * Warning: If !$limit, it will delete also subscriptions with more conditions than the fields passed.
-   * 
+   *
    * @param array $params
    *   Array of multiple conditions in the notifications table to delete subscriptions
    * @param array $field_conditions
    *   Array of multiple conditions in the notifications_fields table to delete subscriptions
    * @param $limit
    *   Whether to limit the result to subscriptions with exactly that condition fields
-   *   
+   *
    * @return int
    *   Number of deleted subscriptions
    */
@@ -786,7 +786,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Query for selecting multiple subscriptions
-   * 
+   *
    * @param array $conditions
    *   Array of multiple conditions in the notifications table to delete subscriptions
    * @param array $field_conditions
@@ -827,8 +827,8 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Delete subscription and clean up related data, included the static cache
-   * It also removes pending notifications related to that subscription 
-   * 
+   * It also removes pending notifications related to that subscription
+   *
    * @param $sid
    *   Subscription object or sid or array of sids of subscription/s to delete
    */
@@ -840,7 +840,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Check whether this is a subscription instance.
-   * 
+   *
    * Regular subscription types will be the same as the instance. For more ellaborated subscription
    * types, we can get multiple different instances depending on field values.
    */
@@ -857,7 +857,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get subscription instance.
-   * 
+   *
    * This will be the same object for regular subscriptions. More complex subscriptins can be able
    * to produce multiple types depending on parameters.
    */
@@ -880,7 +880,7 @@ class Notifications_Subscription extends Notifications_Entity {
     elseif ($op == 'view') {
       return TRUE;
     }
-    else if ($op == 'subscribe') {
+    elseif ($op == 'subscribe') {
       // To create a new subscription user needs to have access to all the objects
       return $this->type_access($account) && $this->object_access($account);
     }
@@ -939,7 +939,7 @@ class Notifications_Subscription extends Notifications_Entity {
       case 'add':
         return $options['base_path'] . '/' . $this->type;
       case 'unsubscribe':
-        return $options['base_path'] . '/' . $this->sid; 
+        return $options['base_path'] . '/' . $this->sid;
       default:
         return parent::get_path($operation, $options);
     }
@@ -968,7 +968,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Set user account as the owner of this subscription and take care of defaults for this account.
-   * 
+   *
    * @param $account
    *   User account or user uid
    */
@@ -982,7 +982,7 @@ class Notifications_Subscription extends Notifications_Entity {
       $this->send_method = notifications_user_setting('send_method', $account);
     }
     if (empty($this->language)) {
-      $this->language = user_preferred_language($account)->language; 
+      $this->language = user_preferred_language($account)->language;
     }
     return $this;
   }
@@ -996,7 +996,7 @@ class Notifications_Subscription extends Notifications_Entity {
     if (!empty($this->sid)) {
       foreach (Notifications_Field::load_multiple(array('sid' => $this->sid)) as $field) {
         $this->set_field($field);
-      }       
+      }
     }
   }
   /**
@@ -1005,7 +1005,7 @@ class Notifications_Subscription extends Notifications_Entity {
   function insert() {
     $result = parent::insert();
     $this->save_fields(FALSE);
-    return $result; 
+    return $result;
   }
   /**
    * Update db
@@ -1028,7 +1028,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Check all subscriptions values and set error message if any invalid one
-   * 
+   *
    * @return boolean
    *   TRUE if everything is ok
    */
@@ -1116,7 +1116,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Save condition fields to db
-   * 
+   *
    * @param $update
    *   Whether this is an old subscription being created
    */
@@ -1136,9 +1136,9 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get fields as array of field => value pairs
-   * 
+   *
    * Duplicate fields are returned as field => array(value1, value2...)
-   * 
+   *
    * @param $type
    *   Optional to just return the values for some field type
    */
@@ -1186,7 +1186,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Add field arguments from url
-   * 
+   *
    * @param $fields
    *   String of field names separated by commas
    * @param $values
@@ -1197,7 +1197,7 @@ class Notifications_Subscription extends Notifications_Entity {
     $params = explode(',', $values);
     foreach ($names as $index => $type) {
       $this->add_field($type, isset($params[$index]) ? $params[$index] : NULL);
-    }    
+    }
   }
   /**
    * Add field from type, value
@@ -1258,7 +1258,7 @@ class Notifications_Subscription extends Notifications_Entity {
     }
     return $editable;
   }
-  
+
   /**
    * Get user account
    */
@@ -1283,7 +1283,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get destination object.
-   * 
+   *
    * Though a destination is just an address, in this case it will have a sending method too,
    * so it can be passed on to the messaging layer with the full information.
    */
@@ -1334,7 +1334,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Whether this subscription's fields are editable or not
-   * 
+   *
    * Unless preset the 'editable' property, this is how it works:
    * - Once we have an instance we don't allow changing the fields, which may cause some consistency problems
    * - Also if the subscription type has no fields, this is not editable
@@ -1348,7 +1348,7 @@ class Notifications_Subscription extends Notifications_Entity {
       }
       else {
         // It is instance or the type has no fields
-        $this->editable = FALSE; 
+        $this->editable = FALSE;
       }
     }
     return $this->editable;
@@ -1356,9 +1356,9 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Get instance of this one for certain conditions
-   * 
+   *
    * If we got multiple ones, return just the first one
-   * 
+   *
    * @param $params
    *   Parameters to add to the subscription type to get an instance of itself
    */
@@ -1432,9 +1432,9 @@ class Notifications_Subscription extends Notifications_Entity {
     }
     else {
       return $this->format_fields($format);
-    }   
+    }
   }
-  
+
   /**
    * Format all fields
    *
@@ -1452,7 +1452,7 @@ class Notifications_Subscription extends Notifications_Entity {
     }
     return $this->format[$format]['fields'];
   }
-  
+
   /**
    * Format items
    *
@@ -1464,7 +1464,7 @@ class Notifications_Subscription extends Notifications_Entity {
     if (!$items)  {
       return '';
     }
-    // Some formats need each item to be a string first 
+    // Some formats need each item to be a string first
     if ($format & self::FORMAT_INLINE) {
       foreach ($items as $key => $value) {
         if (is_array($value)) {
@@ -1486,7 +1486,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Format subscriptions field for display and get some more information
-   * 
+   *
    * @return array()
    *   Array with 'name' and 'value' elements
    */
@@ -1496,7 +1496,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
   /**
    * Subscription information field for several forms
-   * 
+   *
    * @return Forms API field structure
    */
   function form_info() {
@@ -1532,8 +1532,8 @@ class Notifications_Subscription extends Notifications_Entity {
   }
 
   /**
-   * Get a subform to edit field elements. 
-   * 
+   * Get a subform to edit field elements.
+   *
    * Defaults to the subscription type method with this instance fields.
    */
   function fields_edit_fieldset($fields = NULL) {
@@ -1544,7 +1544,7 @@ class Notifications_Subscription extends Notifications_Entity {
     ) + $this->fields_edit_elements($fields);
     return $elements;
   }
-  
+
   /**
    * Get elements to edit fields. Subscription can override the fieldset
    */
@@ -1553,7 +1553,7 @@ class Notifications_Subscription extends Notifications_Entity {
     $elements = array();
     foreach ($fields as $index => $field) {
       $elements[$index] = $this->field_edit_element($field);
-    }   
+    }
   }
   /**
    * Get element to edit field. Subscription can override the field element.
@@ -1577,7 +1577,7 @@ class Notifications_Subscription extends Notifications_Entity {
   }
   /**
    * Get field values  for this subscription type. The order is important as it will determine the field index
-   * 
+   *
    * For empty values, well fill with NULL until the number of fields
    */
   function field_values() {
@@ -1606,7 +1606,7 @@ class Notifications_Subscription extends Notifications_Entity {
 
 /**
  * Simple subscription.
- * 
+ *
  * This is the base class for subscriptions that:
  * - Have a fixed number of fields defined by the subscription type
  * - Have only a field of each type
@@ -1624,12 +1624,12 @@ class Notifications_Subscription_Simple extends Notifications_Subscription {
       return isset($mapping[$index]) ? parent::get_field($mapping[$index]) : NULL;
     }
   }
-  
+
 }
 
 /**
  * Multiple subscription. It has an undetermined number of fields
- * 
+ *
  * This is the base class for subscriptions that:
  * - Have a fixed number of fields defined by the subscription type
  * - Have only a field of each type

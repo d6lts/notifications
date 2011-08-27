@@ -11,7 +11,7 @@ function notifications_tags_admin_settings($form, &$form_state) {
   $select = array();
   foreach (taxonomy_get_vocabularies() as $vocabulary) {
     $select[$vocabulary->vid] = check_plain($vocabulary->name);
-  }  
+  }
   $form['tags'] = array(
     '#type' => 'fieldset',
     '#title' => t('Tag subscriptions'),

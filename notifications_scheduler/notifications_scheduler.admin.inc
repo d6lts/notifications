@@ -10,11 +10,11 @@ function notifications_scheduler_admin_form($form, &$form_state, $aid = NULL) {
   $action_list = notifications_scheduler_admin_action_list();
   if ($aid && isset($action_list[$aid])) {
     return notifications_scheduler_admin_send_form($form, $form_state, $action_list[$aid]);
-  }  
+  }
   // Compile template list by type
   $template_list = array();
   foreach (notifications_info('message templates') as $key => $template) {
-    $template_list[$key] = $template['title'];    
+    $template_list[$key] = $template['title'];
   }
   $header = array(
     'action' => t('Action'),
@@ -40,7 +40,7 @@ function notifications_scheduler_admin_form($form, &$form_state, $aid = NULL) {
     );
     $form['actions'][$key]['operations'] = $operations;
   }
-  return $form; 
+  return $form;
 }
 
 /**
@@ -61,7 +61,7 @@ function notifications_scheduler_admin_send_form($form, &$form_state, $action) {
   $form['event'] = array('#type' => 'value', '#value' => $event);
   $sids = $event->get_subscriptions();
   $form['sids'] = array('#type' => 'value', '#value' => $sids);
-  
+
   $form['subscriptions'] = array(
     '#type' => 'fieldset',
     '#title' => t('Subscriptions (@count)', array('@count' => count($sids))),
@@ -197,7 +197,7 @@ function _notifications_scheduler_create_batch($event, $sids, $step = 100) {
     'init_message'  => t('Starting sending'),
     'error_message' => t('Error sending notifications'),
     'file'          => drupal_get_path('module', 'notifications_scheduler') . '/notifications_scheduler.admin.inc',
-    'finished'      => '_notifications_scheduler_batch_send_finished', 
+    'finished'      => '_notifications_scheduler_batch_send_finished',
   );
   return $batch;
 }
@@ -231,6 +231,6 @@ function _notifications_scheduler_batch_send_finished($success, $results) {
   $sent = count($results['sent']);
   $skip = count($results['skip']);
   $success = count(array_filter($results['sent']));
-  
+
   drupal_set_message(t('Sent notifications to @count subscriptions: @success success, @errors errors, @skip skipped.', array('@count' => $total, '@success' => $success, '@errors' => $sent - $success, '@skip' => $skip)));
 }

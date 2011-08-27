@@ -1,20 +1,20 @@
 <?php
 /**
  * Class for testing notifications lite.
- * 
+ *
  */
 
 require_once drupal_get_path('module', 'notifications') . '/tests/notifications_test_case.inc';
 
 class NotificationsLiteTests extends NotificationsTestCase {
-  
+
   function getInfo() {
     return array(
       'name' => 'Notifications Lite',
       'group' => 'Notifications',
       'description' => 'Notifications Lite message sending and composition' );
   }
-  
+
   function setUp() {
     parent::setUp('messaging_simple', 'notifications_digest', 'notifications_lite');
     // Set some defaults: method simple, interval immediate
@@ -74,10 +74,10 @@ class NotificationsLiteTests extends NotificationsTestCase {
     // Check that all messages are in the message body
     foreach ($sent as $index => $msg) {
       $this->assertTrue(strpos($message->body, $msg->subject), "The message $index is contained in the digest");
-    } 
+    }
 
     // Same for long digesting, both subject and body should be there
-    db_query("DELETE FROM {messaging_simple}");    
+    db_query("DELETE FROM {messaging_simple}");
     variable_set('notifications_digest_methods', array($send_interval => 'long'));
     notifications_build_method($send_interval, TRUE);
     // We try three messages this time
@@ -91,13 +91,13 @@ class NotificationsLiteTests extends NotificationsTestCase {
     foreach ($sent as $index => $msg) {
       $this->assertTrue(strpos($message->body, $msg->subject), "The message $index subject is contained in the digest");
       $this->assertTrue(strpos($message->body, $msg->body), "The message $index body is contained in the digest");
-    }        
+    }
     // Dump for test debugging
     //$this->printDebug($message, 'Message');
     //$this->dumpTable('messaging_store');
     //$this->dumpLogs();
   }
-  
+
   /**
    *  Helper function to send messages and do queue processing
    */
@@ -116,5 +116,5 @@ class NotificationsLiteTests extends NotificationsTestCase {
     $this->assertEqual($count, $rows, "Processed all rows in queue ($rows)");
     return $messages;
   }
-  
+
 }

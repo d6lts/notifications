@@ -2,7 +2,7 @@
 /**
  * @file
  * Notifications node API for use by plug-in modules providing user related features
- * 
+ *
  * So far, this is used by:
  * - notifications_content
  * - notifications_feed
@@ -31,7 +31,7 @@ function notifications_user_name2uid($name, $field = NULL) {
 
 /**
  * Check user access to user
- * 
+ *
  * @param $user
  *   Target user account to check access to
  * @param $account

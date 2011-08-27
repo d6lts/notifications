@@ -3,7 +3,7 @@
  * @file
  * Subscriptions to content events
  */
- 
+
 /**
  * Admin settings form
  */
@@ -103,7 +103,7 @@ function notifications_content_test_template_form($form_state) {
 /**
  * Process template test
  */
-function notifications_content_test_template_submit(&$form, &$form_state) { 
+function notifications_content_test_template_submit(&$form, &$form_state) {
   global $user;
 
   // Load node or build fake node
@@ -155,7 +155,7 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
     $message = Notifications_Message::build_simple_message($template, $event, array(), $subscription->module);
     // Store message and rebuild. The message will come with template information (text_parts);
     $form_state['values']['message'] = $message;
-    $form_state['rebuild'] = TRUE;  
+    $form_state['rebuild'] = TRUE;
   }
   else {
     drupal_set_message(t('Cannot build destination.'), 'warning');
@@ -167,10 +167,10 @@ function notifications_content_test_template_submit(&$form, &$form_state) {
  * Generate fake node or comment
  */
 function _notifications_content_test_generate_content($type) {
-  $node = new Stdclass();
+  $node = new stdClass();
   $title = t('Test title for @type', array('@type' => $type));
   for ($i = 1; $i <= 5; $i++) {
-    $body[] = t('Test body line @number for @type.', array('@number' => $i, '@type' => $type)); 
+    $body[] = t('Test body line @number for @type.', array('@number' => $i, '@type' => $type));
   }
   if ($type == 'comment') {
     $node->subject = $title;
@@ -208,7 +208,7 @@ function _notifications_content_test_format_template($parts) {
     }
     $rows[] = $row;
   }
-  return theme('table', array('header' => $header, 'rows' =>$rows));
+  return theme('table', array('header' => $header, 'rows' => $rows));
 }
 /**
  * Theme content type settings
@@ -227,7 +227,7 @@ function theme_notifications_content_type_settings(&$elements) {
     }
     $rows[] = $row;
   }
-  $output .= theme('table', array('header' => $header, 'rows' =>$rows));
+  $output .= theme('table', array('header' => $header, 'rows' => $rows));
   $output .= drupal_render($elements);
   return $output;
 }

@@ -39,7 +39,7 @@ class Notifications_Subscription_List implements Iterator {
     if (is_array($items)) {
       foreach ($items as $item) {
         $this->add($item);
-      } 
+      }
     }
     elseif (is_object($items)) {
       if (is_a($items, 'Notifications_Subscription_List')) {
@@ -118,7 +118,7 @@ class Notifications_Subscription_List implements Iterator {
   }
   /**
    * Build instances for all with given parameters
-   * 
+   *
    * @todo Handle multiple instances with the same parameters
    */
   function build_instances($params = array()) {
@@ -151,7 +151,7 @@ class Notifications_Subscription_List implements Iterator {
   }
   /**
    * Get all subscription links
-   * 
+   *
    * @param $type
    *   - If 'subscribe', 'unsubscribe' will return just that type of links
    *   - If 'subscription' will return all subscriptions with either 'subscribe' or 'unsubscribe'
@@ -181,7 +181,7 @@ class Notifications_Subscription_List implements Iterator {
     }
     return $links;
   }
-  
+
   /**
    * Get only existing subscription instances (stored)
    */
@@ -194,7 +194,7 @@ class Notifications_Subscription_List implements Iterator {
     }
     return $result;
   }
-  
+
   /**
    * Check access for current user to manage multiple subscriptions
    */
@@ -235,7 +235,7 @@ class Notifications_Subscription_List implements Iterator {
         $form['subscriptions'] = $this->element_items();
         $form = confirm_form($form,
                       t('Are you sure you want to delete these subscriptions?'),
-                      variable_get('notifications_frontpage', variable_get('site_frontpage', 'node')), 
+                      variable_get('notifications_frontpage', variable_get('site_frontpage', 'node')),
                       t('This action cannot be undone.'),
                       t('Delete all'), t('Cancel'));
         break;
@@ -321,7 +321,7 @@ class Notifications_Subscription_List implements Iterator {
           drupal_set_message(t('The subscriptions have been updated: created @created, deleted @deleted.', array('@created' => $created, '@deleted' => $deleted)));
         }
         break;
-      case 'unsubscribe':      
+      case 'unsubscribe':
       case 'delete':
         $count = 0;
         foreach ($this->get_instances() as $subscription) {
@@ -347,9 +347,9 @@ class Notifications_Subscription_List implements Iterator {
   }
   /**
    * Subform with subscription options so it can be reused for a fieldset on a bigger form
-   * 
+   *
    * Was: notifications_object_options_subform($subscriptions, $buttons = TRUE)
-   * 
+   *
    * @param $subscriptions
    *   List of subscription objects
    * @param $buttons
@@ -360,7 +360,7 @@ class Notifications_Subscription_List implements Iterator {
     $form['subscriptions'] += array(
       '#type' => 'fieldset',
       '#collapsible' => TRUE,
-      '#collapsed' => TRUE,  
+      '#collapsed' => TRUE,
     );
     if ($buttons) {
       $form['subscriptions']['submit'] = array('#type' => 'submit', '#value' => t('Update'));
@@ -373,7 +373,7 @@ class Notifications_Subscription_List implements Iterator {
 
   /**
    * Build fieldset with subscription options
-   * 
+   *
    * Was: notifications_object_options_fieldset($subscriptions, $title = FALSE)
    */
   function element_checkboxes($element = array()) {
@@ -434,9 +434,10 @@ class Notifications_Subscription_List implements Iterator {
   public function next() {
     $k = array_keys($this->subscriptions);
     if (isset($k[++$this->iterator_index])) {
-        return $this->subscriptions[$k[$this->iterator_index]];
-    } else {
-        return false;
+      return $this->subscriptions[$k[$this->iterator_index]];
+    }
+    else {
+      return FALSE;
     }
   }
   public function valid() {
@@ -492,7 +493,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
     $send_methods = messaging_method_info(NULL, 'name');
     $send_intervals = notifications_send_intervals();
     $send_intervals[-1] = t('Scheduled');
-    $fields = array(); 
+    $fields = array();
     foreach (array_keys($this->header) as $index) {
       switch ($index) {
         case 'sid':
@@ -543,8 +544,8 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
   }
   /**
    * Print username or destination for anonymous users
-   * 
-   * @todo Check the part for 
+   *
+   * @todo Check the part for
    */
   function field_destination($subs) {
     if ($user = $subs->get_user()) {
@@ -554,7 +555,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
       // Anonymous subscription, print destination instead
       $dest = $sub->get_destination();
       $username = $dest->address_name() . ' ' . l($dest->format_address(FALSE), 'notifications/destination/' . $sub->mdid . '/manage') ;
-    }    
+    }
   }
   /**
    * Field operations
@@ -568,7 +569,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
       'href' =>  $this->base_path . '/' . $subs->sid . '/edit',
       'query' => $destination,
     );
-  
+
     $operations['delete'] = array(
       'title' => t('delete'),
       'href' => $this->base_path . '/' . $subs->sid . '/delete',
@@ -596,7 +597,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
           '#options' => array('query' => $link['query']),
         ),
       );
-    }     
+    }
   }
   /**
    * Get query for selection
@@ -608,7 +609,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
       $query->condition('s.' . $field, $value);
     }
     $query
-      ->fields('s',array('sid'))
+      ->fields('s', array('sid'))
       ->limit(50)
       ->orderByHeader($this->header);
     return $query;
@@ -623,13 +624,13 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
     }
     return $this;
   }
-  
+
   /**
    * Set fields as header
    */
   function set_header($header = NULL) {
     if (isset($header)) {
-      $this->header = $header; 
+      $this->header = $header;
     }
     else {
       $this->header = $this->get_header();
@@ -647,7 +648,7 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
       'uid' => array('data' => t('User'), 'field' => 's.uid'),
       'name' => t('Description'),
       'created' => array('data' => t('Created'), 'field' => 's.created', 'sort' => 'desc'),
-    );    
+    );
   }
-  
+
 }

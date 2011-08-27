@@ -7,10 +7,10 @@
 
 /**
  * Notifications Schedule Event class
- * 
+ *
  * Unlike regular events, these are full auto-contained events that know which message to produce
  * and how to send it. Thus, these events will be queued in regular Drupal queue.
- * 
+ *
  * These events should allow batched execution too. TBD.
  */
 abstract class Notifications_Scheduler_Event extends Notifications_Event {
@@ -25,7 +25,7 @@ abstract class Notifications_Scheduler_Event extends Notifications_Event {
   // Store action parameters
   protected $action_object;
   protected $accion_context;
-  
+
   /**
    * Prepare this event to be triggered
    */
@@ -72,10 +72,10 @@ abstract class Notifications_Scheduler_Event extends Notifications_Event {
       return $this->action_context;
     }
   }
-  
+
   /**
    * Create message template to build this event as text
-   * 
+   *
    * The template can be configured per action
    */
   function create_template() {
@@ -87,7 +87,7 @@ abstract class Notifications_Scheduler_Event extends Notifications_Event {
   }
   /**
    * Process event, send pending notifications. Subscriptions start on $counter (min sid)
-   * 
+   *
    * @param $limit
    *   Maximum number of subscriptions to process
    */
@@ -170,7 +170,7 @@ abstract class Notifications_Scheduler_Event extends Notifications_Event {
     }
     else {
       // If not logging enabled, delete all previous events
-      $query = db_delete('notifications_event');       
+      $query = db_delete('notifications_event');
     }
     $query
       ->condition('type', $this->type)
@@ -195,7 +195,7 @@ class Notifications_Scheduler_Latest_Posts extends Notifications_Scheduler_Event
     if ($tid = $this->get_action_context('taxonomy_term')) {
       $this->add_object('taxonomy_term', $tid);
     }
-  } 
+  }
   /**
    * Load nodes created and published or updated since latest time. It doesn't check node access
    */
@@ -211,7 +211,7 @@ class Notifications_Scheduler_Latest_Posts extends Notifications_Scheduler_Event
     }
     if ($tid = $this->get_action_context('taxonomy_term')) {
       $query->join('taxonomy_index', 't', 'n.nid = t.nid');
-      $query->condition('t.tid', $tid);      
+      $query->condition('t.tid', $tid);
     }
     if ($nids = $query->execute()->fetchCol()) {
       return node_load_multiple($nids);
@@ -249,7 +249,7 @@ class Notifications_Scheduler_Latest_Posts extends Notifications_Scheduler_Event
 class Notifications_Scheduler_New_Posts extends Notifications_Scheduler_Latest_Posts {
   /**
    * Set action parameters, get field mapping from context
-   * 
+   *
    * We need to find out when this was last executed for which we build a unique key based on parameters
    * and also we must log it somewhere
    */
@@ -261,7 +261,7 @@ class Notifications_Scheduler_New_Posts extends Notifications_Scheduler_Latest_P
     }
     // Our action could look like new_posts:type:story:term:25
   }
-  
+
   /**
    * Load nodes created and published since last time this was executed. It doesn't check node access
    */
@@ -279,7 +279,7 @@ class Notifications_Scheduler_New_Posts extends Notifications_Scheduler_Latest_P
     }
     if ($tid = $this->get_action_context('taxonomy_term')) {
       $query->join('taxonomy_index', 't', 'n.nid = t.nid');
-      $query->condition('t.tid', $tid);      
+      $query->condition('t.tid', $tid);
     }
     if ($nids = $query->execute()->fetchCol()) {
       return node_load_multiple($nids);
@@ -288,7 +288,7 @@ class Notifications_Scheduler_New_Posts extends Notifications_Scheduler_Latest_P
 
   /**
    * Get last time (timestamp) when this event/action was executed
-   * 
+   *
    * @return int (timestamp)
    */
   protected function get_last_time() {
@@ -298,11 +298,11 @@ class Notifications_Scheduler_New_Posts extends Notifications_Scheduler_Latest_P
     ))->fetchField();
     return $last ? $last : variable_get('notifications_scheduler_last', 0);
   }
-  
+
   /**
    * Check user access to event's objects.
    */
   public function user_access($account, $op = 'view') {
     return user_access('access content', $account);
-  }  
+  }
 }

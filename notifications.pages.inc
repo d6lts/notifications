@@ -6,7 +6,7 @@
 
 /**
  * Menu callback add subscription
- * 
+ *
  * Presents confirmation page or not depending on confirm parameter
  */
 function notifications_page_subscribe($substype) {
@@ -21,7 +21,7 @@ function notifications_page_subscribe($substype) {
     if ($subscription->check_destination() && $subscription->check_fields() && notifications_check_signature('skip')) {
       $subscription->save();
       drupal_set_message(t('Your subscription was activated.'));
-      drupal_goto();      
+      drupal_goto();
     }
     else {
       // Ask for confirmation
@@ -36,7 +36,7 @@ function notifications_page_subscribe($substype) {
 
 /**
  * Menu callback for unsubscribe page
- * 
+ *
  * @param $type
  *   Either 'sid' or 'uid' (for unsubscribe all)
  * @param $id
@@ -48,7 +48,7 @@ function notifications_page_unsubscribe_subscription($subscription) {
   if (notifications_check_signature('skip')) {
     $subscription->delete();
     drupal_set_message(t('Your subscription has been removed.'));
-    drupal_goto();      
+    drupal_goto();
   }
   else {
     // Ask for confirmation
@@ -60,7 +60,7 @@ function notifications_page_unsubscribe_subscription($subscription) {
 
 /**
  * Menu callback for unsubscribe page
- * 
+ *
  * @param $type
  *   Either 'sid' or 'uid' (for unsubscribe all)
  * @param $id
@@ -71,7 +71,7 @@ function notifications_page_unsubscribe_user($account) {
   if (notifications_check_signature('skip')) {
     $count = Notifications_Subscription::delete_multiple(array('uid' => $account->uid));
     drupal_set_message(t('All your subscriptions have been removed.'));
-    drupal_goto();      
+    drupal_goto();
   }
   else {
     $subscriptions = new Notifications_Subscription_List();
@@ -90,7 +90,7 @@ function notifications_page_unsubscribe_user($account) {
 /**
  * Display unsubscribe options for this page
  */
-function notifications_page_unsubscribe_overview() { 
+function notifications_page_unsubscribe_overview() {
   $account = $GLOBALS['user'];
   notifications_include('destination.inc');
 
@@ -109,7 +109,7 @@ function notifications_page_unsubscribe_overview() {
         $options[] = l(t('Temporarily disable all your subscriptions'), "user/$user->uid/notifications/update/disable");
       }
       $options[] = notifications_build_link('unsubscribe', array('title' => t('Cancel all your subscriptions')), 'user', $user, 'link');
-      $output .= theme('item_list', $options);      
+      $output .= theme('item_list', $options);
     }
     else {
       $output .= '<p>' . t('There are no subscriptions for this user account') . '</p>';
@@ -138,20 +138,20 @@ function notifications_edit_destination_form($form_state, $destination) {
   notifications_include('destination.inc');
   $account = $destination->get_user();
   $form = notifications_destination_view_subform($destination);
-  
+
   return $form;
 }
 
 /**
  * Check access to current page, included signature
- * 
+ *
  * @param $owner
  *   User id, owner of the object in the page (subscription, destination, account)
- *   
+ *
  */
 function notifications_page_check_access($owner) {
   global $user;
-  
+
   if (user_access('administer notifications')) {
     return TRUE; // Administrator can access all
   }
@@ -194,7 +194,7 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
   if (isset($destination_path)) {
     $form['#redirect'] = $destination_path;
   }
-  
+
   // Check the subscription object is built properly
   $subscription = notifications_subscription_build($subscription);
   // Pass on whole subscription and then the fields to be saved along
@@ -209,7 +209,7 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
   }
   else {
     $form['fields'] = $subscription->fields_subform();
-    $save_fields[] = 'fields'; 
+    $save_fields[] = 'fields';
   }
   if ($subscription->is_instance()) {
     $form['info']['#title'] = t('Edit subscription');
@@ -280,7 +280,7 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
   }
   // Fields to be saved on submit. If error we just show the 'Cancel' button.
   $form['subscription_fields'] = array('#type' => 'value', '#value' => $save_fields);
-  
+
   // Add form buttons depending on what we are doing
   if ($subscription->is_instance()) {
     $form['actions']['save'] = array('#type' => 'submit', '#value' => t('Save'));
@@ -299,7 +299,7 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
   // Add the right callbacks
   $form['#submit'][] = 'notifications_subscription_form_submit';
   $form['#validate'][] = 'notifications_subscription_form_validate';
-  return $form;  
+  return $form;
 }
 
 /**
@@ -324,7 +324,7 @@ function notifications_subscription_base_form_submit($form, &$form_state) {
     case t('Delete'):
       Notifications_Subscription::delete_subscription($subscription->sid);
       drupal_set_message(t('Your subscription has been deleted.'));
-      $form_state['redirect'] = 'user/'. $subscription->uid .'/notifications';
+      $form_state['redirect'] = 'user/' . $subscription->uid . '/notifications';
       break;
   }
 }
@@ -334,7 +334,7 @@ function notifications_subscription_base_form_submit($form, &$form_state) {
  */
 function notifications_submit_subscription($subscription) {
   global $user;
-  
+
   $instance = $subscription->is_instance();
   // If a new subscription we may need to set current user
   if (!isset($subscription->uid)) {
@@ -398,9 +398,9 @@ function notifications_multiple_delete_confirm(&$form_state, $items, $destinatio
         '#type' => 'hidden',
         '#value' => $id,
         '#prefix' => '<li>',
-        '#suffix' => $subscription->format_long()."</li>\n",
+        '#suffix' => $subscription->format_long() . "</li>\n",
       );
-    }    
+    }
     $form['operation'] = array('#type' => 'hidden', '#value' => 'delete');
     $form['#submit'][] = 'notifications_multiple_delete_confirm_submit';
     $form['#validate'][] = 'notifications_multiple_delete_confirm_validate';
@@ -448,7 +448,7 @@ function theme_notifications_field_type($elements) {
       drupal_render($elements['value'][$key]),
     );
   }
-  $output = theme('table', array('header' => $header, 'rows' =>$rows));
+  $output = theme('table', array('header' => $header, 'rows' => $rows));
   $output .= drupal_render($elements);
   return $output;
 }
@@ -463,7 +463,7 @@ function theme_notifications_table_form($variables) {
   // Get table information from special form properties
   $index = !empty($form['#table_index']) ? $form['#table_index'] : $form['#table_fields'][0];
   $header = !empty($form['#table_header']) ? $form['#table_header'] : array();
- 
+
   foreach (element_children($form[$index]) as $key) {
     $row = array();
     foreach ($form['#table_fields'] as $field) {
@@ -473,8 +473,9 @@ function theme_notifications_table_form($variables) {
   }
 
   if ($rows) {
-    $output .= theme('table', array('header' => $header, 'rows' =>$rows));
-  } else {
+    $output .= theme('table', array('header' => $header, 'rows' => $rows));
+  }
+  else {
     $output .= '<p>' . t('No elements') . '</p>';
   }
   $output .= drupal_render($form);

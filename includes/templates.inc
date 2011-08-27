@@ -6,7 +6,7 @@
 
 /**
  * Get notifications templates
- * 
+ *
  * @param $op
  *   Operation or type of template information we want
  *   'info', 'parts', 'tokens', 'defaults'
@@ -44,14 +44,14 @@ function notifications_get_templates($op = 'info', $type = 'all', $language = NU
 
 /**
  * Implementation of hook_messaging_templates()
- * 
+ *
  * This will be actually included and called from notifications_messaging() when needed
- * 
+ *
  * For some of these templates, we don't want them to be filtered by enabled events so we provide them
  * straight to messaging module. The others will be returned by notifications_get_templates()
- * 
+ *
  * Depending on $op, this hook takes different parameters and returns different pieces of information:
- * 
+ *
  * - 'message groups'
  *   Get array of message groups, each of which will have one or more keys for different templates
  *   Each group should have a unique key, so it should start with the module name
@@ -67,7 +67,7 @@ function notifications_get_templates($op = 'info', $type = 'all', $language = NU
  *   Return array of token keys that will be available for this message templates
  *   The tokens themselves may be default tokens (provided by token module) or we can add new
  *   tokens implementing hook_token_list() and hook_token_value()
- * 
+ *
  * @param $op
  *   Operation, type of information to retrieve
  * @param $arg1, $arg2...
@@ -85,7 +85,7 @@ function notifications_messaging_templates($op = 'info' , $type = 'all', $langua
           'name' => t('Notifications messages'),
           'description' => t('These are the common parts for one time messages sent by Notifications. These are not triggered by subscriptions and events. They are replies to operations requested by a user.'),
           'fallback' => FALSE, // This template has no fallback
-        );       
+        );
       }
       if ($type == 'all' || $type == 'notifications-user-unsubscribe') {
         $info['notifications-user-unsubscribe'] = array(
@@ -101,7 +101,7 @@ function notifications_messaging_templates($op = 'info' , $type = 'all', $langua
           'name' => t('Cancel destination subscriptions'),
           'description' => t('It should contain a link to cancel all subscriptions for a destination address.'),
           'fallback' => 'notifications-message',
-        ); 
+        );
       }
       return $info;
 
@@ -116,7 +116,7 @@ function notifications_messaging_templates($op = 'info' , $type = 'all', $langua
 }
 
 /**
- * Implementation of hook_notifications_templates() 
+ * Implementation of hook_notifications_templates()
  */
 function notifications_notifications_templates($op = 'info', $type = 'all', $language = NULL) {
   switch ($op) {
@@ -160,7 +160,7 @@ function notifications_notifications_templates($op = 'info', $type = 'all', $lan
             'main' => t('Line for digested events'),
             'closing' => t('Group closing'),
             'footer' => t('Footer'),
-          );       
+          );
       }
       break;
     case 'defaults':
@@ -196,7 +196,7 @@ function notifications_notifications_templates($op = 'info', $type = 'all', $lan
               t('This is an automatic message from [site-name]', array(), $language->language),
               t('To manage your subscriptions, browse to [subscriptions-manage]', array(), $language->language),
               // There is not single unsubscribe url as these usuarlly contain multiple subscriptions
-            ),        
+            ),
           );
         case 'notifications-user-unsubscribe':
           return array(
@@ -211,10 +211,10 @@ function notifications_notifications_templates($op = 'info', $type = 'all', $lan
           return array(
             'subject' => t('Cancel all subscriptions to [site-name]', array(), $language->language),
             'header' => t("Greetings from [site-name]\n\nSomeone has requested to cancel all subscriptions for [destination-address]", array(), $language->language),
-            'main' => array(             
+            'main' => array(
               t("To cancel all your subscriptions, browse to [destination-unsubscribe-url]", array(), $language->language),
               t('To edit your subscriptions, browse to [destination-manage-url]', array(), $language->language),
-            ),      
+            ),
           );
       }
       break;
@@ -244,6 +244,6 @@ function notifications_notifications_templates($op = 'info', $type = 'all', $lan
             }
           }
       }
-      return $tokens;    
+      return $tokens;
   }
 }

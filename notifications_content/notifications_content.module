@@ -32,7 +32,7 @@ function notifications_content_menu() {
         'page arguments' => array($type, 1),
         'weight' => 10,
       );
-    } 
+    }
   }
 /*
   $items['admin/messaging/notifications/events/configure'] = array(
@@ -93,7 +93,7 @@ function notifications_content_permission() {
 function notifications_content_help($path, $arg) {
   if ($path == 'admin/config/messaging/subscriptions/content') {
     $output = '<p>' . t('Content subscriptions are subscriptions to nodes that will produce notifications when a node is posted or updated or when a comment is posted for that nodes. Notifications will be sent only for published content so if you need to be notified of unpublished content waiting for approval you better use Triggers and Actions or some other module for that.') . '</p>';
-    $output .= '<p>'. t('On this page you can set which of the available subscription types are allowed. Alternatively you can select the <em>Set up for each content type</em> option and use the <a href="@content-type-settings">Administer Content types</a> page. These settings will be combined with permissions and other options (See user interface options if enabled) to determine which subscriptions will be finally available for users.', array('@content-type-settings' => url( 'admin/content/types'))) .'</p>';
+    $output .= '<p>' . t('On this page you can set which of the available subscription types are allowed. Alternatively you can select the <em>Set up for each content type</em> option and use the <a href="@content-type-settings">Administer Content types</a> page. These settings will be combined with permissions and other options (See user interface options if enabled) to determine which subscriptions will be finally available for users.', array('@content-type-settings' => url( 'admin/content/types'))) . '</p>';
     return $output;
   }
 }
@@ -113,13 +113,13 @@ function notifications_content_trigger_info() {
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
- * 
+ *
  * Skip notifications on comment forms
  */
 function notifications_content_form_comment_form_alter(&$form, $form_state) {
   $node = $form['#node'];
   // Do not add if content type disabled, creating and create events disabled, updating and update events disabled
-  if (notifications_content_node_event_enabled('comment', $node->type)) {    
+  if (notifications_content_node_event_enabled('comment', $node->type)) {
     _notifications_content_add_disable_field($form);
     // If editing the comment, add values to remember
     if (!empty($form['cid']['#value']) && !empty($form['admin']['status'])) {
@@ -130,7 +130,7 @@ function notifications_content_form_comment_form_alter(&$form, $form_state) {
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter().
- * 
+ *
  * Skip notifications on node forms
  */
 function notifications_content_form_node_form_alter(&$form, $form_state) {
@@ -145,7 +145,7 @@ function notifications_content_form_node_form_alter(&$form, $form_state) {
 
 /**
  * Implements hook_form_FORM_ID_alter().
- * 
+ *
  * Per content-type notifications options
  */
 function notifications_content_form_node_type_form_alter(&$form, $form_state) {
@@ -175,7 +175,7 @@ function notifications_content_form_node_type_form_alter(&$form, $form_state) {
 }
 /**
  * Implements hook_entity_info_alter().
- * 
+ *
  * Add Notifications view mode
  */
 function notifications_content_entity_info_alter(&$entity_info) {
@@ -203,13 +203,13 @@ function _notifications_content_add_disable_field(&$form, $default = 0) {
     // Add fieldset without affecting any other elements there
     $form['notifications']['#type'] = 'fieldset';
     $form['notifications']['#title'] = t('Notifications');
-    $form['notifications']['#collapsible'] = TRUE;  
+    $form['notifications']['#collapsible'] = TRUE;
     $form['notifications']['notifications_content_disable'] = array(
       '#type'          => 'checkbox',
       '#title'         => t('Do not send notifications for this update.'),
       '#default_value' => $default,
     );
-  }  
+  }
 }
 
 /**
@@ -241,7 +241,7 @@ function notifications_content_theme() {
       'arguments' => array('element' => NULL),
       'file' => 'notifications_content.admin.inc',
     ),
-  );  
+  );
 }
 
 /**
@@ -310,7 +310,7 @@ function notifications_content_notifications($op) {
         'template' => 'notifications_content-node-update',
         'triggers' => array('node' => array('node_update')),
         'actions' => array('notifications_content_node_update_action'),
-      );      
+      );
       $types['node-comment'] = array(
         'object' => 'node',
         'action' => 'comment',
@@ -356,7 +356,7 @@ function notifications_content_notifications($op) {
           'title' => t('Node list View'),
           'class' => 'Notifications_Content_Node_View',
           'view' => 'notifications_content_node_list', // We can override the view name here
-        );        
+        );
       }
       return $types;
 
@@ -367,13 +367,13 @@ function notifications_content_notifications($op) {
       );
       $options['teaser_links'] = array(
         '#title' => t('Teaser node links'),
-        '#description' => t('Subscription links will be displayed for node teasers.'),      
+        '#description' => t('Subscription links will be displayed for node teasers.'),
       );
       return $options;
-      
+
     case 'event classes':
       return array('node' => t('Node'));
-      
+
     case 'event actions':
       return array(
         'post' => t('Creation'),
@@ -385,7 +385,7 @@ function notifications_content_notifications($op) {
 
 /**
  * Implements hook_action_info().
- * 
+ *
  * These actions are a bit tricky because they are not unconditional. We check node status before.
  */
 function notifications_content_action_info() {
@@ -419,13 +419,13 @@ function notifications_content_action_info() {
  */
 function notifications_content_token_info() {
   $types['node_type'] = array(
-    'name' => t('Content type'), 
-    'description' => t('The type of the node.'), 
+    'name' => t('Content type'),
+    'description' => t('The type of the node.'),
     'needs-data' => 'node_type',
   );
   $tokens['node_type']['name'] = array(
-    'name' => t('Name'), 
-    'description' => t('The name of the content type.'), 
+    'name' => t('Name'),
+    'description' => t('The name of the content type.'),
   );
   return array('types' => $types, 'tokens' => $tokens);
 }
@@ -456,7 +456,7 @@ function notifications_content_tokens($type, $tokens, array $data = array(), arr
 function notifications_content_node_post_action($node, $context = array()) {
   $node = $context['node'];
   // Just for new nodes that are published and updated nodes that change status
-  if (!empty($node->status) && empty($node->notifications_content_disable)) { 
+  if (!empty($node->status) && empty($node->notifications_content_disable)) {
     notifications_content_node_event('post', $node)->trigger();
   }
 }
@@ -476,7 +476,7 @@ function notifications_content_node_update_action($node, $context = array()) {
 
 /**
  * Build node event. We can have 'node-[type]' or plain 'node' events
- * 
+ *
  * We keep track of the events in this request so we return the same event if tried again
  * Events are not supossed to be triggered twice, see Notifications_Event::trigger()
  */
@@ -496,7 +496,7 @@ function notifications_content_node_event($action, $node) {
 
 /**
  * Check whether a specific event type is enabled for this node type
- * 
+ *
  * @param $action
  *   Action name: 'post', 'update', 'comment'
  * @param $node
@@ -522,7 +522,7 @@ function notifications_content_node_event_enabled($action, $node) {
  * @ingroup actions
  */
 function notifications_content_comment_insert_action($node, $context = array()) {
-  
+
 }
 
 /**
@@ -531,7 +531,7 @@ function notifications_content_comment_insert_action($node, $context = array()) 
  * @ingroup actions
  */
 function notifications_content_comment_update_action($node, $context = array()) {
-  
+
 }
 
 /**
@@ -543,11 +543,11 @@ function notifications_content_notifications_subscription($op, $subscription = N
       $objects = array();
       // Return objects on current page to which we can subscribe
       if (arg(0) == 'node' && is_numeric(arg(1)) && ($node = menu_get_object('node'))) {
-        $objects[] = notifications_object('node', $node);  
+        $objects[] = notifications_object('node', $node);
       }
       return $objects;
       break;
-  }  
+  }
 }
 
 /**
@@ -567,7 +567,7 @@ function notifications_content_notifications_object_node($op, $node, $account = 
           ->set_name(t('This post')); // @todo this name should be in page objects
       }
       // Content type subscriptions
-      if (notifications_content_type_enabled($node->type, 'content_type')) { 
+      if (notifications_content_type_enabled($node->type, 'content_type')) {
         $options[] = Notifications_Subscription::build_instance('content_type')
           ->set_node($node)
           ->set_name(t('Posts of type @type', array('@type' => node_type_get_name($node))));
@@ -579,7 +579,7 @@ function notifications_content_notifications_object_node($op, $node, $account = 
 
 /**
  * List (enabled) subscription options for content types
- * 
+ *
  * @param $enabled
  *   Whether to get only enabled subscription types or all of them
  */
@@ -598,7 +598,7 @@ function _notifications_content_type_options($enabled = TRUE) {
  */
 function _notifications_content_node_username($node) {
   // If the node comes from a page query, it may have an author name, otherwise we set it
-  if (empty($node->name)) {      
+  if (empty($node->name)) {
     if ($author = notifications_load_user($node->uid)) {
       $node->name = $author->name;
     }
@@ -643,7 +643,7 @@ function notifications_content_node_update($node) {
  */
 function notifications_content_node_delete($node) {
   // Remove all subscriptions for this node
-  Notifications_Subscription::delete_multiple(array(), array('node:nid' => $node->nid), FALSE);  
+  Notifications_Subscription::delete_multiple(array(), array('node:nid' => $node->nid), FALSE);
 }
 
 /**
@@ -651,7 +651,7 @@ function notifications_content_node_delete($node) {
  */
 function notifications_content_node_type_delete($info) {
   // Remove all subscriptions for this node type
-  Notifications_Subscription::delete_multiple(array(), array('node:type' => $info->type));  
+  Notifications_Subscription::delete_multiple(array(), array('node:type' => $info->type));
 }
 
 /**
@@ -669,7 +669,7 @@ function notifications_content_node_type_update($info) {
 
 /**
  * Get content types available for subscriptions to content type
- * 
+ *
  * @param $subs_type
  *   Optional type of subscription for which to find allowed content types.
  *   If none, return all content types for which any subscription type is enabled.
@@ -684,14 +684,14 @@ function notifications_content_types($subs_type = NULL) {
     }
   }
 
-  return $types;  
+  return $types;
 }
 
 /**
  * Get subscription options for this content type
- * 
+ *
  * PHP Note: We need to use strict checking for in_array(), http://es.php.net/manual/en/function.in-array.php#91911
- * 
+ *
  * @param $node_type
  *   Optional content type to return info for, global notifications defaults if none.
  * @param $subscription_type

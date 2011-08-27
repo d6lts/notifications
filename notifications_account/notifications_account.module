@@ -23,7 +23,7 @@ function notifications_account_menu() {
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'title' => 'Overview',
     'weight' => -10,
-  );  
+  );
   $items['user/%user/notifications/subscription'] = array(
     'type' => MENU_LOCAL_TASK,
     'title' => 'Subscriptions',
@@ -90,14 +90,14 @@ function notifications_account_permission() {
 
 /**
  * Menu access callback for user subscriptions
- * 
+ *
  * @param $account
  *   User account to which these subscriptions below
  * @param $op
  *   - maintain = create / delete
  *   - manage = use the per account administration page
  */
-function notifications_account_access($account, $op = 'maintain') {  
+function notifications_account_access($account, $op = 'maintain') {
   if (user_access('administer notifications') || user_access('manage all subscriptions')) {
     return TRUE;
   }
@@ -110,7 +110,7 @@ function notifications_account_access($account, $op = 'maintain') {
 /**
  * Menu access callback for user subscription tabs
  */
-function notifications_account_tab_access($account, $type) {  
+function notifications_account_tab_access($account, $type) {
   if (user_access('administer notifications') || user_access('manage all subscriptions')) {
     return TRUE;
   }
@@ -136,7 +136,7 @@ function notifications_account_notifications($op) {
     $types['account_tab'] = array(
       '#title' => t('Account tab'),
       '#description' => t('Display full subscriptions tab on user account pages.'),
-    );    
+    );
     return $types;
   }
 }
@@ -158,7 +158,7 @@ function notifications_account_forms() {
 function notifications_account_subscription_list_page($type, $account) {
   module_load_include('pages.inc', 'notifications_account');
   module_load_include('manage.inc', 'notifications'); // Needed for bulk operations ?
-  return drupal_get_form('notifications_account_subscription_list_form', $type, $account);  
+  return drupal_get_form('notifications_account_subscription_list_form', $type, $account);
 }
 
 /**

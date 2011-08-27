@@ -5,14 +5,14 @@ require_once drupal_get_path('module', 'notifications') . '/tests/notifications_
  * Tests basic API functions
  */
 class NotificationsBasicTests extends NotificationsTestCase {
-  
+
   function getInfo() {
     return array(
       'name' => 'Notifications Basics',
-      'group' => 'Notifications', 
+      'group' => 'Notifications',
       'description' => 'Notifications API functions and administration pages');
   }
-  
+
   function setUp() {
     parent::setUp('messaging_mail', 'messaging_simple', 'notifications_tools', 'notifications_lite');
   }
@@ -25,7 +25,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $test_event_type = 'test event';
     // Any user will do for exercising the API
     $user = $this->drupalCreateUser();
-    // Create sample subscription object    
+    // Create sample subscription object
     $s1 = notifications_build_subscription(array(
       'type' => $test_type,
       'event_type' => $test_event_type,
@@ -36,14 +36,14 @@ class NotificationsBasicTests extends NotificationsTestCase {
     // Fill in other parameters
     $s1->set_account($user);
     $s1->check_destination();
-    
+
     $s2 = clone $s1;
     // Create the subscription and check assigned sid (do not check, we don't have this type defined)
     $result = notifications_save_subscription($s1, FALSE);
     $this->assertEqual($result == SAVED_NEW && is_numeric($s1->sid) && $s1->sid > 0, TRUE, 'The subscription has been created');
     // Check a destination has been created
     $dest = $s1->get_destination();
-    $this->assertEqual(array($s1->mdid, $user->uid, 'mail', $user->mail), array($dest->mdid, $dest->uid, $dest->type, $dest->address), "A messaging destination has been created. $dest->mdid, $dest->uid, $dest->type, $dest->address");   
+    $this->assertEqual(array($s1->mdid, $user->uid, 'mail', $user->mail), array($dest->mdid, $dest->uid, $dest->type, $dest->address), "A messaging destination has been created. $dest->mdid, $dest->uid, $dest->type, $dest->address");
     // Retrieve the subscription and check values
     $s = notifications_load_subscription($s1->sid, TRUE);
     $this->assertEqual(array($s->sid, $s->uid, $s->fields), array($s1->sid, $s1->uid, $s1->fields), 'The subscription has been retrieved and values are ok');
@@ -51,7 +51,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $result = notifications_save_subscription($s2, FALSE);
     $this->assertTrue($result == SAVED_UPDATED && $s1->sid == $s2->sid, 'A duplicate subscription has been detected and updated: ' . $result);
     // Now change some field, try again with a different send method
-    unset($s2->sid);   
+    unset($s2->sid);
     $s2->send_method = 'simple';
     $s2->check_destination();
     $result = notifications_save_subscription($s2, FALSE);
@@ -64,7 +64,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $fields[1]->value = 3; // As fields are objects (byref) we can just change the value
     $result = notifications_save_subscription($s2, FALSE);
     $this->assertEqual($result, SAVED_UPDATED, 'The second subscription has been updated');
-    
+
     // Trying several recovery options
     $subs = notifications_get_subscriptions(array('type' => $test_type));
     $this->assertEqual(count($subs), 2, 'Retrieved subscriptions by type');
@@ -74,12 +74,12 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $this->assertEqual(count($subs), 2, 'Retrieved subscriptions by type and general field, single field: ' . count($subs));
     $subs = notifications_get_subscriptions(array('type' => $test_type), array('field1' => $s1->fields['field1'], 'field2' => $s1->fields['field2']), FALSE);
     $this->assertEqual(count($subs), 1, 'Retrieved subscriptions by type and general field, two fields: ' . count($subs));
-       
+
     // Delete the subscriptions and check
     notifications_delete_subscriptions(array('type' => $test_type));
     $subs = notifications_get_subscriptions(array('type' => $test_type));
     $this->assertEqual(count($subs), 0, 'The subscriptions have been deleted');
-    
+
     // Try notifications_lite API
     notifications_lite_send($user->uid, 'Test Subject', 'Test body');
     $this->assertEqual($this->countQueued(array('uid' => $user->uid)), 1, 'Notification queued with notifications_lite');
@@ -104,7 +104,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $this->drupalGet('admin/messaging/subscriptions');
     $this->assertText('Manage subscriptions', 'Subscriptions administration page showing up');
     $this->drupalGet('admin/messaging/notifications/queue/operations');
-    $this->assertText('Notifications in queue', 'Notifications queue page showing up');      
+    $this->assertText('Notifications in queue', 'Notifications queue page showing up');
   }
 
   /**
@@ -116,7 +116,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $query = notifications_query_build(array('select' => 'field1', 'from' => 'table1', 'join' => 'JOIN table2'));
     list($sql, $args) = notifications_query_sql($query);
     $this->assertEqual($sql, 'SELECT field1 FROM table1 JOIN table2', 'Build basic query with SELECT and JOIN.');
-    
+
     $fields = array(
       'f1' => 1,
       'f2' => 'value2',
@@ -127,9 +127,9 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $target = "SELECT field1 FROM table1 JOIN table2 WHERE ($fields_sql)";
     $this->assertEqual($sql, $target, 'Build basic query with simple fields.' .$sql);
     $this->assertEqual($args, array('f1', 1, 'f2', 'value2'), 'Arguments for basic query with simple fields.');
-    
+
     $fields = array(
-      'f3' => array(1, 2),  
+      'f3' => array(1, 2),
       'f4' => array('value3', 'value4'),
     );
     $query = notifications_query_build(array('fields' => $fields), $query);
@@ -140,7 +140,7 @@ class NotificationsBasicTests extends NotificationsTestCase {
     $target_args = array('f1', 1, 'f2', 'value2', 'f3', 1, 2, 'f4', 'value3', 'value4');
     $this->assertEqual($sql, $target, 'Build basic query with array fields, conditions match.');
     $this->assertEqual($args, $target_args, 'Build basic query with array fields, arguments match.');
-    
+
     // Test update/done/delete queries with two fake rows
     foreach (array(1,2) as $i) {
       db_query("INSERT INTO {notifications_queue}(eid, sid, uid, type, send_interval, send_method, sent, cron) VALUES(%d, %d, %d, 'test', 0 , 'test', 0, 1)", $i, $i, $i);

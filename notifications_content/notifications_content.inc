@@ -7,7 +7,7 @@
 /**
  * Generic content subscription Thread subscription
  */
-class Notifications_Content_Subscription extends Notifications_Subscription_Simple {  
+class Notifications_Content_Subscription extends Notifications_Subscription_Simple {
   /**
    * Set all the fields we can from node
    */
@@ -40,7 +40,7 @@ class Notifications_Content_Subscription extends Notifications_Subscription_Simp
         return t('@type posts', array('@type' => $type_name));
       }
     }
-  }  
+  }
 }
 
 /**
@@ -112,7 +112,7 @@ class Notifications_Comment extends Notifications_Object {
   /**
    * Load related object or data
    */
-  public static function object_load($value) {  
+  public static function object_load($value) {
     return comment_load($value);
   }
   /**
@@ -126,7 +126,7 @@ class Notifications_Comment extends Notifications_Object {
    */
   public static function object_value($object) {
     return $object->cid;
-  }  
+  }
 }
 
 /**
@@ -134,14 +134,14 @@ class Notifications_Comment extends Notifications_Object {
  */
 class Notifications_Node_Type extends Notifications_Drupal_Object {
   public $type = 'node_type';
-    
+
   public function get_title() {
     return t('Content type');
   }
   /**
    * Load related object or data
    */
-  public static function object_load($value) {  
+  public static function object_load($value) {
     return node_type_get_type($value);
   }
   /**
@@ -170,11 +170,11 @@ class Notifications_Node_Type_Field extends Notifications_Field_Select {
   }
   public function get_description() {
     return t('Content type');
-  }  
+  }
   /**
    * Select options, content type list
    */
-  public function select_options () {
+  public function select_options() {
     return node_type_get_names();
   }
   /**
@@ -189,7 +189,7 @@ class Notifications_Node_Type_Field extends Notifications_Field_Select {
     }
   }
 }
-  
+
 /**
  * Event types: When a (published) node is created or an existing node is published
  */
@@ -201,13 +201,13 @@ class Notifications_Node_Post_Event extends Notifications_Node_Event {
 class Notifications_Node_Update_Event extends Notifications_Node_Event {
   public function get_name() {
     return t('The [node:type-name] has been updated');
-  }  
+  }
 }
 class Notifications_Node_Comment_Event extends Notifications_Node_Event {
   public function get_name() {
     t('New comment by [comment-author-name]: [comment-title]');
   }
-  
+
 }
 
 /**
@@ -232,14 +232,14 @@ class Notifications_Node_Event_Template extends Notifications_Message_Template {
           'more' => array(
             '#type' => 'messaging_link',
             '#text' => t('Read more', array(), $options),
-            '#url' => '[node:url]',        
+            '#url' => '[node:url]',
           ),
         );
       case 'digest':
         return array(
           '#tokens' => TRUE,
           'title' => '[node:title]',
-          'more' =>t('Read more [node:url]', array(), $options),
+          'more' => t('Read more [node:url]', array(), $options),
         );
       default:
         return parent::default_text($type, $options);
@@ -253,7 +253,7 @@ class Notifications_Node_Event_Template extends Notifications_Message_Template {
 class Notifications_Node_Insert_Template extends Notifications_Node_Event_Template {
   public function get_title() {
     return t('Template for node posts');
-  }  
+  }
   public function digest_fields() {
     return array('node:type', 'author:uid');
   }
@@ -290,7 +290,7 @@ class Notifications_Node_Insert_Template extends Notifications_Node_Event_Templa
 class Notifications_Node_Update_Template extends Notifications_Node_Event_Template {
   public function get_title() {
     return t('Template for node updates');
-  }  
+  }
   public function digest_fields() {
     return array('node:nid', 'author:uid');
   }
@@ -300,8 +300,8 @@ class Notifications_Node_Update_Template extends Notifications_Node_Event_Templa
         return t('The [node:type-name] has been updated by [user:name]', array(), $options);
       case 'author:uid':
         return t('Updated [node:type-name]: [node:title]', array(), $options);
-    }    
-  }  
+    }
+  }
 }
 
 /**
@@ -320,7 +320,7 @@ class Notifications_Node_Comment_Template extends Notifications_Node_Event_Templ
         return t('New comment by [comment:name]: [comment:title]', array(), $options);
       case 'author:uid':
         return t('Commented on [node:type-name]: [node:title]', array(), $options);
-    }  
+    }
   }
   /**
    * Default texts for this template, may need token replacement
@@ -343,7 +343,7 @@ class Notifications_Node_Comment_Template extends Notifications_Node_Event_Templ
         return array(
           '#tokens' => TRUE,
           'title' => '[node:title]',
-          'more' =>t('Read more [node:url]', array(), $options),
+          'more' => t('Read more [node:url]', array(), $options),
         );
       default:
         return parent::default_text($type, $options);
@@ -361,7 +361,7 @@ class Notifications_Content_Node_List extends Notifications_Message_Template {
   function node_list() {
     return !empty($this->content) ? $this->content : array();
   }
-  
+
   /**
    * Subject text
    */
@@ -369,7 +369,7 @@ class Notifications_Content_Node_List extends Notifications_Message_Template {
     return array(
       '#tokens' => TRUE,
       '#markup' => t('Latest posts from [site:name]', array(), $options),
-    );    
+    );
   }
   /**
    * Content text
@@ -388,7 +388,7 @@ class Notifications_Content_Node_List extends Notifications_Message_Template {
         '#options' => array('absolute' => TRUE),
       );
     }
-    return $content;    
+    return $content;
   }
 }
 
@@ -401,12 +401,12 @@ class Notifications_Content_Node_Teasers extends Notifications_Content_Node_List
    */
   protected function text_content($options) {
     return node_view_multiple($this->node_list(), 'notifications');
-  } 
+  }
 }
 
 /**
  * Template for a list of nodes, built with a View
- * 
+ *
  * As we cannot store a View object, because we get a serialization error (PDOException)
  * we need to store only some parts of the view (content, title, etc...)
  */
@@ -430,7 +430,7 @@ class Notifications_Content_Node_View extends Notifications_Content_Node_List {
   }
   /**
    * Content text.
-   * 
+   *
    * @todo Better way to render view
    */
   function text_content($options) {

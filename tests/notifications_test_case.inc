@@ -42,7 +42,7 @@ class NotificationsTestCase extends MessagingTestCase {
     return $subscription;
   }
   // Enable all UI optional pages
-  function enableUIPages($enable = TRUE) {    
+  function enableUIPages($enable = TRUE) {
     $settings = array_keys(notifications_subscription_types());
     variable_set('notifications_ui_types', $enable ? $settings : array());
     variable_set('notifications_ui_user_options', $enable ? array('page', 'create'): array());
@@ -61,7 +61,7 @@ class NotificationsTestCase extends MessagingTestCase {
       'uid' => $node->uid,
       'nid' => $node->nid,
       'status' => COMMENT_PUBLISHED,
-      'cid' => 0, 'pid' => 0, 'format' => FILTER_FORMAT_DEFAULT, 
+      'cid' => 0, 'pid' => 0, 'format' => FILTER_FORMAT_DEFAULT,
     );
     $cid = comment_save($comment);
     $this->assertTrue($cid, "Successfully created comment: $cid for node $node->nid ($node->type).");

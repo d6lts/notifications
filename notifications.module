@@ -6,23 +6,23 @@
  *
  * This is the base module of the notifications framework. It handles event processing, queueing,
  * message composition and sending.
- * 
+ *
  * Different subscriptions types are provided by plug-in modules implementing hook_notifications()
  * Most of the UI is implemented in notifications_ui module
  * The messaging framework is used for message delivery
- * Token module is used for token replacement in messages 
- * 
+ * Token module is used for token replacement in messages
+ *
  * Hidden variables (can be set programatically, have no UI):
- * 
+ *
  * - 'notifications_event_log', number of seconds logs will be kept (defaults to 7 days)
  *  To keep logs longer than a week, define the (hidden) variable
- * 
+ *
  * - 'notifications_event_dispatch', dispatch events, defaults to 1
  *  Set to 0 to disable event dispatching (no new notifications will be queued nor sent)
- * 
+ *
  * This is based on the previous subscriptions module
- * 
- * Development Seed, http://www.developmentseed.org, 2007 
+ *
+ * Development Seed, http://www.developmentseed.org, 2007
  */
 
 // Format as plaintext. Note it evaluates to false.
@@ -40,7 +40,7 @@ define('NOTIFICATIONS_EVENT_LOG', 7* 24 * 3600);
 
 /**
  * Implements hook_help().
- * 
+ *
  * This file will be included only for Notifications admin pages
  */
 function notifications_help($path, $arg) {
@@ -65,7 +65,7 @@ function notifications_help($path, $arg) {
       $output = '<p>' . t('On this page you can define which subscription types are enabled or disabled. <strong>Disabled subscription types will not be available for users</strong>.') . '</p>';
       $output .= '<p>' . t('<strong>Existing subscriptions will be updated accordingly</strong>. They\'ll be disabled when their type is disabled or re-enabled when they were disabled and the type is enabled.') . '</p>';
       return $output;
-      
+
   }
 }
 
@@ -138,7 +138,7 @@ function notifications_menu() {
     'page arguments' => array('notifications_admin_manage_subscriptions'),
     'access arguments' => array('administer notifications'),
     'file' => 'notifications.admin.inc',
-  ); 
+  );
   $items['admin/notifications/admin'] = array(
     'title' => 'Administer subscriptions',
     'description' => 'Administer subscriptions.',
@@ -252,7 +252,7 @@ function notifications_menu() {
 
 /**
  * Menu access callback for subscribe links.
- * 
+ *
  * More access checking depending on subscription type will be done at the destination page
  */
 function notifications_access_subscribe($substype, $account = NULL) {
@@ -287,10 +287,10 @@ function notifications_access_unsubscribe($subscription = NULL, $account = NULL)
  * Menu access callback. Access subscription forms for given subscription
  */
 function notifications_access_subscription($subscription, $op = 'view', $account = NULL) {
-  $account = $account ? $account : $GLOBALS['user'];  
+  $account = $account ? $account : $GLOBALS['user'];
   if (user_access('administer notifications') || user_access('manage all subscriptions')) {
     return TRUE;
-  } 
+  }
   switch ($op) {
     case 'view':
       return $subscription->uid && ($subscription->uid == $account->uid);
@@ -303,7 +303,7 @@ function notifications_access_subscription($subscription, $op = 'view', $account
 
 /**
  * Menu access callback for user subscriptions
- * 
+ *
  * @param $account
  *   User account to which these subscriptions below
  * @param $op
@@ -312,7 +312,7 @@ function notifications_access_subscription($subscription, $op = 'view', $account
  */
 function notifications_access_user($account, $op = 'maintain') {
   global $user;
-  
+
   if (user_access('administer notifications') || user_access('manage all subscriptions')) {
     return TRUE;
   }
@@ -327,8 +327,8 @@ function notifications_access_user($account, $op = 'maintain') {
  */
 function notifications_access_user_add($account = NULL, $type = NULL) {
   global $user;
-  
-  $account = $account ? $account : $user;  
+
+  $account = $account ? $account : $user;
   if (notifications_access_user($account)) {
     if ($type) {
       return notifications_subscription($type)->user_access($account);
@@ -364,7 +364,7 @@ function notifications_check_signature($option = 'result') {
         if (!empty($query['timestamp']) && time() - 24 * 7 * 3600 > (int)$query['timestamp']) {
           drupal_set_message(t('This link has expired. Please get a new one or contact the site administrator.'), 'error');
           $page_checked['result'] = FALSE;
-        }        
+        }
         else {
           // Signature is ok and timestamp is ok or we don't have one.
           // (If you sign links that never expire, that's your problem.)
@@ -405,7 +405,7 @@ function notifications_subscription_load($sid) {
 /**
  * Menu access callback for destinations
  */
-function notifications_destination_access($op, $destination) {  
+function notifications_destination_access($op, $destination) {
   // Access will be granted only to administrator for now
   return user_access('administer notifications');
 }
@@ -422,7 +422,7 @@ function notifications_entity_info() {
     'base table' => 'notifications_event',
     'entity keys' => array(
       'id' => 'eid',
-    ),   
+    ),
   );
   // Notifications_Subscription
   $info['notifications_subscription'] = array(
@@ -445,7 +445,7 @@ function notifications_entity_info() {
         'custom settings' => FALSE,
       ),
     ),
-  );  
+  );
   return $info;
 }
 
@@ -477,7 +477,7 @@ function notifications_notifications($op) {
         'class' => 'Notifications_User',
       );
       return $types;
-   
+
     case 'field types':
       // Information about available fields for subscriptions
       $fields['node:nid'] = array(
@@ -494,7 +494,7 @@ function notifications_notifications($op) {
 
 /**
  * Get information about event types. Invoking this function will also load the event API
- * 
+ *
  * @param $typekey
  *   Event type key
  * @param $property
@@ -511,7 +511,7 @@ function notifications_event_type($typekey = NULL, $property = NULL, $default = 
  *   String, the subscriptions type OPTIONAL
  * @param $field
  *   String, a specific field to retrieve info from OPTIONAL
- *   
+ *
  *   Information for a given field and type
  *   or information for a given field for all types
  */
@@ -533,7 +533,7 @@ function notifications_subscription_type($type = NULL, $property = NULL, $defaul
 
 /**
  * Get list of subscription type names
- * 
+ *
  * @todo Filter by user account permissions
  */
 function notifications_subscritpion_type_list($account = NULL) {
@@ -573,8 +573,8 @@ function notifications_subscription($type) {
 
 /**
  * Build a subscriptions list collection with this name
- * 
- * A new Notifications_Subscription_List will be created if not cached before, 
+ *
+ * A new Notifications_Subscription_List will be created if not cached before,
  * and we'll invoke hook_notifications_subscription_list($name, $list) to collect subscriptions for this list.
  */
 function notifications_subscription_list($name) {
@@ -612,7 +612,7 @@ function notifications_notifications_subscription_list($name, $list = NULL) {
 function notifications_template($name) {
   $class = notifications_info('message templates', $name, 'class', 'Notifications_Message_Template');
   $info = notifications_info('message templates', $name);
-  return new $class($info);   
+  return new $class($info);
 }
 
 /**
@@ -696,7 +696,7 @@ function notifications_user($type, $edit, $user, $category = NULL) {
 
 /**
  * Gets a user setting, defaults to default system setting for each
- * 
+ *
  * @param $name
  *   Setting name
  * @param $account
@@ -711,22 +711,22 @@ function notifications_user_setting($name, $account = NULL, $default = NULL) {
   // Default send method is taken from messaging module
   if ($name == 'send_method') {
     return messaging_method_default($account);
-  } 
-  $field = 'notifications_'. $name;
+  }
+  $field = 'notifications_' . $name;
   if (isset($account->$field)) {
     return $account->$field;
   }
   else {
-    return variable_get('notifications_default_'. $name, $default);
+    return variable_get('notifications_default_' . $name, $default);
   }
 }
 
 /**
  * Create event object of given type
- * 
+ *
  * Usage:
  *   notifications_event('node', 'insert');
- *   
+ *
  * @param $type
  *   Event type key
  * @param $action
@@ -740,7 +740,7 @@ function notifications_event($type, $action = NULL) {
 
 /**
  * Check whether we have enabled events of this type
- * 
+ *
  * @param $key
  *   Event type key
  * @param $default
@@ -760,7 +760,7 @@ function notifications_event_enabled($key, $default = TRUE) {
 
 /**
  * Build subscription object properly
- * 
+ *
  * @param $subscription
  *   Subscription object, or array of properties or subscription type
  */
@@ -770,11 +770,11 @@ function notifications_subscription_build($subscription) {
 
 /**
  * Update or create subscription
- * 
+ *
  * This function checks for duplicated subscriptions before saving.
  * If a similar subscription is found it will be updated.
  * If no subscription is found and it is new, the sid will be added into the object.
- * 
+ *
  * @param $subscription
  *   Subscription object or array
  * @param $check
@@ -790,7 +790,7 @@ function notifications_save_subscription(&$subscription, $check = TRUE) {
   if ($check && !$subscription->check_all()) {
     return FALSE;
   }
-  
+
   // Parameters are checked, now proceed
   if (!empty($subscription->sid)) {
     $op = 'update';
@@ -812,14 +812,14 @@ function notifications_save_subscription(&$subscription, $check = TRUE) {
       while ($dupe = array_shift($duplicate)) {
         Notifications_Subscription::delete_subscription($dupe->sid);
       }
-      return notifications_save_subscription($subscription, $check);  
+      return notifications_save_subscription($subscription, $check);
     }
     else {
-      $op = 'insert';    
+      $op = 'insert';
       $result = $subscription->save();
     }
   }
-  
+
   // If the operation has worked so far, update fields and inform other modules
   if ($result !== FALSE) {
     $subscription->invoke_all($op);
@@ -855,7 +855,7 @@ function notifications_get_subscriptions_not_null($value) {
 
 /**
  * Create a wrapped object and keep a static cache of created objects.
- * 
+ *
  * @param $type
  *   Object type
  * @parma $value
@@ -916,7 +916,7 @@ function notifications_subscription_type_enabled($type = NULL) {
 
 /**
  * Get information about subscriptions fields
- * 
+ *
  * Replaces notifications_field_type()
  */
 function notifications_field_type($type = NULL, $property = NULL, $default = NULL) {
@@ -926,7 +926,7 @@ function notifications_field_type($type = NULL, $property = NULL, $default = NUL
 
 /**
  * Filter elements in an array of arrays/objects that match some condition
- * 
+ *
  * @param $array
  *   Data array to be filtered.
  * @param $filter
@@ -934,7 +934,7 @@ function notifications_field_type($type = NULL, $property = NULL, $default = NUL
  * @param $reverse
  *   Reverse filter, return elements that don't match
  */
-function notifications_array_filter($array, $filter, $reverse = FALSE) { 
+function notifications_array_filter($array, $filter, $reverse = FALSE) {
   if (!$filter) {
     return $array;
   }
@@ -954,7 +954,7 @@ function notifications_array_filter($array, $filter, $reverse = FALSE) {
 function notifications_format_title_description($item) {
   if (is_object($item)) {
     $title = check_plain($item->get_title());
-    $description = check_plain($item->get_description()); 
+    $description = check_plain($item->get_description());
   }
   elseif (is_array($item)) {
     $title = isset($item['title']) ? check_plain($item['title']) : t('no title');
@@ -965,7 +965,7 @@ function notifications_format_title_description($item) {
 
 /**
  * Serialize an array ordering the keys before.
- * 
+ *
  * This is useful for cache indexes and signatures.
  */
 function notifications_array_serialize($array) {
@@ -981,16 +981,16 @@ function notifications_array_serialize($array) {
   }
   // Now we sort the whole condtions array maintaining index association
   ksort($array);
-  return implode(',', array_keys($array)) . '/' . implode(',', $array);  
+  return implode(',', array_keys($array)) . '/' . implode(',', $array);
 }
 
 /**
  * Implementation of hook_messaging()
- * 
+ *
  * This hook provides information about the mensaje templates this module uses and related tokens.
- * 
+ *
  * Depending on $op, this hook takes different parameters and returns different pieces of information:
- * 
+ *
  * - 'message groups'
  *   Get array of message groups, each of which will have one or more keys for different templates
  *   Each group should have a unique key, so it should start with the module name
@@ -1006,7 +1006,7 @@ function notifications_array_serialize($array) {
  *   Return array of token keys that will be available for this message templates
  *   The tokens themselves may be default tokens (provided by token module) or we can add new
  *   tokens implementing hook_token_list() and hook_token_value()
- * 
+ *
  * @param $op
  *   Operation, type of information to retrieve
  * @param $arg1, $arg2...
@@ -1041,13 +1041,13 @@ function notifications_messaging_method($op, $method, $param = NULL) {
         ->fields(array('status' => Notifications_Subscription::STATUS_NOSEND))
         ->condition('send_method', $method)
         ->execute();
-      break;  
+      break;
   }
 }
 
 /**
  * Get event types. Invoking this function will also load the event API
- * 
+ *
  * Was: notifications_event_type_enabled
  */
 function notifications_event_enabled_types($typekey = NULL, $property = NULL, $default = NULL) {
@@ -1065,7 +1065,7 @@ function notifications_event_enabled_types($typekey = NULL, $property = NULL, $d
 
 /**
  * Information about digesting method for a send interval.
- * 
+ *
  * @return array()
  *   Ditest information for that interval, or all the information if no interval
  */
@@ -1087,7 +1087,7 @@ function notifications_build_method($send_interval = NULL, $refresh = FALSE) {
 
 /**
  * Invoke hook_notifications($name) on all modules and get a property from the array
- * 
+ *
  * Properties will be overridden by the value of 'notifications_option_[$name]
  */
 function notifications_info($name, $type = NULL, $property = NULL, $default = NULL) {
@@ -1103,15 +1103,15 @@ function notifications_info($name, $type = NULL, $property = NULL, $default = NU
     }
     // Provide alter hook: notifications_name
     drupal_alter('notifications_' . $_name, $info);
-  }      
+  }
   return messaging_array_info($info, $type, $property, $default);
 }
 
 /**
  * Get value from notifications_option_* variables
- * 
+ *
  * These variables may be overridden for a page request without affecting the stored variables
- * 
+ *
  * @param $name
  *   Variable name, will be prefixed with 'notifications_option_'
  * @param $index
@@ -1132,7 +1132,7 @@ function notifications_option_get($name, $index = NULL, $default = NULL) {
 
 /**
  * Set value from notifications_option_* variables
- * 
+ *
  * @param $name
  *   Variable name, will be prefixed with 'notifications_option_'
  * @param $value
@@ -1158,7 +1158,7 @@ function notifications_option_set($name, $value, $index = NULL, $request = FALSE
 }
 /**
  * Get an array of options indexed by type
- * 
+ *
  * Example: If we want to get the 'enabled' property for all subscription types
  * - $name = 'subscription_types'
  * - $types = array('type1', 'type2'...)
@@ -1221,7 +1221,7 @@ function notifications_send_methods($account) {
 
 /**
  * List of send methods
- * 
+ *
  * @param $account
  *   Optional user account, for checking permissions against this account
  */
@@ -1249,7 +1249,7 @@ function notifications_theme() {
     'notifications_admin_subscription_list' => array(
       'variables' => array('sids' => NULL, 'limit' => 10),
       'file' => 'notifications.admin.inc',
-    )  
+    )
   );
 }
 
@@ -1321,14 +1321,14 @@ function notifications_subscription_list_form_submit($form, &$form_state) {
  */
 function notifications_token_info() {
   $types['subscription'] = array(
-    'name' => t('Subscriptions'), 
-    'description' => t('Tokens related to notifications subscriptions.'), 
+    'name' => t('Subscriptions'),
+    'description' => t('Tokens related to notifications subscriptions.'),
     'needs-data' => 'subscription',
   );
   $tokens['subscription'] = array();
   $tokens['user']['unsubscribe-url'] = array(
-    'name' => t("Unsubscribe URL"), 
-    'description' => t("Signed URL for cancelling all user subscriptions."), 
+    'name' => t("Unsubscribe URL"),
+    'description' => t("Signed URL for cancelling all user subscriptions."),
   );
   return array('types' => $types, 'tokens' => $tokens);
 }
@@ -1387,7 +1387,7 @@ function notifications_url_options($path, $options = array()) {
 
 /**
  * Signature for url parameters
- * 
+ *
  * @param $path
  *   Path or array with path elements
  * @param $query
@@ -1398,13 +1398,13 @@ function notifications_url_signature($path, $query = array()) {
   if (isset($query['signature'])) {
     unset($query['signature']);
   }
-  $string = $query ? notifications_array_serialize($query) : 'none'; 
-  return md5('notifications' . drupal_get_private_key() .':' . $path . ':' . $string); 
+  $string = $query ? notifications_array_serialize($query) : 'none';
+  return md5('notifications' . drupal_get_private_key() . ':' . $path . ':' . $string);
 }
 
 /**
  * Implementation of hook_cron()
- * 
+ *
  * Keep logs clean
  */
 function notifications_cron() {

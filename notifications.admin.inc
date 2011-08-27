@@ -11,7 +11,7 @@ function notifications_admin_manage_subscriptions($form, &$form_state) {
   if (isset($form_state['values']['operation']) && $form_state['values']['operation'] == 'delete') {
    if ($selected = array_filter($form_state['values']['subscriptions'])) { // $form_state['values']['subscriptions']
       $list = Notifications_Subscription_List::build_sids(array_keys($selected));
-      return notifications_subscription_list_form($form, $form_state, 'delete', $list);     
+      return notifications_subscription_list_form($form, $form_state, 'delete', $list);
     }
   }
   $form['filter'] = notifications_manage_subscriptions_filter_form(TRUE);
@@ -27,7 +27,7 @@ function notifications_admin_manage_subscriptions($form, &$form_state) {
  */
 function notifications_admin_status_page() {
   $output = '';
-  
+
   // Subscriptions summary by type
   $header = array(t('Type'), t('Number'));
   $result = db_query("SELECT type, count(*) AS count FROM {notifications_subscription} GROUP BY type");
@@ -36,14 +36,14 @@ function notifications_admin_status_page() {
   $rows = array();
   while ($stype = db_fetch_object($result)) {
     $rows[] = array(
-      !empty($types[$stype->type]['title']) ? $types[$stype->type]['title'] : '<strong>' . $stype->type . '</strong>' , 
+      !empty($types[$stype->type]['title']) ? $types[$stype->type]['title'] : '<strong>' . $stype->type . '</strong>' ,
       $stype->count);
     $count += $stype->count;
   }
-  $summary = theme('table', array('header' => $header, 'rows' =>$rows));
+  $summary = theme('table', array('header' => $header, 'rows' => $rows));
   $summary .= t('Total: %number', array('%number' => $count));
   $output .= theme('box', t('Subscriptions by type'), $summary);
-  
+
   // Summary by sending method
   $header = array(t('Method'), t('Number'));
   $result = db_query("SELECT send_method, count(*) AS count FROM {notifications_subscription} GROUP BY send_method");
@@ -51,13 +51,13 @@ function notifications_admin_status_page() {
   while ($subs = db_fetch_object($result)) {
     $name = messaging_method_info($subs->send_method, 'title');
     $rows[] = array(
-      $name ? $name : '<strong>' . $subs->send_method . '</strong>' , 
+      $name ? $name : '<strong>' . $subs->send_method . '</strong>' ,
       $subs->count);
   }
-  $summary = theme('table', array('header' => $header, 'rows' =>$rows));
-  $output .= theme('box', t('Subscriptions by send method'), $summary); 
+  $summary = theme('table', array('header' => $header, 'rows' => $rows));
+  $output .= theme('box', t('Subscriptions by send method'), $summary);
 
-  return $output;  
+  return $output;
 }
 
 /**
@@ -168,7 +168,7 @@ function notifications_admin_subscriptions_settings() {
 
 /**
  * Subscription settings submit, disable all subscriptions not allowed
- * 
+ *
  * @todo d7update
  */
 function notifications_admin_subscriptions_settings_submit($form, &$form_state) {
@@ -202,7 +202,7 @@ function notifications_admin_subscriptions_settings_submit($form, &$form_state) 
   }
   db_query($sql_update . $sql_where, $params);
   $disabled = db_affected_rows();
-  
+
   if ($enabled) {
     drupal_set_message(t('@count existing subscriptions have been enabled.', array('@count' => $enabled)), 'warning');
   }
@@ -221,7 +221,7 @@ function notifications_admin_events_form($form, &$form_state) {
   // Compile template list by type
   $template_list = array();
   foreach (notifications_info('message templates') as $key => $template) {
-    $template_list[$template['object']][$key] = $template['title'];    
+    $template_list[$template['object']][$key] = $template['title'];
   }
 
   $header = array(
@@ -247,7 +247,7 @@ function notifications_admin_events_form($form, &$form_state) {
     $form['events'][$key]['triggers']['#markup'] = implode(', ', notifications_admin_event_triggers($key));
   }
   $form['submit'] = array('#type' => 'submit', '#value' => t('Save configuration'));
-  return $form; 
+  return $form;
 }
 
 /**
@@ -261,7 +261,7 @@ function notifications_admin_events_form_submit($form, &$form_state) {
 
 /**
  * Get assigned triggers for event
- * 
+ *
  * @todo Better coding, get from db?
  */
 function notifications_admin_event_triggers($type) {
@@ -288,7 +288,7 @@ function notifications_admin_event_triggers($type) {
           }
         }
       }
-      
+
     }
   }
   return $result;
@@ -306,7 +306,7 @@ function notifications_admin_events_build_tree($events) {
       $events[$event['parent']]['children'][$key] = &$event;
     }
   }
-  return $tree;  
+  return $tree;
 }
 
 /**
@@ -327,7 +327,7 @@ function notifications_admin_events_tree_form($tree, &$form, $depth = 0) {
     if (!empty($event['children'])) {
       notifications_admin_events_tree_form($event['children'], $form, $depth +1);
     }
-  }  
+  }
 }
 
 /**
@@ -354,13 +354,13 @@ function theme_notifications_admin_table_form($variables) {
   // Build table rows using header indexes for the fields
   $rows = array();
   foreach (element_children($form) as $index) {
-    $row = array();  
+    $row = array();
     foreach (array_keys($header) as $field) {
       $row[] = drupal_render($form[$index][$field]);
     }
     $rows[] = $row;
   }
-  
+
   $output = theme('table', array('header' => $header, 'rows' => $rows, 'empty' => $form['#empty']));
   $output .= drupal_render_children($form);
   return $output;

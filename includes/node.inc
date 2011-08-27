@@ -2,7 +2,7 @@
 /**
  * @file
  * Notifications node API for use by plug-in modules providing node related features
- * 
+ *
  * So far, this is used by:
  * - notifications_content
  * - notifications_feed
@@ -22,7 +22,7 @@ function notifications_node_nid2title($nid, $html = FALSE) {
 
 /**
  * Reverse mapping from node title to nid
- * 
+ *
  * We also handle autocomplete values (title [nid:x]) and validate the form
  */
 function notifications_node_title2nid($name, $field = NULL, $types = array()) {
@@ -49,7 +49,7 @@ function notifications_node_title2nid($name, $field = NULL, $types = array()) {
       }
     }
   }
-  return !empty($nid) ? $nid : NULL;  
+  return !empty($nid) ? $nid : NULL;
 }
 
 /**
@@ -57,7 +57,7 @@ function notifications_node_title2nid($name, $field = NULL, $types = array()) {
  */
 function notifications_node_nid2autocomplete($nid, $subscription = NULL) {
   if ($node = node_load($nid)) {
-    return check_plain($node->title) . ' [nid:' . $nid .']';
+    return check_plain($node->title) . ' [nid:' . $nid . ']';
   }
   else {
     return t('Not found');
@@ -79,14 +79,14 @@ function notifications_node_autocomplete_title($string = '') {
 
   foreach (_notifications_node_references($string) as $id => $row) {
     // Add a class wrapper for a few required CSS overrides.
-    $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
+    $matches[$row['title'] . " [nid:$id]"] = '<div class="reference-autocomplete">' . $row['rendered'] . '</div>';
   }
   drupal_json_output($matches);
 }
 
 /**
  * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing nodes
- * 
+ *
  * @param $node_types
  *   Comma separated node types to query
  */
@@ -95,7 +95,7 @@ function notifications_node_autocomplete_type($node_types, $string = '') {
   $types = split(',', $node_types);
   foreach (_notifications_node_references($string, 'contains', $types) as $id => $row) {
     // Add a class wrapper for a few required CSS overrides.
-    $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
+    $matches[$row['title'] . " [nid:$id]"] = '<div class="reference-autocomplete">' . $row['rendered'] . '</div>';
   }
   drupal_json_output($matches);
 }

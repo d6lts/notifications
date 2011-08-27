@@ -18,7 +18,7 @@ abstract class Notifications_Entity {
       foreach ($properties as $key => $value) {
         $this->$key = $value;
       }
-    }    
+    }
   }
   /**
    * Get object title
@@ -46,7 +46,7 @@ abstract class Notifications_Entity {
   }
   /**
    * Get information for specific instance.
-   * 
+   *
    * This is useful for properties that can be overridden with alter hooks
    */
   public function get_info($property = NULL, $default = NULL) {
@@ -56,7 +56,7 @@ abstract class Notifications_Entity {
 
 /**
  * Wrapper for Drupal objects
- * 
+ *
  * This will be a wrapper for Drupal objects passed around and used as parameters, with some advantages:
  * - All the objects have a 'type' property
  * - When serialized, the object itself won't be serialized
@@ -71,7 +71,7 @@ abstract class Notifications_Object {
 
   /**
    * Get object type title
-   */  
+   */
   public function get_title() {
     return $this->get_property('title', '');
   }
@@ -179,7 +179,7 @@ abstract class Notifications_Object {
       $this->fields = array();
       if ($object = $this->get_object()) {
         // As this does an array_merge_recursive() we get grouped field => array(value1, value2..)
-        $fields = module_invoke_all('notifications_object_' .$this->type, 'fields', $object);
+        $fields = module_invoke_all('notifications_object_' . $this->type, 'fields', $object);
         // Now we just need to filter out duplicate values
         foreach ($fields as $field) {
           $this->fields[$field->index()] = $field;
@@ -188,10 +188,10 @@ abstract class Notifications_Object {
     }
     return $this->fields;
   }
-  
+
   /**
    * Get list of possible and existing subscriptions for user/object
-   * 
+   *
    * @return Notifications_Subscription_List
    */
   function user_subscriptions($account = NULL) {
@@ -204,9 +204,9 @@ abstract class Notifications_Object {
 
   /**
    * Get subscription options for object, account. Only enabled subscription types
-   * 
+   *
    * We pass on the user account so we cah check permissions on the fly and save lots of objects
-   * 
+   *
    * @return Notifications_Subscription_List
    */
   function subscribe_options($account) {
@@ -239,7 +239,7 @@ abstract class Notifications_Object {
    * Run module_invoke_all('notifications_object_[type]') with this (Drupal) object
    */
   protected function invoke_all($op, $param = NULL) {
-    return module_invoke_all('notifications_object_' . $this->type, $op, $this->get_object(), $param);    
+    return module_invoke_all('notifications_object_' . $this->type, $op, $this->get_object(), $param);
   }
 
   /**
@@ -253,9 +253,9 @@ abstract class Notifications_Object {
 
 /**
  * Wrapper for generic Drupal objects
- * 
+ *
  * This basically implements abstract methods with some defaults
- * 
+ *
  * @todo Get some information from entities
  */
 class Notifications_Drupal_Object extends Notifications_Object {
@@ -268,7 +268,7 @@ class Notifications_Drupal_Object extends Notifications_Object {
   public static function object_load($value) {
     return NULL;
   }
-  
+
   /**
    * Get name for object
    */
@@ -292,7 +292,7 @@ class Notifications_Node extends Notifications_Drupal_Object {
   /**
    * Load related object or data
    */
-  public static function object_load($value) {  
+  public static function object_load($value) {
     return node_load($value);
   }
   /**
@@ -325,7 +325,7 @@ class Notifications_User extends Notifications_Drupal_Object {
   /**
    * Load related object or data
    */
-  public static function object_load($value) {  
+  public static function object_load($value) {
     return user_load($value);
   }
   /**
