@@ -377,7 +377,7 @@ abstract class Notifications_Field {
    * PHP Magic. Regurn object properties to be serialized
    */
   public function __sleep() {
-    return array('type', 'value', 'index', 'name');
+    return array('type', 'value', 'position', 'name');
   }
 }
 
