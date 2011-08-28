@@ -239,7 +239,9 @@ function notifications_views_views_data() {
   return $data;
 }
 
-
+/**
+ * Implements hook_views_data_alter().
+ */
 function notifications_views_views_data_alter(&$data) {
   $data['users']['name2'] = array(
     'title' => t('User name autocomplete filter'),
@@ -247,14 +249,6 @@ function notifications_views_views_data_alter(&$data) {
     'help' => t('Filters by first part of username, used for autocompleting users.'),
     'argument' => array(
       'handler' => 'notifications_views_handler_argument_autocomplete',
-    ),
-  );
-  $data['users']['perm'] = array(
-    'title' => t('Permissions'),
-    'help' => t('Limit to users that have permissions. Emulates user access: allows user 1, gives authenticated role.'),
-    'real field' => 'uid',
-    'filter' => array(
-      'handler' => 'notifications_views_handler_filter_perm',
     ),
   );
 }
