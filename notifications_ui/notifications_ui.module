@@ -278,6 +278,11 @@ function notifications_ui_block_configure($delta = '') {
  * Implementation of hook_block_view
  */
 function notifications_ui_block_view($delta = '') {
+  // user has now permission to create subscriptions. exit early.
+  if (!user_access('create subscriptions')) {
+    return array();
+  }
+
   // This example comes from node.module. Note that you can also return a
   // renderable array rather than rendered HTML for 'content'.
   $block = array();
