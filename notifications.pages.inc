@@ -12,7 +12,7 @@
 function notifications_page_subscribe($substype) {
   $account = $GLOBALS['user'];
   // Build subscriptions object
-  if ($substype->user_access($account)) {
+  if ($substype->user_access($account, 'subscribe')) {
     $subscription = $substype
       ->instance()
       ->set_user($account)

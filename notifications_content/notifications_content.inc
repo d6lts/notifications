@@ -62,8 +62,8 @@ class Notifications_Node_Subscription extends Notifications_Content_Subscription
       return parent::get_name();
     }
   }
-
 }
+
 /**
  * Node events
  */

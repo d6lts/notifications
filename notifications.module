@@ -553,7 +553,7 @@ function notifications_subscription_user_types($account = NULL) {
   $account = $account ? $account : $GLOBALS['user'];
   $types = array();
   foreach (notifications_subscription_enabled_types() as $type => $substype) {
-    if ($substype->user_access($account)) {
+    if ($substype->user_access($account, 'subscribe')) {
       $types[$type] = $substype;
     }
   }

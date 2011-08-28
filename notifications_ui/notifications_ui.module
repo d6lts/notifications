@@ -63,11 +63,11 @@ function notifications_ui_menu() {
 function notifications_ui_access_user_add($type = NULL) {
   $account = $GLOBALS['user'];
   if ($type) {
-    return notifications_subscription($type)->user_access($account);
+    return notifications_subscription($type)->user_access($account, 'subscribe');
   }
   else {
     // Overview page, visible if user has access to some subscription types
-    return (bool)notifications_subscription_user_types($account);
+    return (bool) notifications_subscription_user_types($account);
   }
 }
 

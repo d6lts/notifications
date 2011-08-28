@@ -1379,7 +1379,7 @@ class Notifications_Subscription extends Notifications_Entity {
    * Get objects associated to this subscription's fields
    */
   function get_objects($filter = NULL) {
-    $objects();
+    $objects = array();
     foreach ($this->get_fields($filter) as $index => $field) {
       $objects[$index] = $field->get_object();
     }
