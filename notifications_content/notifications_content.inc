@@ -337,7 +337,7 @@ class Notifications_Node_Comment_Template extends Notifications_Node_Event_Templ
           '#tokens' => TRUE,
           'header' => t('Comment by [comment:name]: [comment:title]', array(), $options),
           'content' => '[comment:body]',
-          'footer' => t('Read more [comment-url]', array(), $options),
+          'footer' => t('Read more [comment:url]', array(), $options),
         );
       case 'digest':
         return array(

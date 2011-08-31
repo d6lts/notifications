@@ -535,6 +535,20 @@ function notifications_content_comment_update_action($node, $context = array()) 
 }
 
 /**
+ * Trigger comment notificaitons.
+ *
+ * @ingroup actions
+ */
+function notifications_content_comment_action($node, $context = array()) {
+  $comment = $context['comment'];
+  // Just for new comments that are published and updated comments that change status.
+  if (!empty($comment->status) && empty($comment->notifications_content_disable)) {
+    $node = node_load($comment->nid);
+    notifications_content_node_event('comment', $node)->add_object('comment', $comment)->trigger();
+  }
+}
+
+/**
  * Implementation of hook notifications_subscription()
  */
 function notifications_content_notifications_subscription($op, $subscription = NULL) {
