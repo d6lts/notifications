@@ -4,9 +4,14 @@
  * Implementation of hook_install().
  */
 function notifications_content_install() {
-  // Set two actions for triggers
+  // Set node actions for triggers
   notifications_content_install_trigger_action('node_publish', 'notifications_content_node_post_action');
   notifications_content_install_trigger_action('node_update', 'notifications_content_node_update_action');
+
+  // Set comment actions for triggers
+  notifications_content_install_trigger_action('comment_insert', 'notifications_content_comment_action');
+  notifications_content_install_trigger_action('comment_update', 'notifications_content_comment_action');
+
   // Commented out for D7, not sure it is needed anymore
   // Module weight. It must run after most modules, to make sure they've done
   // their work before we add the notifications queries.
@@ -19,13 +24,21 @@ function notifications_content_install() {
  * Create trigger assignement
  */
 function notifications_content_install_trigger_action($trigger, $action) {
-   db_insert('trigger_assignments')
+  $check = db_select('trigger_assignments', 'ta')
+    ->fields('ta', array('hook', 'aid'))
+    ->condition('hook', $trigger)
+    ->condition('aid', $action)
+    ->execute()
+    ->fetchObject();
+
+  if (!$check) {
+    db_insert('trigger_assignments')
     ->fields(array(
       'hook' => $trigger,
       'aid' => $action,
-      //'weight' => $weight + 2,
     ))
     ->execute();
+  }
 }
 /**
  * Implementation of hook_uninstall().
