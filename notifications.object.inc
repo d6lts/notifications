@@ -55,13 +55,31 @@ abstract class Notifications_Entity {
 }
 
 /**
+ * Interface for Notification objects.
+ */
+interface Notifications_ObjectInterface {
+  /**
+   * Load related object or data
+   */
+  public static function object_load($value);
+  /**
+   * Get name for object
+   */
+  public static function object_name($object);
+  /**
+   * Map object to value (key)
+   */
+  public static function object_value($object);
+}
+
+/**
  * Wrapper for Drupal objects
  *
  * This will be a wrapper for Drupal objects passed around and used as parameters, with some advantages:
  * - All the objects have a 'type' property
  * - When serialized, the object itself won't be serialized
  */
-abstract class Notifications_Object {
+abstract class Notifications_Object implements Notifications_ObjectInterface {
   // Object type
   public $type;
   public $value;
@@ -152,18 +170,6 @@ abstract class Notifications_Object {
     }
     return $this->object;
   }
-  /**
-   * Load related object or data
-   */
-  public abstract static function object_load($value);
-  /**
-   * Get name for object
-   */
-  public abstract static function object_name($object);
-  /**
-   * Map object to value (key)
-   */
-  public abstract static function object_value($object);
 
   /**
    * Check user access. By default it will be true if object can be loaded
