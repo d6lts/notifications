@@ -13,7 +13,7 @@ function notifications_ui_help($path, $arg) {
       $output = '<p>' . t('These are UI settings only and will define which options will be visible for end users and how they\'ll be displayed. Which options will be finally available will be determined by:');
       $output .= '<ol>';
       $output .= '<li>' . t('Enabled subscription types on the other Notifications settings pages') . '</li>';
-      $output .= '<li>' . t('Permissions that you can configure on <a href="@administer-permissions">Administer permissions</a>.', array('@administer-permissions' => url('admin/user/permissions'))) . '</li>';
+      $output .= '<li>' . t('Permissions that you can configure on <a href="@administer-permissions">Administer permissions</a>.', array('@administer-permissions' => url('admin/people/permissions'))) . '</li>';
       $output .= '<li>' . t('The enabled options on this page.') . '</li>';
       $output .= '</ol></p>';
       return $output;
