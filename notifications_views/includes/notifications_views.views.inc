@@ -15,23 +15,7 @@ function notifications_views_views_data() {
         'weight' => 0,
   );
 
-  /*
-  $data['notifications_subscription']['table']['join'] = array(
-    'node' => array(
-      'table' => 'notifications_subscription',
-      'left_field' => 'sid',
-      'field' => 'sid',
-      'left_table' => 'notifications_subscription_fields',
-    ),
-    'users' => array(
-      'table' => 'notifications_subscription',
-      'left_field' => 'uid',
-      'field' => 'uid',
-      'left_table' => 'users',
-    ),
-  );
-  */
-
+  // sid field
   $data['notifications_subscription']['sid'] = array(
     'title' => t('SID'),
     'help' => t('Subscription ID.'),
@@ -185,12 +169,10 @@ function notifications_views_views_data() {
     ),
   );
 
-  // Relationships between files and nodes.
+  // Relationships between subscriptions and nodes.
   $data['notifications_subscription_fields']['subscription_to_node'] = array(
     'title' => t('Content'),
     'help' => t('Content that is associated with this subscription.'),
-    // Only provide this field/relationship/etc. when the 'notifications_subscription_fields' base table is present.
-    // 'skip base' => array('node', 'node_revision', 'users', 'comment', 'taxonomy_term_data', 'taxonomy_vocabulary'),
     'real field' => 'value',
     'relationship' => array(
       'title' => t('Content'),
@@ -240,8 +222,6 @@ function notifications_views_views_data() {
   $data['notifications_subscription_fields']['subscription_to_term'] = array(
     'title' => t('Taxonomy'),
     'help' => t('Taxonomy term that is associated with this subscription.'),
-    // Only provide this field/relationship/etc. when the 'notifications_subscription_fields' base table is present.
-    // 'skip base' => array('node', 'node_revision', 'users', 'comment', 'taxonomy_term_data', 'taxonomy_vocabulary'),
     'real field' => 'value',
     'relationship' => array(
       'title' => t('Taxonomy term'),
