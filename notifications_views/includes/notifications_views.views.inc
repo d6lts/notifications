@@ -236,6 +236,30 @@ function notifications_views_views_data() {
     ),
   );
 
+  // Relationships between subscriptions and taxonomy terms.
+  $data['notifications_subscription_fields']['subscription_to_term'] = array(
+    'title' => t('Taxonomy'),
+    'help' => t('Taxonomy term that is associated with this subscription.'),
+    // Only provide this field/relationship/etc. when the 'notifications_subscription_fields' base table is present.
+    // 'skip base' => array('node', 'node_revision', 'users', 'comment', 'taxonomy_term_data', 'taxonomy_vocabulary'),
+    'real field' => 'value',
+    'relationship' => array(
+      'title' => t('Taxonomy term'),
+      'label' => t('Taxonomy term'),
+      'base' => 'taxonomy_term_data',
+      'base field' => 'tid',
+      'relationship field' => 'value',
+      'extra' => array(
+        array(
+          'table' => 'notifications_subscription_fields',
+          'field' => 'type',
+          'operator' => '=',
+          'value' => 'term:tid',
+        ),
+      ),
+    ),
+  );
+
   return $data;
 }
 
