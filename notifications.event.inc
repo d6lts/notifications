@@ -526,6 +526,7 @@ class Notifications_Event extends Notifications_Entity {
     // Template to be rendered for each user
     $template = $this->get_template();
     $message = $template->build_message();
+    $message->add_event($this, array_keys($subscriptions));
     // Keep track of users sent so we don't repeat
     $results = array('skip' => array(), 'sent' => array(), 'success' => array(), 'error' => array());
     foreach ($subscriptions as $subscription) {

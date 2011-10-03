@@ -22,6 +22,16 @@ class Notifications_Message_Template extends Messaging_Message_Template {
   function __construct($info = NULL) {
     $this->info = $info;
   }
+
+  /**
+   * Get Message_Object with this template linked
+   */
+  public function build_message($options = array()) {
+    $message = new Notifications_Message($options);
+    $message->set_template($this);
+    return $message;
+  }
+
   /**
    * Set notifications event
    */

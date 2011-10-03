@@ -27,21 +27,19 @@ class Notifications_Message extends Messaging_Message {
   // Build method used for this
   public $build_method;
 
-
   /**
    * Check parameters and go for alter hook
    */
-  public function message_build() {
-    if (empty($this->built)) {
-      // Provide a specific notifications alter hook
-      drupal_alter('notifications_message', $this);
-      // Clean up Notifications objects so we don't move too much data around (Sometimes the full object gets serialized)
-      unset($this->events);
-      unset($this->events_subscriptions);
-      unset($this->subscriptions);
-      unset($this->text_parts);
-    }
-    return parent::message_build();
+  protected function do_build() {
+    parent::do_build();
+    drupal_alter('notifications_message', $this);
+    // Clean up Notifications objects so we don't move too much data around (Sometimes the full object gets serialized)
+    unset($this->events);
+    unset($this->events_subscriptions);
+    unset($this->subscriptions);
+    unset($this->text_parts);
+    // The message must be built, without errors and not for discarding
+    return $this->check_status();
   }
 
   /**
