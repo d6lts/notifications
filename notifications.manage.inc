@@ -198,21 +198,21 @@ function notifications_manage_subscriptions_filters($admin = FALSE) {
   global $user;
 
   $filters['status'] = array(
-    'title' => t('status'),
+    'title' => t('Status'),
     'options' => Notifications_Subscription::status_list(),
   );
   $filters['type'] = array(
-    'title' => t('type'),
+    'title' => t('Type'),
     // If not admin page, check access to each type
     'options' => notifications_subscription_type(NULL, 'title'),
   );
   $filters['send_method'] = array(
-    'title' => t('method'),
+    'title' => t('Method'),
     // If not admin mode, filter for current user
     'options' => _notifications_send_methods($admin ? NULL : $user),
   );
   $filters['send_interval'] = array(
-    'title' => t('interval'),
+    'title' => t('Interval'),
     'options' => notifications_send_intervals(),
   );
   // Take out the filters when only one option
