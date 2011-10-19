@@ -40,7 +40,7 @@ function notifications_account_overview($account) {
 
   // Build shortcut tips
   if (notifications_access_user($account, 'manage')) {
-    $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscriptions");
+    $tips['admin'] = l(t('Administer your subscriptions'), "$path/notifications/subscription");
   }
   $tips['edit'] = l(t('Edit your notifications settings'), "$path/edit");
 
