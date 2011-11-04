@@ -9,6 +9,7 @@
  * Implementation of hook_menu()
  */
 function notifications_user_menu() {
+  $items = array();
   // User pages for each subscription type, will be disabled by default
   foreach (array('user_content') as $type) {
     if (notifications_subscription_type_enabled($type)) {
