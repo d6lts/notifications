@@ -186,6 +186,48 @@ function notifications_content_entity_info_alter(&$entity_info) {
 }
 
 /**
+ * Implements hook_node_view().
+ */
+function notifications_content_node_view($node, $view_mode, $langcode) {
+  // user has now permission to create subscriptions. exit early.
+  if (!user_access('create subscriptions')) {
+    return;
+  }
+
+  // View mode full and teaser is supported.
+  if ($view_mode == 'full') {
+    $display_option = 'node_links';
+  } elseif ($view_mode == 'teaser') {
+    $display_option = 'teaser_links';
+  } else {
+    return;
+  }
+
+  notifications_content_node_links($node, $display_option);
+}
+
+/**
+ * Attach subscription links to the node object.
+ */
+function notifications_content_node_links($node, $display_option, $account = NULL) {
+  $account = ($account == NULL) ? $GLOBALS['user'] : $account;
+  $notifications_node = array(notifications_object('node', $node));
+  $subscription_list = Notifications_Subscription::object_subscriptions($notifications_node, $account)
+    ->set_user($account)
+    ->filter_option($display_option)
+    ->get_instances();
+
+  foreach($subscription_list as $key => $subscription) {
+    $link = $subscription->element_link('subscription');
+    $item = array(
+      'title' => $link['#title'],
+      'href' => $link['#href'],
+    ) + $link['#options'];
+    $node->content['links']['notifications_content']['#links']['notifications-' . $key] = $item;
+  }
+}
+
+/**
  * Implements hook_node_view_alter().
  */
 function notifications_content_node_view_alter(&$build) {
