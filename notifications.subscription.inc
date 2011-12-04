@@ -373,13 +373,16 @@ class Notifications_Subscription extends Notifications_Entity {
    * Process form submission
    */
   public function form_submit($form, &$form_state) {
-    $op = isset($form_state['values']['op']) ? $form_state['values']['op'] : '';
-    if ($op == t('Cancel')) {
-      $operation = 'cancel';
-    }
-    else {
-      $operation = $form_state['values']['operation'];
-      $this->set_properties_from_submission($form, $form_state);
+    $triggering_element = isset($form_state['triggering_element']['#name']) ? $form_state['triggering_element']['#name'] : '';
+    switch ($triggering_element) {
+      case 'cancel':
+      case 'delete':
+        $operation = $triggering_element;
+        break;
+      default:
+        $operation = $form_state['values']['operation'];
+        $this->set_properties_from_submission($form, $form_state);
+        break;
     }
     return $this->form_operation($operation, $form, $form_state);
   }
@@ -575,19 +578,37 @@ class Notifications_Subscription extends Notifications_Entity {
   public function element_operation($operation) {
     $elements = array('#type' => 'fieldset', '#weight' => 100);
     switch ($operation) {
+      case 'view';
+        return; // no buttons.
       case 'subscribe':
       case 'add':
-        $elements['subscribe'] = array('#type' => 'submit', '#value' => t('Create subscription'));
+        $elements['subscribe'] = array(
+          '#type' => 'submit',
+          '#name' => 'subscribe',
+          '#value' => t('Create subscription'),
+        );
         break;
       case 'edit':
-        $elements['save'] = array('#type' => 'submit', '#value' => t('Save subscription'));
+        $elements['save'] = array(
+          '#type' => 'submit',
+          '#name' => 'save',
+          '#value' => t('Save subscription'),
+        );
         // no break
       case 'delete':
       case 'unsubscribe':
-        $elements['delete'] = array('#type' => 'submit', '#value' => t('Delete subscription'));
+        $elements['delete'] = array(
+          '#type' => 'submit',
+          '#name' => 'delete',
+          '#value' => t('Delete subscription'),
+        );
         break;
     }
-    $elements['cancel'] = array('#type' => 'submit', '#value' => t('Cancel'));
+    $elements['cancel'] = array(
+      '#type' => 'submit',
+      '#name' => 'cancel',
+      '#value' => t('Cancel'),
+    );
     return $elements;
   }
 
