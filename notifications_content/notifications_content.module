@@ -680,7 +680,7 @@ function notifications_content_node_load($nodes, $types) {
  */
 function notifications_content_node_insert($node) {
   if (!empty($node->status)) {
-    _trigger_node($node, 'node_publish');
+    _notifications_content_trigger_node($node);
   }
 }
 
@@ -690,6 +690,32 @@ function notifications_content_node_insert($node) {
 function notifications_content_node_update($node) {
   // Content that was previously published has been updated.
   if (!empty($node->status) && empty($node->notifications_status)) {
+    _notifications_content_trigger_node($node);
+  }
+}
+
+/**
+ * Stores nodes to process notifications later in notifications_content_exit().
+ */
+function _notifications_content_trigger_node($node = NULL) {
+  $nodes = &drupal_static(__FUNCTION__, array());
+  if (isset($node)) {
+    $nodes[$node->nid] = $node;
+  }
+  return $nodes;
+}
+
+/**
+ * Implements hook_exit().
+ *
+ * Send content notifications as late as possbile,
+ * node_access is not build properly hook_node_insert/hook_node_update.
+ *
+ * http://drupal.org/node/289211
+ * Drupal core issue: http://drupal.org/node/690520
+ */
+function notifications_content_exit($destination = NULL) {
+  foreach(_notifications_content_trigger_node() as $node) {
     _trigger_node($node, 'node_publish');
   }
 }
