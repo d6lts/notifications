@@ -469,7 +469,17 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
    * Produce a select table with all these subscriptions
    */
   function table_select() {
-    return array('#type' => 'tableselect') + $this->table_list();
+    $options = array();
+    foreach ($this->get_subscriptions() as $subscription) {
+      $options[$subscription->sid] = $this->subscription_fields($subscription);
+    }
+    $table = array(
+      '#type' => 'tableselect',
+      '#header' => $this->get_header(),
+      '#options' => $options,
+      '#empty' => t('No subscriptions available.'),
+    );
+    return $table;
   }
   /**
    * Produce simple table with all these subscriptions
@@ -479,12 +489,13 @@ class Notifications_Subscription_Table extends Notifications_Subscription_List {
     foreach ($this->get_subscriptions() as $subscription) {
       $options[$subscription->sid] = $this->subscription_fields($subscription);
     }
-    return array(
-      '#type' => 'table',
+    $table = array(
+      '#theme' => 'table',
       '#header' => $this->get_header(),
-      '#options' => $options,
+      '#rows' => $options,
       '#empty' => t('No subscriptions available.'),
     );
+    return $table;
   }
   /**
    * Fill in fields for a subscription
