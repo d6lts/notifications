@@ -339,18 +339,16 @@ function notifications_manage_subscriptions_filter_form($admin = FALSE) {
     else {
       $form['filters']['current'][] = array('#markup' => t('where %property is %value', $t_args));
     }
-    if (in_array($type, array('type', 'language'))) {
+    if (in_array($type, array('type', 'language', 'status'))) {
       // Remove the option if it is already being filtered on.
       unset($filters[$type]);
     }
   }
 
-
-
   $form['filters']['status'] = array(
     '#type' => 'container',
     '#attributes' => array('class' => array('clearfix')),
-    '#prefix' => ($i ? '<div class="additional-filters">' . t('and where') . '</div>' : ''),
+    '#prefix' => ($i > 0 && count($filters) > 0) ? '<div class="additional-filters">' . t('and where') . '</div>' : '',
   );
   $form['filters']['status']['filters'] = array(
     '#type' => 'container',
@@ -370,12 +368,13 @@ function notifications_manage_subscriptions_filter_form($admin = FALSE) {
     '#attributes' => array('class' => array('container-inline')),
   );
   $form['filters']['status']['actions']['submit'] = array(
+    '#name' => 'filter',
     '#type' => 'submit',
     '#value' => count($session) ? t('Refine') : t('Filter'),
   );
   if (count($session)) {
-    $form['filters']['status']['actions']['undo'] = array('#type' => 'submit', '#value' => t('Undo'));
-    $form['filters']['status']['actions']['reset'] = array('#type' => 'submit', '#value' => t('Reset'));
+    $form['filters']['status']['actions']['undo'] = array('#type' => 'submit', '#value' => t('Undo'), '#name' => 'undo');
+    $form['filters']['status']['actions']['reset'] = array('#type' => 'submit', '#value' => t('Reset'), '#name' => 'reset');
   }
 
   drupal_add_js('misc/form.js');
@@ -388,9 +387,10 @@ function notifications_manage_subscriptions_filter_form($admin = FALSE) {
  */
 function notifications_manage_subscriptions_filter_form_submit($form, &$form_state) {
   $filters = notifications_manage_subscriptions_filters();
-  switch ($form_state['values']['op']) {
-    case t('Filter'):
-    case t('Refine'):
+  $triggering_element = isset($form_state['triggering_element']['#name']) ? $form_state['triggering_element']['#name'] : '';
+  switch ($triggering_element) {
+    case 'filter':
+    case 'refine':
       // Apply every filter that has a choice selected other than 'any'.
       foreach ($filters as $filter => $options) {
         if (isset($form_state['values'][$filter]) && $form_state['values'][$filter] != '[any]') {
@@ -403,10 +403,10 @@ function notifications_manage_subscriptions_filter_form_submit($form, &$form_sta
         }
       }
       break;
-    case t('Undo'):
+    case 'undo':
       array_pop($_SESSION['subscriptions_overview_filter']);
       break;
-    case t('Reset'):
+    case 'reset':
       $_SESSION['subscriptions_overview_filter'] = array();
       break;
   }

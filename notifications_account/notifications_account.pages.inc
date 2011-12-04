@@ -76,6 +76,7 @@ function notifications_account_manage_subscriptions_form($form, &$form_state, $a
   $form['filters']['#title'] = t('Filter');
   // Display collapsed only when no filters set
   $form['filters'] += array('#collapsible' => TRUE, '#collapsed' => empty($_SESSION['subscriptions_overview_filter']));
+  $form['#submit'][] = 'notifications_manage_subscriptions_filter_form_submit';
   $form['#theme'] = 'notifications_manage_subscriptions_filter_form';
   $form['admin']  = notifications_manage_subscriptions_form(array('uid' => $account->uid));
 
