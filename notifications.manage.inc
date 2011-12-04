@@ -31,7 +31,7 @@ function notifications_manage_subscriptions_access($sids) {
  *   Filter conditions. I.e. for user administering its own subscriptions, we'll have an 'uid' condition
  */
 function notifications_manage_subscriptions_form($conditions = array()) {
-  $admin_access = user_access('administer notifications');
+  $admin_access = user_access('administer notifications') || user_access('manage all subscriptions') ||   user_access('maintain own subscriptions');
   // It is a user list if we have an uid parameter
   $account = !empty($conditions['uid']) ? user_load($conditions['uid']) : NULL;
   $status_list = Notifications_Subscription::status_list();
@@ -102,6 +102,8 @@ function notifications_manage_subscriptions_form_options($admin_access = FALSE) 
     '#title' => t('Update options'),
     '#prefix' => '<div class="container-inline">',
     '#suffix' => '</div>',
+    // if the current user is able to perform any operations hide the form element.
+    '#access' => $admin_access,
   );
   $options = array();
   foreach (notifications_manage_subscriptions_operations($admin_access) as $operation => $array) {
