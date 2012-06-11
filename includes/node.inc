@@ -77,7 +77,19 @@ function notifications_node_user_access($node, $account) {
 function notifications_node_autocomplete_title($string = '') {
   $matches = array();
 
-  foreach (_notifications_node_references($string) as $id => $row) {
+  $types = array();
+  if (module_exists('notifications_content')) {
+    // If notifications content module is enable, take into account the per-content type subscription
+    $node_types = node_get_types('names');
+
+    // For each of the content types, check if the "thread" subscription is enabled
+    foreach($node_types as $type => $name) {
+      if (notifications_content_type_enabled($type, 'thread')) {
+        $types[] = $type;
+      }
+    }
+  }
+  foreach (_notifications_node_references($string, 'containts', $types) as $id => $row) {
     // Add a class wrapper for a few required CSS overrides.
     $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
   }
@@ -111,7 +123,8 @@ function _notifications_node_references($string, $match = 'contains', $types = a
     'equals' => "= '%s'",
     'starts_with' => "LIKE '%s%%'",
   );
-  if ($types) {
+  
+  if (!empty($types)) {
     $where[] = 'n.type IN (' . db_placeholders($types, 'char') . ') ';
     $args = $types;
   }
