@@ -31,14 +31,6 @@ function notifications_autoload_info() {
 }
 
 /**
- * Implementation of hook_enable().
- */
-function notifications_enable() {
-  // Needed by autoload
-  cache_clear_all();
-}
-
-/**
  * Implementation of hook_menu().
  */
 function notifications_menu() {

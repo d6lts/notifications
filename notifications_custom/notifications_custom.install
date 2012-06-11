@@ -14,6 +14,15 @@ function notifications_custom_install() {
 }
 
 /**
+ * Implementation of hook_enable().
+ */
+function notifications_custom_enable() {
+  // On first enable we need to rebuild the autoload cache.
+  // See http://drupal.org/node/826050
+  autoload_flush_caches();
+}
+
+/**
  * Implementation of hook_uninstall().
  */
 function notifications_custom_uninstall() {
