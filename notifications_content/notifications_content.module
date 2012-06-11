@@ -925,7 +925,7 @@ function notifications_content_token_list($type = 'all') {
 function notifications_content_token_values($type, $object = NULL, $options = array()) {
   switch ($type) {
     case 'node':
-      if ($node = $object) {
+      if ($node = drupal_clone($object)) {
         $values['node-teaser'] = !empty($node->teaser) ? check_markup($node->teaser, $node->format, FALSE) : '';
         $values['node-body'] = !empty($node->body) ? check_markup($node->body, $node->format, FALSE) : '';
         $values['node-teaser-raw'] = !empty($node->teaser) ? $node->teaser : '';
