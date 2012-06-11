@@ -149,7 +149,7 @@ function notifications_lite_queue_event($event) {
       'sid' => 0,
       'module' => 'notifications',
       'eid' => $event->eid,
-      'send_interval' => notifications_user_setting('send_interval', $account),
+      'send_interval' => notifications_user_setting('send_interval', $account, 0),
       'send_method' => $send_method,
       'destination' => $destination->address,
       'cron' => 1,
