@@ -377,7 +377,7 @@ function notifications_custom_build_subscription($template) {
 function notifications_custom_get_subscription($type, $account, $return_template = FALSE) {
   if ($subscription = notifications_custom_build_subscription($type)) {
     $subscription->set_account($account);
-    return $subscription->get_instance(array('uid' => $account->uid), $return_template);
+    return $subscription->get_instance(array('uid' => $subscription->uid), $return_template);
   }
 }
 
