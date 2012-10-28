@@ -1084,7 +1084,9 @@ function notifications_subscription_type_enabled($type = NULL, $setvalue = NULL)
     $types = variable_get('notifications_subscription_types', array());
     // For types not set, we assume enabled
     $type_keys = array_keys(notifications_subscription_types());
-    $types += array_combine($type_keys, $type_keys);
+    // Workaround for array_combine() php bug when $type_keys is an empty array.
+    // @see http://bugs.php.net/bug.php?id=34857
+    $types += $type_keys === array() ? array() : array_combine($type_keys, $type_keys);
   }
   if (isset($setvalue)) {
     $types[$type] = $setvalue ? $type : 0;
