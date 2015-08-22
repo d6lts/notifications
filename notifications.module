@@ -1278,6 +1278,9 @@ function notifications_token_values($type, $object = NULL, $options = array()) {
         // We have a real user, so we produce full links
         $values['subscriptions-manage'] = url("user/$account->uid/notifications", array('absolute' => TRUE, 'language' => $language));
         $values['unsubscribe-url-global'] = notifications_build_url('unsubscribe', 'user', $account, array('language' => $language));
+        if (module_exists('realname')) {
+          $values['user-realname'] = $account->realname;
+        }
         return $values;
       }
       break;
@@ -1314,6 +1317,9 @@ function notifications_token_list($type = 'all') {
   if ($type == 'user' || $type == 'all') {
     $tokens['user']['subscriptions-manage']    = t('The url for the current user to manage subscriptions.');
     $tokens['user']['unsubscribe-url-global'] = t('The url to allow a user to delete all their subscriptions.');
+    if (module_exists('realname')) {
+      $tokens['user']['user-realname'] = t('The RealName of the recipient\'s user account.');
+    }
   }
   if ($type == 'subscription' || $type == 'all') {
     $tokens['subscription']['subscription-unsubscribe-url']  = t('The url for disabling a specific subscription.');
