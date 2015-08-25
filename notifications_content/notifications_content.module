@@ -47,7 +47,7 @@ function notifications_content_menu() {
     'access callback' => FALSE,
     'title' => t('Author'),
     'page callback' => 'notifications_content_page_author',
-    'pàge arguments' => array(1),
+    'page arguments' => array(1),
     'weight' => 10,
     'file' => 'notifications_content.pages.inc',
   );
