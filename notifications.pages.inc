@@ -392,19 +392,36 @@ function notifications_subscription_base_form($form_state, $subscription, $desti
     $form['notifications']['#type'] = 'fieldset';
     $form['notifications']['#description'] = t('How do you want to get notifications for this subscription.');
   }
-  // Status field, show blocked only to administrators
+  // Status field. Show 'blocked' only to administrators.
+  // Never show 'disabled' for enabled subscription type or 'active' for disabled subscription types;
+  // dis/enabling subscriptions should only be done per subscription type
   if ($subscription->is_instance()) {
     $save_fields[] = 'status';
     $status = Notifications_Subscription::status_list();
+    if (notifications_subscription_type_enabled($subscription->type)) {
+      unset($status[Notifications_Subscription::STATUS_DISABLED]);
+      // Regular description for inactive status.
+      $desc = t('You can temporarily deactivate this subscription for not getting notifications.');
+    }
+    else {
+      unset($status[Notifications_Subscription::STATUS_ACTIVE]);
+      // Alternative description for inactive status, to distinguish from disabled.
+      $desc = t("'inactive' subscriptions are under your control.")
+        . '<br/>' . t("'disabled' subscriptions are activated automatically when the '@type' subscription type is enabled by an administrator. (This type is currently disabled.)",
+          array('@type' => $subscription->get_title()));
+    }
     if (!user_access('administer notifications') && !user_access('manage all subscriptions')) {
       unset($status[Notifications_Subscription::STATUS_BLOCKED]);
+    }
+    else {
+      $desc .= '<br/>' . t("'blocked' subscriptions are activated automatically when your user status changes from blocked to active.");
     }
     $form['status'] = array(
       '#type' => 'radios',
       '#title' => t('Status'),
       '#options' => $status,
       '#default_value' => $subscription->status,
-      '#description' => t('You can temporarily disable this subscription for not getting notifications.')
+      '#description' => $desc,
     );
   }
   // Fields to be saved on submit. If error we just show the 'Cancel' button.
