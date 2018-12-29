@@ -431,7 +431,7 @@ class Notifications_Event extends Messaging_Cached_Object {
 
   // Delete event and all related rows
   public static function track_delete($event) {
-    unset($this->tracker[$event->eid]);
+    unset(self::$_event_tracker->tracker[$event->eid]);
     $event->delete();
   }
 
