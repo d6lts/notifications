@@ -2,3 +2,9 @@ name = "Notifications Lite"
 description = "Extra Simple Notifications API. Enable only when required by other modules."
 package = Notifications
 core = 6.x
+
+; Information added by Drupal 6 LTS vendors on 2018-12-29
+version = "6.x-4.0-beta8"
+core = "6.x"
+project = "notifications"
+datestamp = "1546063283"
