@@ -103,7 +103,7 @@ function notifications_menu() {
   );
   // Unsubscribe links This page will need to work with anonymous users
   $items['notifications/unsubscribe'] = array(
-    'type' => t('Unsubscribe'),
+    'type' => MENU_CALLBACK,
     'page callback' => 'notifications_page_unsubscribe',
     'access callback' => TRUE,
     'file' => 'notifications.pages.inc',
