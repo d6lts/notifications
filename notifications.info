@@ -5,3 +5,9 @@ dependencies[] = messaging
 dependencies[] = messaging_template
 core = 6.x
 php = 5.0
+
+; Information added by Drupal 6 LTS vendors on 2021-07-12
+version = "6.x-4.0-beta9"
+core = "6.x"
+project = "notifications"
+datestamp = "1626137413"
