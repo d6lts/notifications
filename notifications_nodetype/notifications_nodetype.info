@@ -3,8 +3,3 @@ description = Provides different events and templates for each content type
 package = "Notifications"
 dependencies[] = notifications_content
 core = 6.x
-; Information added by Drupal 6 LTS vendors on 2021-07-12
-version = "6.x-4.0-beta9"
-core = "6.x"
-project = "notifications"
-datestamp = "1626137413"
